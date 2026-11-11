@@ -1,6 +1,6 @@
 # PROCESO — Cómo construimos el juego
 
-> **Versión:** 0.1 · 2026-11-11
+> **Versión:** 0.3 · 2026-11-11 (verificación visual)
 > Relacionado: [GDD](../GDD.md) · [ROADMAP](../ROADMAP.md)
 
 Este documento define **cómo** trabajamos: ramas, ciclo de cada tarea, roles (humano y agentes), reglas de calidad y releases. Si el proceso no funciona, se cambia aquí primero.
@@ -35,9 +35,24 @@ Este documento define **cómo** trabajamos: ramas, ciclo de cada tarea, roles (h
 
 ### Nota técnica (Claude Code)
 - Los subagentes se definen en `.claude/agents/*.md`, con `model:` y las herramientas permitidas en su cabecera.
-- **El orquestador es la sesión principal** (ejecutada con Opus), porque un subagente no puede lanzar otros subagentes.
-- Cada Implementador trabaja en su propio **worktree** de Git para no pisar a los demás.
 - El Rompedor y el Revisor trabajan sobre la rama de la historia ya implementada.
+
+### Hilos (sesiones) y worktrees
+**Un hilo = un hito = un worktree.** Funciona como las ramas de Git:
+
+| Hilo | Qué hace | Dónde trabaja |
+|---|---|---|
+| **Principal** (Opus) | Orquesta el proyecto: planifica cada hito, propone las historias al humano, lanza el hilo del hito y resume sus avisos. Hace solo cambios pequeños de documentación | El checkout principal (`main`) |
+| **De hito** (Opus) | Orquestador del hito: crea `hito/MX-…`, el *milestone* y los issues, y ejecuta el ciclo de cada historia con los subagentes. Abre la PR hacia `main` sin integrarla | Su propio worktree, creado al lanzar la sesión |
+| **De tarea suelta** | Mantenimiento fuera del juego (p. ej. reparar un modelo de ComfyUI) | Sin worktree, o con uno propio si toca el repositorio |
+
+- El hilo principal lanza el de hito con un brief completo (historias aprobadas, criterios y este documento), porque el hilo nuevo no ve la conversación del principal.
+- **Protección de worktrees:** la app solo deja a una sesión, y a sus subagentes, editar archivos dentro de **su propio** worktree. Crear otro a mano con `git worktree add` para un subagente no funciona: sus ediciones se rechazan.
+- **Historias en secuencia** (por defecto): se trabajan una tras otra en el worktree del hito, cada una en su rama `feat/MX-…`.
+- **Historias en paralelo** (cuando no se pisan):
+  1. Preferido: lanzar el subagente Implementador con `isolation: "worktree"` en la herramienta `Agent`, que le da un worktree gestionado por la app.
+  2. Alternativa: lanzar cada historia como un hilo aparte desde el hilo del hito, cada una con su worktree.
+- **Si el hilo principal se queda sin contexto**, se resume solo y sigue recibiendo los avisos de los hilos que lanzó. Un hilo principal **nuevo** no recibe esos avisos: debe localizar los hilos activos (lista de sesiones vinculadas o búsqueda) antes de continuar.
 
 ---
 
@@ -141,6 +156,7 @@ Las historias se gestionan como **GitHub Issues**, con el *milestone* del hito y
 | Propiedades | Vitest + fast-check | Invariantes: el dinero nunca es negativo, no hay dos edificios en la misma casilla, guardar y cargar devuelve el mismo estado | Rompedor |
 | Simulación | Scripts sobre `core/` | Partidas automáticas de N días con acciones aleatorias; detecta bloqueos y desequilibrios | Rompedor |
 | Extremo a extremo | Playwright (escritorio y móvil emulado) | Flujos críticos: nueva partida, comprar, construir, guardar | Rompedor |
+| Visual | `npm run capturas` (escritorio, móvil horizontal y vertical) | Que se **vea** bien: nada cortado, solapado, ilegible ni descolocado; contraste; botones alcanzables con el dedo | Rompedor |
 | Manual | El humano | Diversión, sensaciones, móvil real | Humano |
 
 ### Reglas de arquitectura (las vigila el Revisor)
@@ -151,6 +167,19 @@ Las historias se gestionan como **GitHub Issues**, con el *milestone* del hito y
 
 ### CI (GitHub Actions), en cada PR
 `lint` → `typecheck` → `test` (unitarios + propiedades) → `build` → `e2e` (en las PR hacia el hito y hacia `main`) → despliegue de la vista previa (desde M7, en Vercel).
+
+### Verificación visual
+Los tests e2e comprueban que los elementos **existen**, no que se **vean** bien. Por eso, en toda historia que cambie lo que se ve:
+
+1. El **Rompedor** ejecuta `npm run capturas -- <rutas>` (p. ej. `/` y `/?semilla=42`), **mira** cada captura y revisa en las tres vistas:
+   - texto legible y sin solapes; nada cortado ni fuera de pantalla;
+   - en móvil: botones de al menos 44 px y nada que dependa de *hover*;
+   - coherencia con el GDD y con el estilo de arte (acuarela) cuando ya haya arte final.
+   Cada problema es un fallo con severidad (normalmente S3; S2 si impide jugar) y queda en su informe con el nombre de la captura.
+2. El **Orquestador** del hito comprueba las capturas finales y se las **envía al humano** junto con la PR del hito, para que vea el resultado antes de probarlo.
+3. El **humano** da el visto bueno final en su móvil real (demo del hito).
+
+Las capturas viven en `capturas/`, que no se versiona. Los tests de regresión visual automáticos (`toHaveScreenshot`) se añadirán cuando haya arte final en pantallas estables; con *placeholders* que cambian a menudo darían más ruido que ayuda.
 
 ### Definición de "hecho"
 La del [ROADMAP](../ROADMAP.md#principios).
