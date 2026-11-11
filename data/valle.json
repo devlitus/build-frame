@@ -1,0 +1,12 @@
+{
+  "parcelasPorLado": 6,
+  "casillasPorParcela": 16,
+  "pesosTerreno": { "prado": 5, "bosque": 3, "rocoso": 2 },
+  "pesosFertilidad": {
+    "prado": { "baja": 1, "media": 4, "alta": 4 },
+    "bosque": { "baja": 3, "media": 5, "alta": 2 },
+    "rocoso": { "baja": 7, "media": 3, "alta": 0.5 }
+  },
+  "pesosAguaSinRio": { "pozo": 2, "seca": 3 },
+  "probabilidadDesvioRio": 0.35
+}
