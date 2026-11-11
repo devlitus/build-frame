@@ -3,6 +3,8 @@
 // Requiere un build previo (el script npm lo hace). Deja los PNG en capturas/.
 import { chromium, devices } from '@playwright/test'
 import { spawn } from 'node:child_process'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 
 const PUERTO = 4175
@@ -14,10 +16,19 @@ const vistas = [
 ]
 
 mkdirSync('capturas', { recursive: true })
-const servidor = spawn(`npx vite preview --port ${PUERTO} --strictPort`, {
-  shell: true,
-  stdio: 'ignore',
-})
+// Se lanza Vite directamente con Node (sin shell) para poder cerrarlo de forma fiable,
+// también en Windows, donde matar el shell dejaba el servidor huérfano.
+const vite = join(
+  dirname(createRequire(import.meta.url).resolve('vite/package.json')),
+  'bin/vite.js',
+)
+const servidor = spawn(
+  process.execPath,
+  [vite, 'preview', '--port', String(PUERTO), '--strictPort'],
+  {
+    stdio: 'ignore',
+  },
+)
 
 try {
   await esperarServidor(`http://localhost:${PUERTO}/`)
@@ -38,9 +49,6 @@ try {
   await navegador.close()
 } finally {
   servidor.kill()
-  if (process.platform === 'win32' && servidor.pid) {
-    spawn('taskkill', ['/pid', String(servidor.pid), '/T', '/F'], { stdio: 'ignore' })
-  }
 }
 
 async function esperarServidor(url) {
