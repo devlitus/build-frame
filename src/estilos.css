@@ -1,0 +1,110 @@
+:root {
+  --verde-oscuro: #3f5d3a;
+  --crema: #f6ecd6;
+  --tierra: #8a5a3b;
+  --sombra: rgb(0 0 0 / 35%);
+  --tinta: #4a2f1c;
+  --halo: rgb(255 244 222 / 85%);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--verde-oscuro);
+  overscroll-behavior: none;
+  touch-action: none;
+  user-select: none;
+}
+
+#juego,
+#ui {
+  position: fixed;
+  inset: 0;
+}
+
+#ui {
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+.portada {
+  align-self: stretch;
+  justify-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  padding: max(16px, 7vh) 16px max(16px, 9vh);
+}
+
+.portada > * {
+  pointer-events: auto;
+}
+
+.portada hgroup {
+  color: var(--tinta);
+  text-shadow:
+    0 0 18px var(--halo),
+    0 0 4px var(--halo);
+}
+
+.portada h1 {
+  margin: 0;
+  font-size: clamp(3rem, 14vmin, 7rem);
+  letter-spacing: 0.04em;
+  font-weight: 800;
+  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+}
+
+.portada p {
+  margin: 0.25rem 0 0;
+  font-size: clamp(1rem, 4vmin, 1.4rem);
+  font-style: italic;
+}
+
+.boton {
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 700;
+  min-width: 12rem;
+  min-height: 48px;
+  padding: 0.75rem 1.5rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--crema);
+  color: var(--tierra);
+  box-shadow: 0 4px 12px var(--sombra);
+  cursor: pointer;
+}
+
+.boton:disabled {
+  opacity: 0.75;
+  cursor: default;
+}
+
+.version {
+  position: fixed;
+  right: 12px;
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  font-size: 0.75rem;
+  color: var(--crema);
+  opacity: 0.85;
+  text-shadow: 0 1px 3px var(--sombra);
+}
