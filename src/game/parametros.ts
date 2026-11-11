@@ -22,7 +22,9 @@ function semillaUint32(texto: string | null): number | undefined {
 export function leerParametros(busqueda: string): ParametrosUrl {
   const q = new URLSearchParams(busqueda)
   const semilla = semillaUint32(q.get('semilla'))
-  const debug = q.has('debug') && q.get('debug') !== 'false' && q.get('debug') !== '0'
+  // `?debug` se activa con cualquier valor (incluso vacío) salvo 0, false, off o no (sin distinguir mayúsculas).
+  const valorDebug = q.get('debug')?.trim().toLowerCase()
+  const debug = valorDebug !== undefined && !['0', 'false', 'off', 'no'].includes(valorDebug)
   const propias = debug
     ? [
         ...new Set(

@@ -20,15 +20,30 @@ export function tamanoMundoPx(valle: Valle): number {
   return valle.parcelasPorLado * valle.casillasPorParcela * TAM_CASILLA
 }
 
+/** Rectángulo del mundo (px) al que se limita el dibujo al hornear un trozo. */
+export interface Region {
+  readonly x: number
+  readonly y: number
+  readonly ancho: number
+  readonly alto: number
+}
+
+function cruza(r: Region | undefined, x: number, y: number, ancho: number, alto: number): boolean {
+  return !r || (x < r.x + r.ancho && x + ancho > r.x && y < r.y + r.alto && y + alto > r.y)
+}
+
+/** Con `region`, solo dibuja las parcelas y casillas que la tocan. */
 export function dibujarTerreno(
   escena: Phaser.Scene,
   valle: Valle,
   rio: readonly Casilla[],
+  region?: Region,
 ): Phaser.GameObjects.Graphics {
   const g = escena.add.graphics().setDepth(0)
   const c = valle.casillasPorParcela
   const lado = c * TAM_CASILLA
   for (const p of valle.parcelas) {
+    if (!cruza(region, p.columna * lado, p.fila * lado, lado, lado)) continue
     const color = COLOR_TERRENO[p.terreno]
     g.fillStyle(color.base)
     g.fillRect(p.columna * lado, p.fila * lado, lado, lado)
@@ -37,11 +52,13 @@ export function dibujarTerreno(
       for (let x = (y + 1) % 2; x < c; x += 2) {
         const px = (p.columna * c + x) * TAM_CASILLA
         const py = (p.fila * c + y) * TAM_CASILLA
+        if (!cruza(region, px, py, TAM_CASILLA, TAM_CASILLA)) continue
         g.fillRect(px, py, TAM_CASILLA, TAM_CASILLA)
       }
     }
   }
   for (const { x, y } of rio) {
+    if (!cruza(region, x * TAM_CASILLA, y * TAM_CASILLA, TAM_CASILLA, TAM_CASILLA)) continue
     g.fillStyle((x + y) % 2 === 0 ? COLOR_RIO.base : COLOR_RIO.alterno)
     g.fillRect(x * TAM_CASILLA, y * TAM_CASILLA, TAM_CASILLA, TAM_CASILLA)
   }
@@ -51,9 +68,12 @@ export function dibujarTerreno(
 export function dibujarDecoracion(
   escena: Phaser.Scene,
   decoracion: readonly Decoracion[],
+  region?: Region,
 ): Phaser.GameObjects.Graphics {
   const g = escena.add.graphics().setDepth(1)
   for (const d of decoracion) {
+    // Cada objeto cabe en su casilla (ver abajo), así que basta con comprobar la casilla.
+    if (!cruza(region, d.x * TAM_CASILLA, d.y * TAM_CASILLA, TAM_CASILLA, TAM_CASILLA)) continue
     const cx = d.x * TAM_CASILLA + TAM_CASILLA / 2
     const cy = d.y * TAM_CASILLA + TAM_CASILLA / 2
     if (d.tipo === 'arbol') {
