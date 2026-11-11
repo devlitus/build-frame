@@ -1,7 +1,7 @@
 # GDD — Documento de Diseño del Juego
 
 > **Título provisional:** *Raíces*
-> **Versión del documento:** 0.4 · 2026-11-11 (despliegue en Vercel a partir del MVP)
+> **Versión del documento:** 0.5 · 2026-11-11 (estilo de arte decidido: acuarela)
 > **Estado:** borrador vivo. Se actualiza en cada hito.
 
 ---
@@ -252,7 +252,7 @@ Objetivo: jugar **con amigos**, sin competencia agresiva. Se plantea por fases d
 ## 9. Arte y audio
 
 ### Estilo
-- 2D cenital 3/4, estilo *painted* o *pixel art* suave (se decide en el hito de prototipo de arte).
+- 2D cenital 3/4, estilo **acuarela pintada a mano** (*painted*), decidido el 2026-11-11 con la portada. Paleta cálida (verde salvia, ocre, terracota, crema) y textura de papel. Referencia: [ficha de la portada](assets-src/fichas/portada.md).
 - Casilla base: 32×32 px (provisional).
 
 ### Pipeline con ComfyUI y Blender
@@ -313,7 +313,6 @@ Materiales elaborados y escasos (el MVP solo usa madera y piedra), ruinas, plano
 ## 12. Preguntas abiertas
 
 - Título definitivo del juego y nombre del pueblo.
-- Estilo final: *pixel art* o *painted*.
 - ¿Hay una "meta" final (p. ej. una valoración al cabo de 3 años) o el juego es infinito?
 - ¿Se puede elegir el pasado del protagonista (con pequeñas bonificaciones)?
 - ¿Pesca o minería como actividades secundarias?

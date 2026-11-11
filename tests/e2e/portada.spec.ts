@@ -19,3 +19,9 @@ test('el manifiesto PWA es accesible', async ({ page, request }) => {
   const manifiesto = await res.json()
   expect(manifiesto.name).toBe('Raíces')
 })
+
+test('la ilustración de fondo se carga', async ({ page }) => {
+  const respuesta = page.waitForResponse((r) => /portada-\d+\.webp$/.test(r.url()))
+  await page.goto('./')
+  expect((await respuesta).ok()).toBe(true)
+})

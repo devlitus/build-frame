@@ -1,44 +1,43 @@
 import Phaser from 'phaser'
 
-/** Fondo placeholder de la portada: cielo, colinas y parcelas (sin arte final, ROADMAP). */
+const CLAVE_FONDO = 'portada-fondo'
+
+/**
+ * Punto de la ilustración que siempre queda visible al recortar (0–1).
+ * En vertical se centra en el sol, el río y el pueblo.
+ */
+const FOCO = { x: 0.55, y: 0.6 }
+
+/** Fondo ilustrado de la portada (ficha: assets-src/fichas/portada.md). */
 export class EscenaPortada extends Phaser.Scene {
+  private fondo?: Phaser.GameObjects.Image
+
   constructor() {
     super('portada')
   }
 
-  create(): void {
-    this.dibujar()
-    this.scale.on('resize', () => this.dibujar())
+  preload(): void {
+    const pixeles = Math.max(this.scale.width, this.scale.height) * window.devicePixelRatio
+    const ancho = pixeles > 1100 ? 1664 : 960
+    this.load.image(CLAVE_FONDO, `assets/portada/portada-${ancho}.webp`)
   }
 
-  private dibujar(): void {
-    this.children.removeAll(true)
+  create(): void {
+    this.fondo = this.add.image(0, 0, CLAVE_FONDO)
+    this.ajustar()
+    this.scale.on('resize', () => this.ajustar())
+    this.cameras.main.fadeIn(600, 63, 93, 58)
+  }
+
+  /** Escala tipo `object-fit: cover`, manteniendo el foco a la vista. */
+  private ajustar(): void {
+    if (!this.fondo) return
     const { width: an, height: al } = this.scale
-    const g = this.add.graphics()
-
-    g.fillGradientStyle(0xf7c98b, 0xf7c98b, 0x9fd3e6, 0x9fd3e6, 1)
-    g.fillRect(0, 0, an, al * 0.6)
-
-    g.fillStyle(0x7fa86a)
-    g.fillEllipse(an * 0.2, al * 0.62, an * 0.9, al * 0.35)
-    g.fillStyle(0x6b9a58)
-    g.fillEllipse(an * 0.85, al * 0.64, an * 0.9, al * 0.3)
-
-    g.fillStyle(0x5c8a4a)
-    g.fillRect(0, al * 0.6, an, al * 0.4)
-
-    // Cuadrícula de parcelas en perspectiva suave.
-    const filas = 4
-    const columnas = 8
-    for (let f = 0; f < filas; f++) {
-      const y0 = al * (0.62 + f * 0.095)
-      const alto = al * 0.085
-      for (let c = 0; c < columnas; c++) {
-        const ancho = an / columnas
-        const color = (f + c) % 3 === 0 ? 0x8a5a3b : (f + c) % 3 === 1 ? 0x6fa04f : 0x86b35c
-        g.fillStyle(color, 0.9)
-        g.fillRect(c * ancho + 3, y0, ancho - 6, alto)
-      }
-    }
+    const escala = Math.max(an / this.fondo.width, al / this.fondo.height)
+    const anchoImg = this.fondo.width * escala
+    const altoImg = this.fondo.height * escala
+    const x = Phaser.Math.Clamp(an / 2 - (FOCO.x - 0.5) * anchoImg, an - anchoImg / 2, anchoImg / 2)
+    const y = Phaser.Math.Clamp(al / 2 - (FOCO.y - 0.5) * altoImg, al - altoImg / 2, altoImg / 2)
+    this.fondo.setScale(escala).setPosition(x, y)
   }
 }
