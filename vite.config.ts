@@ -12,7 +12,7 @@ function commitCorto(): string {
 }
 
 export default defineConfig({
-  // Rutas relativas: funciona igual en GitHub Pages (/repo/) que en Netlify (/).
+  // Rutas relativas: el build funciona en la raíz (Vercel) o en cualquier subruta.
   base: './',
   plugins: [preact()],
   define: { __VERSION__: JSON.stringify(`${pkg.version}+${commitCorto()}`) },

@@ -1,18 +1,18 @@
 # ROADMAP
 
-> **Versión:** 0.1 · 2026-11-11
+> **Versión:** 0.2 · 2026-11-11 (despliegue en Vercel a partir de M7)
 > Referencia de diseño: [GDD.md](GDD.md)
 
 ## Principios
 
-- **Incremental:** cada hito termina en algo **jugable y desplegado**.
+- **Incremental:** cada hito termina en algo **jugable** (desplegado a partir de M7).
 - **Vertical:** mejor un sistema pequeño completo (lógica + render + UI + tests) que muchos a medias.
 - **Primero los *placeholders*:** el arte final nunca bloquea un hito.
 - **Definición de "hecho" (DoD)**, válida para todos los hitos:
   1. Los criterios de aceptación del hito se cumplen.
   2. La lógica del núcleo tiene tests en verde y la CI pasa (lint, tipos, tests y build).
   3. Se juega en navegador de escritorio **y** en móvil.
-  4. Está desplegado en la URL de pruebas.
+  4. Hasta M6: se juega con `npm run preview` en local (PC y móvil por la red local). Desde M7: está desplegado en la URL de pruebas (Vercel).
   5. GDD/ROADMAP/ADRs están actualizados si algo cambió.
 
 ## Visión general
@@ -29,15 +29,15 @@ Transversal              Arte, audio, rendimiento, accesibilidad
 ## Fase 1 · MVP
 
 ### M0 — Cimientos
-**Objetivo:** el proyecto existe, se construye, se testea y se despliega solo.
+**Objetivo:** el proyecto existe, se construye y se testea solo.
 - Repositorio Git, estructura de carpetas (`core/`, `game/`, `ui/`, `data/`, `save/`).
 - Vite + TypeScript estricto + Phaser 3 + Preact.
 - ESLint, Prettier, Vitest y Playwright configurados.
-- CI en GitHub Actions: lint → tipos → tests → build → despliegue.
+- CI en GitHub Actions: lint → formato → tipos → tests → build → e2e (el despliegue llega en M7).
 - Manifiesto PWA básico.
 - ADRs iniciales: motor, perspectiva, arquitectura del núcleo por comandos.
 
-**Aceptación:** al hacer *push* a `main` se publica una pantalla con el título del juego, visible en móvil.
+**Aceptación:** la CI pasa en verde en GitHub y la pantalla con el título del juego se ve en PC y móvil (`npm run preview`).
 
 ### M1 — El valle
 **Objetivo:** ver y recorrer el terreno.
@@ -106,6 +106,7 @@ Transversal              Arte, audio, rendimiento, accesibilidad
 - Primeros objetivos del diario como tutorial.
 - Audio básico (música y efectos clave).
 - Primer pase de arte (estilo decidido; ver *Transversal*).
+- Despliegue en **Vercel** (URL estable desde `main` y vistas previas por PR).
 - Formulario o canal para recoger *feedback*.
 
 **Aceptación:** 3+ amigos juegan una sesión completa en PC o móvil sin ayuda y se recoge su *feedback*.

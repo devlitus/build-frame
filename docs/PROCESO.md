@@ -83,7 +83,7 @@ docs(gdd): añadir sección de recursos
 2. Rama             crea hito/MX-nombre desde main
 3. Historias        ciclo de la sección 4, varias en paralelo si no se pisan
 4. Estabilización   Rompedor hace una pasada global del hito; se corrigen los fallos
-5. Demo             humano juega en la URL de pruebas del hito (PC y móvil)
+5. Demo             humano juega el hito (PC y móvil): en local hasta M6, en la URL de pruebas desde M7
 6. Release          humano aprueba → PR hito → main → etiqueta → despliegue
 7. Retrospectiva    qué funcionó y qué no; se ajusta este documento
 ```
@@ -150,7 +150,7 @@ Las historias se gestionan como **GitHub Issues**, con el *milestone* del hito y
 - Los números mágicos de balance van en datos, no en el código.
 
 ### CI (GitHub Actions), en cada PR
-`lint` → `typecheck` → `test` (unitarios + propiedades) → `build` → `e2e` (en las PR hacia el hito y hacia `main`) → despliegue de la vista previa.
+`lint` → `typecheck` → `test` (unitarios + propiedades) → `build` → `e2e` (en las PR hacia el hito y hacia `main`) → despliegue de la vista previa (desde M7, en Vercel).
 
 ### Definición de "hecho"
 La del [ROADMAP](../ROADMAP.md#principios).
@@ -192,7 +192,7 @@ El Orquestador las propone y el humano acepta las que afectan al diseño.
 
 ## 9. Releases para amigos
 
-- Cada release en `main` se publica en la URL estable; cada hito tiene su URL de vista previa.
+- A partir del MVP (M7), cada release en `main` se publica en la URL estable de Vercel y cada PR tiene su URL de vista previa.
 - Notas de la versión (generadas por el Asistente): novedades, problemas conocidos y qué probar.
 - Canal de *feedback* sencillo (formulario o grupo); el Orquestador lo resume en issues etiquetados como `feedback`.
 

@@ -1,7 +1,7 @@
 # GDD — Documento de Diseño del Juego
 
 > **Título provisional:** *Raíces*
-> **Versión del documento:** 0.3 · 2026-11-11 (añadidos 6.5 Recursos y materiales y 10.1 Datos y guardado)
+> **Versión del documento:** 0.4 · 2026-11-11 (despliegue en Vercel a partir del MVP)
 > **Estado:** borrador vivo. Se actualiza en cada hito.
 
 ---
@@ -287,7 +287,7 @@ Objetivo: jugar **con amigos**, sin competencia agresiva. Se plantea por fases d
 | Datos | Contenido en JSON validado con esquemas |
 | Guardado | IndexedDB local → nube en la fase online |
 | Online (futuro) | Por decidir (p. ej. Supabase para la nube y lo social; Colyseus para el tiempo real) |
-| Despliegue | GitHub Pages o Netlify + GitHub Actions, como PWA |
+| Despliegue | Vercel como PWA, a partir del MVP (M7); hasta entonces solo CI en GitHub Actions ([ADR 0005](docs/adr/0005-despliegue.md)) |
 
 Las decisiones técnicas relevantes se registran como ADRs en `docs/adr/`.
 
