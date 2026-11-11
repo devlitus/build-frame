@@ -1,6 +1,6 @@
 # PROCESO — Cómo construimos el juego
 
-> **Versión:** 0.3 · 2026-11-11 (verificación visual)
+> **Versión:** 0.4 · 2026-11-11 (integraciones menores sin aprobación)
 > Relacionado: [GDD](../GDD.md) · [ROADMAP](../ROADMAP.md)
 
 Este documento define **cómo** trabajamos: ramas, ciclo de cada tarea, roles (humano y agentes), reglas de calidad y releases. Si el proceso no funciona, se cambia aquí primero.
@@ -11,7 +11,7 @@ Este documento define **cómo** trabajamos: ramas, ciclo de cada tarea, roles (h
 
 ### Humano: **Product Owner** (tú)
 - Dueño de la visión: aprueba cambios en el GDD y en las prioridades del ROADMAP.
-- Aprueba la **integración de cada hito en `main`** (release).
+- Aprueba la **integración de cada hito en `main`** (release). Es lo único que integra con su visto bueno: las PR menores las decide el Orquestador (ver §2).
 - Juega cada hito y da *feedback*; decide en los empates de diseño.
 - Lleva el pipeline de arte (ComfyUI, Blender) con ayuda de los agentes.
 
@@ -19,7 +19,7 @@ Este documento define **cómo** trabajamos: ramas, ciclo de cada tarea, roles (h
 
 | Agente | Modelo | Responsabilidad | Puede | No puede |
 |---|---|---|---|---|
-| **Orquestador** | **Opus** | Planifica el hito, divide en historias, asigna trabajo, integra resultados, mantiene la coherencia con el GDD y los ADRs, informa al humano | Leer todo, crear ramas, abrir y integrar PRs en la rama del hito, editar docs | Integrar en `main` sin aprobación humana; cambiar el GDD sin aprobación |
+| **Orquestador** | **Opus** | Planifica el hito, divide en historias, asigna trabajo, integra resultados, mantiene la coherencia con el GDD y los ADRs, informa al humano | Leer todo, crear ramas, abrir y integrar PRs en la rama del hito, editar docs, integrar en `main` PRs menores con la CI en verde | Integrar un **hito** en `main` sin aprobación humana; cambiar el GDD sin aprobación |
 | **Implementador** | **Sonnet** | Escribe el código de una historia y sus tests unitarios | Editar `src/`, `tests/`, `data/` dentro de su rama | Borrar, saltar ni debilitar tests del Rompedor; tocar otras historias |
 | **Rompedor** | **Sonnet** (por defecto) · **Opus** para sistemas críticos | Busca fallos: casos límite, tests de propiedades, partidas simuladas, pruebas de interfaz en móvil | Escribir en `tests/` e informes; ejecutar el juego | Modificar `src/` (no arregla, solo demuestra el fallo) |
 | **Revisor** | **Opus** | Revisa arquitectura, legibilidad, rendimiento y cumplimiento del GDD | Comentar, aprobar o pedir cambios | Escribir funcionalidades |
@@ -73,10 +73,14 @@ main                              ← estable, desplegada, solo releases aprobad
 | `feat/MX-nombre` | `hito/MX-…` | `hito/MX-…` | Orquestador, tras la revisión y la CI en verde |
 | `fix/MX-nombre` | `hito/MX-…` | `hito/MX-…` | Orquestador |
 | `hotfix/nombre` | `main` | `main` y la rama de hito activa | Orquestador, con aviso al humano |
+| `docs/…`, `fix/…` (fuera de un hito) | `main` | `main` | Orquestador, sin aprobación (CI en verde) |
 | `arte/nombre` | `hito/MX-…` | `hito/MX-…` | Orquestador |
 
 - **Un hito activo a la vez** (como máximo, un segundo en preparación).
 - `main` está protegida: solo se integra por PR y con la CI en verde.
+- **Quién decide cada integración en `main`:**
+  - **Hito** (`hito/MX-…` → `main`): el humano, tras la demo o prueba manual del hito.
+  - **PR menores** (documentación, proceso, herramientas, scripts, `hotfix/`): el Orquestador, sin preguntar, con la CI en verde. Las integra con *squash*, borra la rama e informa en una línea.
 - **Versiones** con SemVer: `v0.1.0` = MVP. Cada hito integrado en `main` lleva su etiqueta (`v0.1.0-m3`, etc.).
 - Al integrar una rama de historia en la del hito se hace *squash*: un commit por historia.
 
@@ -232,6 +236,6 @@ El Orquestador las propone y el humano acepta las que afectan al diseño.
 El Orquestador **para y pregunta** cuando:
 - Una historia obliga a cambiar el GDD o un ADR aceptado.
 - Hay que elegir entre dos opciones de diseño con impacto en la jugabilidad.
-- Se va a integrar en `main`, borrar ramas con trabajo o hacer algo irreversible.
+- Se va a integrar un **hito** en `main`, borrar ramas con trabajo sin integrar o hacer algo irreversible.
 - Una historia supera el límite de iteraciones.
 - Aparece un coste nuevo (servicio de pago, dependencia con licencia restrictiva).
