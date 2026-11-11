@@ -1,6 +1,6 @@
 # PROCESO — Cómo construimos el juego
 
-> **Versión:** 0.2 · 2026-11-11 (hilos por hito y worktrees)
+> **Versión:** 0.3 · 2026-11-11 (verificación visual)
 > Relacionado: [GDD](../GDD.md) · [ROADMAP](../ROADMAP.md)
 
 Este documento define **cómo** trabajamos: ramas, ciclo de cada tarea, roles (humano y agentes), reglas de calidad y releases. Si el proceso no funciona, se cambia aquí primero.
@@ -156,6 +156,7 @@ Las historias se gestionan como **GitHub Issues**, con el *milestone* del hito y
 | Propiedades | Vitest + fast-check | Invariantes: el dinero nunca es negativo, no hay dos edificios en la misma casilla, guardar y cargar devuelve el mismo estado | Rompedor |
 | Simulación | Scripts sobre `core/` | Partidas automáticas de N días con acciones aleatorias; detecta bloqueos y desequilibrios | Rompedor |
 | Extremo a extremo | Playwright (escritorio y móvil emulado) | Flujos críticos: nueva partida, comprar, construir, guardar | Rompedor |
+| Visual | `npm run capturas` (escritorio, móvil horizontal y vertical) | Que se **vea** bien: nada cortado, solapado, ilegible ni descolocado; contraste; botones alcanzables con el dedo | Rompedor |
 | Manual | El humano | Diversión, sensaciones, móvil real | Humano |
 
 ### Reglas de arquitectura (las vigila el Revisor)
@@ -166,6 +167,19 @@ Las historias se gestionan como **GitHub Issues**, con el *milestone* del hito y
 
 ### CI (GitHub Actions), en cada PR
 `lint` → `typecheck` → `test` (unitarios + propiedades) → `build` → `e2e` (en las PR hacia el hito y hacia `main`) → despliegue de la vista previa (desde M7, en Vercel).
+
+### Verificación visual
+Los tests e2e comprueban que los elementos **existen**, no que se **vean** bien. Por eso, en toda historia que cambie lo que se ve:
+
+1. El **Rompedor** ejecuta `npm run capturas -- <rutas>` (p. ej. `/` y `/?semilla=42`), **mira** cada captura y revisa en las tres vistas:
+   - texto legible y sin solapes; nada cortado ni fuera de pantalla;
+   - en móvil: botones de al menos 44 px y nada que dependa de *hover*;
+   - coherencia con el GDD y con el estilo de arte (acuarela) cuando ya haya arte final.
+   Cada problema es un fallo con severidad (normalmente S3; S2 si impide jugar) y queda en su informe con el nombre de la captura.
+2. El **Orquestador** del hito comprueba las capturas finales y se las **envía al humano** junto con la PR del hito, para que vea el resultado antes de probarlo.
+3. El **humano** da el visto bueno final en su móvil real (demo del hito).
+
+Las capturas viven en `capturas/`, que no se versiona. Los tests de regresión visual automáticos (`toHaveScreenshot`) se añadirán cuando haya arte final en pantallas estables; con *placeholders* que cambian a menudo darían más ruido que ayuda.
 
 ### Definición de "hecho"
 La del [ROADMAP](../ROADMAP.md#principios).
