@@ -81,7 +81,7 @@ describe('río y decoración en muchas semillas', () => {
       }),
       { numRuns: 300 },
     )
-  })
+  }, 20_000) // Ajuste del orquestador: ~3 s en solitario; con carga superaba los 5 s por defecto.
 })
 
 describe('geometría del dibujo', () => {

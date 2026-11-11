@@ -1,0 +1,122 @@
+import Phaser from 'phaser'
+import { CONFIG_CAMARA, limitesZoom, zoomInicial } from './config'
+import {
+  factorPellizco,
+  limitarVista,
+  limitarZoom,
+  medirDedos,
+  transformar,
+  type Pantalla,
+  type Punto,
+  type Vista,
+} from './matematica'
+
+interface Medida {
+  readonly ids: readonly number[]
+  readonly medio: Punto
+  readonly distancia: number
+}
+
+/**
+ * Cámara del valle: arrastre con un puntero, pellizco con dos y rueda del ratón.
+ * Todo el cálculo está en `matematica.ts`; aquí solo se leen los punteros y se aplica.
+ */
+export class ControlCamara {
+  private previa: Medida | undefined = undefined
+  /** Última vista aplicada: al redimensionar se conserva su centro. */
+  private actual: Vista = { zoom: 1, cx: 0, cy: 0 }
+
+  constructor(
+    private readonly escena: Phaser.Scene,
+    private readonly mundoPx: number,
+  ) {
+    const input = escena.input
+    input.on('pointerdown', this.alCambiar, this)
+    input.on('pointermove', this.alCambiar, this)
+    input.on('pointerup', this.alCambiar, this)
+    input.on('pointerupoutside', this.alCambiar, this)
+    input.on('wheel', this.alRueda, this)
+    escena.scale.on('resize', this.alRedimensionar, this)
+    escena.events.once('shutdown', this.destruir, this)
+    this.aplicar({
+      zoom: zoomInicial(this.pantalla, this.mundoPx),
+      cx: this.mundoPx / 2,
+      cy: this.mundoPx / 2,
+    })
+  }
+
+  private get pantalla(): Pantalla {
+    return { ancho: this.escena.scale.width, alto: this.escena.scale.height }
+  }
+
+  private aplicar(v: Vista): void {
+    if (this.pantalla.ancho <= 0 || this.pantalla.alto <= 0) return
+    const cam = this.escena.cameras.main
+    const l = limitarVista(v, this.pantalla, this.mundoPx)
+    cam.setZoom(l.zoom)
+    cam.setScroll(l.cx - cam.width / 2, l.cy - cam.height / 2)
+    this.actual = l
+  }
+
+  private medir(): Medida | undefined {
+    const activos = this.escena.input.manager.pointers
+      .filter((p) => p.isDown && (p.wasTouch || p.leftButtonDown()))
+      .slice(0, 2)
+    const [a, b] = activos
+    if (!a) return undefined
+    const ids = activos.map((p) => p.id)
+    if (!b) return { ids, medio: { x: a.x, y: a.y }, distancia: 0 }
+    return { ids, ...medirDedos(a, b) }
+  }
+
+  /** Cualquier evento de puntero: si el conjunto de dedos no cambió aplica el gesto; si no, solo rebasa (sin saltos). */
+  private alCambiar(): void {
+    const ahora = this.medir()
+    if (!ahora && !this.previa) return // ratón que solo pasa por encima
+    const antes = this.previa
+    this.previa = ahora
+    if (!ahora || !antes) return
+    if (ahora.ids.length !== antes.ids.length || ahora.ids.some((id, i) => id !== antes.ids[i]))
+      return
+    const factor = ahora.ids.length === 2 ? factorPellizco(antes, ahora) : 1
+    this.mover(antes.medio, ahora.medio, factor)
+  }
+
+  private alRueda(pointer: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number): void {
+    const p = { x: pointer.x, y: pointer.y }
+    // deltaMode 1 = líneas (Firefox), 2 = páginas.
+    const modo = pointer.event instanceof WheelEvent ? pointer.event.deltaMode : 0
+    const px = modo === 1 ? dy * 16 : modo === 2 ? dy * this.pantalla.alto : dy
+    this.mover(p, p, Math.exp(-px * CONFIG_CAMARA.sensibilidadRueda))
+  }
+
+  private mover(desde: Punto, hasta: Punto, factor: number): void {
+    const pantalla = this.pantalla
+    this.aplicar(
+      transformar(
+        this.actual,
+        pantalla,
+        desde,
+        hasta,
+        factor,
+        limitesZoom(pantalla, this.mundoPx),
+        this.mundoPx,
+      ),
+    )
+  }
+
+  private alRedimensionar(): void {
+    const v = this.actual
+    this.aplicar({ ...v, zoom: limitarZoom(v.zoom, limitesZoom(this.pantalla, this.mundoPx)) })
+  }
+
+  private destruir(): void {
+    const input = this.escena.input
+    input.off('pointerdown', this.alCambiar, this)
+    input.off('pointermove', this.alCambiar, this)
+    input.off('pointerup', this.alCambiar, this)
+    input.off('pointerupoutside', this.alCambiar, this)
+    input.off('wheel', this.alRueda, this)
+    this.escena.scale.off('resize', this.alRedimensionar, this)
+  }
+}

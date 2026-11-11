@@ -22,6 +22,7 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
   const g = new Phaser.Game({
     type: Phaser.AUTO,
     parent: padre,
+    input: { activePointers: 2 }, // ratón + 2 dedos
     backgroundColor: '#3f5d3a',
     scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
   })
@@ -39,6 +40,18 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
     mundoPx: () => {
       const e = g.scene.getScene('valle')
       return e instanceof EscenaValle && e.estado ? e.mundoPx : undefined
+    },
+    camara: () => {
+      const e = g.scene.getScene('valle')
+      if (!(e instanceof EscenaValle) || !e.estado) return undefined
+      const c = e.cameras.main
+      return {
+        zoom: c.zoom,
+        scrollX: c.scrollX,
+        scrollY: c.scrollY,
+        ancho: c.width,
+        alto: c.height,
+      }
     },
   }
   return g

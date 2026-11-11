@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { crearEstadoInicial, type EstadoJuego } from '../../core'
+import { ControlCamara } from '../camara/controlCamara'
 import { decorarValle } from '../valle/decoracion'
 import { marcarPropias } from '../valle/debug'
 import { dibujarDecoracion, dibujarParcelas, dibujarTerreno, tamanoMundoPx } from '../valle/dibujar'
@@ -55,16 +56,6 @@ export class EscenaValle extends Phaser.Scene {
 
     // Accesibilidad: el foco pasa al contenedor del lienzo al entrar en el valle.
     this.game.canvas.parentElement?.focus({ preventScroll: true })
-    this.encuadrar()
-    this.scale.on('resize', this.encuadrar, this)
-    this.events.once('shutdown', () => this.scale.off('resize', this.encuadrar, this))
-  }
-
-  /** Cámara inicial: el valle entero centrado (los controles llegan en M1-03). */
-  private encuadrar(): void {
-    const mundo = this.mundoPx
-    const cam = this.cameras.main
-    cam.setZoom(Math.min(this.scale.width / mundo, this.scale.height / mundo) * 0.95)
-    cam.centerOn(mundo / 2, mundo / 2)
+    new ControlCamara(this, this.mundoPx)
   }
 }
