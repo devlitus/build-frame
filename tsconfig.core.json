@@ -1,0 +1,10 @@
+{
+  "//": "El núcleo es lógica pura: sin DOM, sin navegador, sin Phaser (ver ADR 0004).",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": []
+  },
+  "include": ["src/core"],
+  "exclude": ["src/core/**/*.test.ts"]
+}
