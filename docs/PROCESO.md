@@ -1,6 +1,6 @@
 # PROCESO — Cómo construimos el juego
 
-> **Versión:** 0.1 · 2026-11-11
+> **Versión:** 0.2 · 2026-11-11 (hilos por hito y worktrees)
 > Relacionado: [GDD](../GDD.md) · [ROADMAP](../ROADMAP.md)
 
 Este documento define **cómo** trabajamos: ramas, ciclo de cada tarea, roles (humano y agentes), reglas de calidad y releases. Si el proceso no funciona, se cambia aquí primero.
@@ -35,9 +35,24 @@ Este documento define **cómo** trabajamos: ramas, ciclo de cada tarea, roles (h
 
 ### Nota técnica (Claude Code)
 - Los subagentes se definen en `.claude/agents/*.md`, con `model:` y las herramientas permitidas en su cabecera.
-- **El orquestador es la sesión principal** (ejecutada con Opus), porque un subagente no puede lanzar otros subagentes.
-- Cada Implementador trabaja en su propio **worktree** de Git para no pisar a los demás.
 - El Rompedor y el Revisor trabajan sobre la rama de la historia ya implementada.
+
+### Hilos (sesiones) y worktrees
+**Un hilo = un hito = un worktree.** Funciona como las ramas de Git:
+
+| Hilo | Qué hace | Dónde trabaja |
+|---|---|---|
+| **Principal** (Opus) | Orquesta el proyecto: planifica cada hito, propone las historias al humano, lanza el hilo del hito y resume sus avisos. Hace solo cambios pequeños de documentación | El checkout principal (`main`) |
+| **De hito** (Opus) | Orquestador del hito: crea `hito/MX-…`, el *milestone* y los issues, y ejecuta el ciclo de cada historia con los subagentes. Abre la PR hacia `main` sin integrarla | Su propio worktree, creado al lanzar la sesión |
+| **De tarea suelta** | Mantenimiento fuera del juego (p. ej. reparar un modelo de ComfyUI) | Sin worktree, o con uno propio si toca el repositorio |
+
+- El hilo principal lanza el de hito con un brief completo (historias aprobadas, criterios y este documento), porque el hilo nuevo no ve la conversación del principal.
+- **Protección de worktrees:** la app solo deja a una sesión, y a sus subagentes, editar archivos dentro de **su propio** worktree. Crear otro a mano con `git worktree add` para un subagente no funciona: sus ediciones se rechazan.
+- **Historias en secuencia** (por defecto): se trabajan una tras otra en el worktree del hito, cada una en su rama `feat/MX-…`.
+- **Historias en paralelo** (cuando no se pisan):
+  1. Preferido: lanzar el subagente Implementador con `isolation: "worktree"` en la herramienta `Agent`, que le da un worktree gestionado por la app.
+  2. Alternativa: lanzar cada historia como un hilo aparte desde el hilo del hito, cada una con su worktree.
+- **Si el hilo principal se queda sin contexto**, se resume solo y sigue recibiendo los avisos de los hilos que lanzó. Un hilo principal **nuevo** no recibe esos avisos: debe localizar los hilos activos (lista de sesiones vinculadas o búsqueda) antes de continuar.
 
 ---
 
