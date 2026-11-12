@@ -44,18 +44,46 @@ export function zoomEncuadrado(pantalla: Pantalla, mundo: number): number {
   return Math.max(ZOOM_EPSILON, Math.min(pantalla.ancho, pantalla.alto) / mundo)
 }
 
-function limitarEje(centro: number, pantalla: number, zoom: number, mundo: number): number {
-  const visible = pantalla / zoom
-  if (visible >= mundo) return mundo / 2
-  return Math.min(mundo - visible / 2, Math.max(visible / 2, centro))
+/**
+ * Extensión opcional por eje: un centro objetivo (px del mundo) que amplía el rango permitido
+ * del centro hasta incluirlo, aunque quede fuera de los límites normales del valle.
+ */
+export interface Extension {
+  readonly x?: number
+  readonly y?: number
 }
 
-/** Mantiene la vista dentro del mundo; si el mundo cabe en un eje, lo centra en él. */
-export function limitarVista(v: Vista, pantalla: Pantalla, mundo: number): Vista {
+export function limitarEje(
+  centro: number,
+  pantalla: number,
+  zoom: number,
+  mundo: number,
+  extension?: number,
+): number {
+  const visible = pantalla / zoom
+  let lo = visible >= mundo ? mundo / 2 : visible / 2
+  let hi = visible >= mundo ? mundo / 2 : mundo - visible / 2
+  if (extension !== undefined) {
+    lo = Math.min(lo, extension)
+    hi = Math.max(hi, extension)
+  }
+  return Math.min(hi, Math.max(lo, centro))
+}
+
+/**
+ * Mantiene la vista dentro del mundo; si el mundo cabe en un eje, lo centra en él. Con
+ * `extension` el rango del centro se amplía para incluir ese objetivo.
+ */
+export function limitarVista(
+  v: Vista,
+  pantalla: Pantalla,
+  mundo: number,
+  extension?: Extension,
+): Vista {
   return {
     zoom: v.zoom,
-    cx: limitarEje(v.cx, pantalla.ancho, v.zoom, mundo),
-    cy: limitarEje(v.cy, pantalla.alto, v.zoom, mundo),
+    cx: limitarEje(v.cx, pantalla.ancho, v.zoom, mundo, extension?.x),
+    cy: limitarEje(v.cy, pantalla.alto, v.zoom, mundo, extension?.y),
   }
 }
 

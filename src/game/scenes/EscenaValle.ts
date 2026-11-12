@@ -11,7 +11,7 @@ import {
 } from '../../core'
 import { CONFIG_CAMARA } from '../camara/config'
 import { ControlCamara } from '../camara/controlCamara'
-import { marcarPropias } from '../valle/debug'
+import { conPropiasDeDepuracion } from '../valle/debug'
 import {
   dibujarDecoracion,
   dibujarParcelas,
@@ -19,6 +19,7 @@ import {
   dibujarTerreno,
   tamanoMundoPx,
 } from '../valle/dibujar'
+import { medirReservasHud } from '../areaHud'
 import { areaLibre, centroParaVer, parcelaEnPunto, puntoDeToque, rectParcela } from '../picking'
 import { SelectorParcela } from '../selectorParcela'
 import { hornearCapaBase } from '../valle/hornear'
@@ -167,6 +168,8 @@ export class EscenaValle extends Phaser.Scene {
         },
       }
     }
+    // Solo depuración: las propias entran en el estado (panel, precio) antes de cambiar de modo.
+    if (this.propias.length > 0) inicial = conPropiasDeDepuracion(inicial, this.propias)
     inicial = aplicarComando(inicial, { tipo: 'CambiarModo', modo: this.modoInicial }).estado
     // La misma instancia de Partida: los suscriptores (HUD) siguen suscritos tras un reinicio.
     const partida = this.partidaCompartida()
@@ -175,8 +178,7 @@ export class EscenaValle extends Phaser.Scene {
     const valle = inicial.valle
     const rio = casillasRio(valle, inicial.cauce.ancho)
     const vados = new Set(inicial.cauce.vados)
-    // Las propias de depuración solo existen en la copia que se dibuja.
-    const paraDibujar = marcarPropias(valle, this.propias)
+    const paraDibujar = valle
 
     // Terreno y decoración no cambian: se hornean a texturas por trozos (M1-04).
     const decoracion = inicial.obstaculos
@@ -227,6 +229,10 @@ export class EscenaValle extends Phaser.Scene {
     this.desuscribirSeleccion?.()
     this.claveGuia = ''
     this.desuscribirSeleccion = partida.seleccion.suscribir(() => this.alCambiarSeleccion())
+    // Al girar o redimensionar, el panel y las reservas se vuelven a medir en el DOM: la guía se
+    // repite en el siguiente fotograma, cuando ya están al día.
+    this.scale.off('resize', this.alRedimensionar, this)
+    this.scale.on('resize', this.alRedimensionar, this)
     this.quitarEsc?.()
     const alEsc = (): void => {
       partida.seleccion.deseleccionar()
@@ -275,8 +281,15 @@ export class EscenaValle extends Phaser.Scene {
     const c = this.control
     if (!g || !c || !this._partida || !Number.isInteger(i)) return undefined
     const pantalla = { ancho: this.scale.width, alto: this.scale.height }
-    const libre = areaLibre(pantalla, this._partida.seleccion.ocupado)
+    const libre = areaLibre(pantalla, this._partida.seleccion.ocupado, medirReservasHud())
     return puntoDeToque(c.vista, pantalla, libre, rectParcela(g, i))
+  }
+
+  private alRedimensionar(): void {
+    this.claveGuia = ''
+    requestAnimationFrame(() => {
+      if (this.control) this.alCambiarSeleccion()
+    })
   }
 
   /** Redibuja el contorno y, si la parcela queda tapada por el panel o el HUD, la deja a la vista. */
@@ -288,6 +301,7 @@ export class EscenaValle extends Phaser.Scene {
     if (this.resalte) dibujarResalte(this.resalte, partida.estado.valle, i)
     if (i === undefined) {
       this.claveGuia = ''
+      this.control?.soltarExtension()
       return
     }
     const o = partida.seleccion.ocupado
@@ -298,7 +312,7 @@ export class EscenaValle extends Phaser.Scene {
     const centro = centroParaVer(
       this.control.vista,
       pantalla,
-      areaLibre(pantalla, o),
+      areaLibre(pantalla, o, medirReservasHud()),
       rectParcela(g, i),
     )
     if (centro) this.control.guiarA(centro)
@@ -414,6 +428,7 @@ export class EscenaValle extends Phaser.Scene {
     this.resalte = undefined
     this.desuscribirSeleccion?.()
     this.desuscribirSeleccion = undefined
+    this.scale.off('resize', this.alRedimensionar, this)
     this.quitarEsc?.()
     this.quitarEsc = undefined
     this.selector = undefined

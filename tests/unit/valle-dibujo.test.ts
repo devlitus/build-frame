@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { casillasRio, claveCasilla, crearEstadoInicial, decorarValle } from '../../src/core'
-import { marcarPropias } from '../../src/game/valle/debug'
+import { conPropiasDeDepuracion, marcarPropias } from '../../src/game/valle/debug'
 import { estiloParcela } from '../../src/game/valle/estilo'
 import { leerParametros } from '../../src/game/parametros'
 
@@ -109,6 +109,18 @@ describe('marcarPropias', () => {
     expect(copia.parcelas.filter((p) => p.estado === 'propia')).toHaveLength(2)
     expect(copia.parcelas[7]?.estado).toBe('propia')
     expect(valle.parcelas.every((p) => p.estado === 'en-venta')).toBe(true)
+  })
+})
+
+describe('conPropiasDeDepuracion', () => {
+  const base = crearEstadoInicial({ semilla: 5, dineroInicial: 0 })
+  it('marca las propias y ajusta comprasHechas sin mutar el original', () => {
+    const e = conPropiasDeDepuracion(base, [14, 15, 9999])
+    expect(e.valle.parcelas[14]?.estado).toBe('propia')
+    expect(e.valle.parcelas[15]?.estado).toBe('propia')
+    expect(e.comprasHechas).toBe(e.valle.parcelas.filter((p) => p.estado === 'propia').length)
+    expect(base.valle.parcelas[14]?.estado).toBe('en-venta')
+    expect(e.personaje).toBe(base.personaje)
   })
 })
 

@@ -1,3 +1,4 @@
+import { RESERVAS_HUD_POR_DEFECTO, type ReservasHud } from './areaHud'
 import { CONFIG_CAMARA } from './camara/config'
 import type { Pantalla, Punto } from './camara/matematica'
 import type { RectPantalla } from './seleccion'
@@ -66,9 +67,12 @@ export function esToqueDeSeleccion(
 }
 
 /** Zona de la pantalla que queda libre (sin HUD ni panel). */
-export function areaLibre(pantalla: Pantalla, ocupado: RectPantalla | undefined): RectPantalla {
-  const arriba = CONFIG_CAMARA.reservaHudSuperiorPx
-  const abajo = CONFIG_CAMARA.reservaHudInferiorPx
+export function areaLibre(
+  pantalla: Pantalla,
+  ocupado: RectPantalla | undefined,
+  reservas: ReservasHud = RESERVAS_HUD_POR_DEFECTO,
+): RectPantalla {
+  const { arriba, abajo } = reservas
   let x = 0
   const y = arriba
   let ancho = pantalla.ancho
