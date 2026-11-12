@@ -46,5 +46,18 @@
   "compraFondos": "No te llega el dinero (te faltan {n})",
   "compraPropia": "Ya es tuya",
   "compraNoDisponible": "No se puede comprar",
-  "avisoDesmayo": "Te quedaste dormido… Despiertas en la entrada del valle"
+  "avisoDesmayo": "Te quedaste dormido… Despiertas en la entrada del valle",
+  "avisoCompra": "¡Parcela {id} comprada por {n}!",
+  "comprarPorMonedas": "Comprar por {n} monedas",
+  "comprarPorMoneda": "Comprar por {n} moneda",
+  "comprarSinPrecio": "Comprar",
+  "compraConfirmar": "¿Comprar esta parcela por {n}? Te quedarán {m}",
+  "compraConfirmarSi": "Comprar",
+  "compraCancelar": "Cancelar",
+  "errorCompra_fondos-insuficientes": "No se pudo comprar: ya no te llega el dinero",
+  "errorCompra_ya-propia": "No se pudo comprar: la parcela ya es tuya",
+  "errorCompra_no-adyacente": "No se pudo comprar: debe tocar una de tus parcelas",
+  "errorCompra_otro": "No se pudo comprar la parcela",
+  "dineroAria": "Dinero",
+  "dineroMonedas": "monedas"
 }

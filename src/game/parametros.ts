@@ -19,6 +19,8 @@ export interface ParametrosUrl {
   readonly acelerar?: number
   /** Solo con `debug`: minuto del día con el que empieza (`?debug&hora=22:00`; 02:00 es 1560). */
   readonly hora?: number
+  /** Solo con `debug`: dinero con el que empieza la partida (`?debug&dinero=0`). */
+  readonly dinero?: number
 }
 
 /** Máximo de `?acelerar`: más allá no aporta nada y solo agranda los saltos de reloj. */
@@ -73,6 +75,7 @@ export function leerParametros(busqueda: string): ParametrosUrl {
   const acelerar = debug ? entero(q.get('acelerar')) : undefined
   const seleccion = debug ? entero(q.get('seleccion')) : undefined
   const hora = debug ? minutoDeHora(q.get('hora')) : undefined
+  const dinero = debug ? entero(q.get('dinero')) : undefined
   return {
     ...(semilla === undefined ? {} : { semilla }),
     debug,
@@ -84,6 +87,7 @@ export function leerParametros(busqueda: string): ParametrosUrl {
       : { acelerar: Math.min(acelerar, ACELERAR_MAXIMO) }),
     ...(seleccion === undefined ? {} : { seleccion }),
     ...(hora === undefined ? {} : { hora }),
+    ...(dinero === undefined || dinero < 0 ? {} : { dinero }),
   }
 }
 

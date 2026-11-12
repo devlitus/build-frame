@@ -130,3 +130,23 @@ test('seleccionar una parcela en el Modo Plano abre el panel', HUMO, async ({ pa
   else await page.mouse.click(punto.x, punto.y)
   await expect(page.getByRole('region', { name: /^Parcela / })).toBeVisible(LENTO)
 })
+
+test('comprar la primera parcela baja el dinero del HUD', HUMO, async ({ page }) => {
+  await abrirValle(page, '?semilla=42&debug&modo=plano')
+  const hud = page.locator('.dinero')
+  await expect(hud).toContainText('1.100', LENTO)
+  const i = await page.evaluate(() => {
+    for (let n = 0; n < 36; n++) if (window.__raices?.parcelaInfo(n)?.comprable) return n
+    return -1
+  })
+  expect(i).toBeGreaterThanOrEqual(0)
+  const precio = await page.evaluate((n) => window.__raices?.parcelaInfo(n)?.precio, i)
+  if (precio === undefined) throw new Error('sin precio')
+  await page.evaluate((n) => window.__raices?.seleccionar(n), i)
+  const panel = page.getByRole('region', { name: /^Parcela / })
+  await panel.getByRole('button', { name: /^Comprar por / }).click(LENTO)
+  await panel.getByRole('button', { name: 'Comprar', exact: true }).click(LENTO)
+  const resto = String(1100 - precio).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  await expect(hud).toContainText(resto, LENTO)
+  expect(await page.evaluate(() => window.__raices?.dinero())).toBe(1100 - precio)
+})

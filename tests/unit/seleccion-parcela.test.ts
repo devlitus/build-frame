@@ -199,9 +199,38 @@ describe('Área libre y cámara', () => {
     expect(sy).toBeCloseTo(libre.y + libre.alto / 2)
   })
 
-  it('una parcela mayor que la zona libre se deja si su centro ya está en ella', () => {
+  it('una parcela mayor que la zona libre se recentra si se ve menos del 60 %, y recentrar es idempotente', () => {
     const grande = { x: 1024, y: 1024, ancho: 1024, alto: 1024 }
-    expect(centroParaVer(vista, pantalla, libre, grande)).toBeUndefined()
+    const centro = centroParaVer(vista, pantalla, libre, grande)
+    expect(centro).toBeDefined()
+    // Con la vista ya centrada en ella, repetir la guía da el mismo centro (se ve ~52 %).
+    const otra = centroParaVer(
+      { ...vista, cx: centro?.x ?? 0, cy: centro?.y ?? 0 },
+      pantalla,
+      libre,
+      grande,
+    )
+    expect(otra).toBeDefined()
+    expect(otra?.x).toBeCloseTo(centro?.x ?? Number.NaN, 6)
+    expect(otra?.y).toBeCloseTo(centro?.y ?? Number.NaN, 6)
+  })
+
+  // Parcela de 1000 x 500 (más ancha que la zona libre, 948) con el centro dentro de ella y el
+  // alto entero a la vista: solo cambia cuánto asoma por la izquierda de la zona libre.
+  // En pantalla (zoom 1, vista centrada en 1536): mundo x = pantalla x + 896.
+  it('una parcela mayor que la zona libre que se ve al 60 % o más se deja quieta', () => {
+    const p = { x: 1224, y: 1276, ancho: 1000, alto: 500 } // pantalla x 328..1328: se ve el 62 %
+    expect(centroParaVer(vista, pantalla, libre, p)).toBeUndefined()
+  })
+
+  it('una parcela mayor que la zona libre que se ve un poco por debajo del 60 % se recentra', () => {
+    const p = { x: 1264, y: 1276, ancho: 1000, alto: 500 } // pantalla x 368..1368: se ve el 58 %
+    const c = centroParaVer(vista, pantalla, libre, p)
+    expect(c).toBeDefined()
+    // El centro de la parcela queda en el centro de la zona libre.
+    expect(p.x + p.ancho / 2 - (c?.x ?? 0)).toBeCloseTo(
+      libre.x + libre.ancho / 2 - pantalla.ancho / 2,
+    )
   })
 
   it('punto de toque: dentro de la parcela y de la zona libre', () => {

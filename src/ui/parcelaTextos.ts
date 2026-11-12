@@ -1,5 +1,7 @@
 import type { ComprabilidadParcela, Fertilidad, Terreno, Agua } from '../core'
-import { t, tp, type ClaveTexto } from './textos'
+import type { ErrorComando } from '../core'
+import { formatearDinero } from './formatoDinero'
+import { existeTexto, t, tp, type ClaveTexto } from './textos'
 
 /** Nombre amable de una parcela: columna en letras (A, B...) y fila en números desde 1: «B3». */
 export function nombreParcela(fila: number, columna: number): string {
@@ -42,7 +44,13 @@ export function textoAgua(v: Agua): string {
 }
 
 export function textoPrecio(precio: number): string {
-  return tp(precio === 1 ? 'precioMoneda' : 'precioMonedas', { n: precio })
+  return tp(precio === 1 ? 'precioMoneda' : 'precioMonedas', { n: formatearDinero(precio) })
+}
+
+/** Motivo, en texto, de que el núcleo rechazara `ComprarParcela`. */
+export function textoErrorCompra(error: ErrorComando): string {
+  const clave = `errorCompra_${error}`
+  return existeTexto(clave) ? t(clave) : t('errorCompra_otro')
 }
 
 export type TonoCompra = 'ok' | 'no' | 'propia'
@@ -60,7 +68,7 @@ export function estadoDeCompra(
       return { texto: t('compraNoAdyacente'), tono: 'no' }
     case 'fondos-insuficientes': {
       const faltan = Math.max(0, Math.ceil((c.precio ?? 0) - dinero))
-      return { texto: tp('compraFondos', { n: faltan }), tono: 'no' }
+      return { texto: tp('compraFondos', { n: formatearDinero(faltan) }), tono: 'no' }
     }
     default:
       return { texto: t('compraNoDisponible'), tono: 'no' }
