@@ -14,8 +14,22 @@ import { defineConfig, devices, type Project } from '@playwright/test'
  *   (con `--no-deps` los dos proyectos corren a la vez: mejor uno cada vez si la máquina va justa).
  * - La misma selección que la CI: `CI=1 npx playwright test`.
  */
-const SOLO =
-  /el reloj avanza ~1,33|umbral de distancia: 10 px es toque|umbral de tiempo: 600 ms quieto|20 clics en 1 s no bloquean|sin costuras ni huecos de fondo|fps de noche andando|un día acelerado con teclado/
+const SOLO = new RegExp(
+  [
+    // Miden tiempo real, fps o umbrales en ms.
+    'el reloj avanza ~1,33',
+    'umbral de distancia: 10 px es toque',
+    'umbral de tiempo: 600 ms quieto',
+    '20 clics en 1 s no bloquean',
+    'sin costuras ni huecos de fondo',
+    'fps de noche andando',
+    'un día acelerado con teclado',
+    // Recorridos largos que, a 12–17 fps, superan su tiempo límite en el runner sin GPU.
+    'se recorre todo el valle',
+    'un clic en el suelo lleva al personaje rodeando',
+    'girar el móvil de noche, en Plano y con aviso',
+  ].join('|'),
+)
 
 const PROYECTOS_SOLO: Project[] = [
   {
