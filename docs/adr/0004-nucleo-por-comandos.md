@@ -11,6 +11,7 @@ Queremos tests rápidos, simulaciones de partidas, guardado fiable y, más adela
 - `src/core/` contiene **toda** la lógica del juego como funciones puras sobre un `EstadoJuego` inmutable (datos serializables a JSON).
 - Todo cambio de estado se expresa como un **comando** (unión discriminada `Comando`) y se aplica con `aplicarComando(estado, comando) → ResultadoComando`. Un comando inválido devuelve `ok: false` con un código de error y el estado intacto; nunca lanza excepciones por reglas de juego.
 - **Aleatoriedad** solo mediante el RNG determinista del núcleo (`core/rng.ts`), cuyo estado vive dentro de `EstadoJuego`.
+  - *Nota aclaratoria (M2, aprobada por la PO el 2026-11-12):* la **generación inicial** del valle (cauce y vados del río, árboles y rocas) usa flujos pseudoaleatorios propios derivados de la semilla, no el RNG del estado (`src/core/rio.ts`, `src/core/decoracion.ts`). Así el valle de una semilla se ve igual que en M1 y añadir elementos nuevos a la generación no altera los ya existentes. Sigue siendo puro y determinista: misma semilla ⇒ mismo valle. Durante la partida, toda aleatoriedad sigue pasando por el RNG del estado.
 - **Tiempo:** el núcleo no lee el reloj real; el tiempo avanza con comandos (`AvanzarTiempo`). La capa de juego traduce los fotogramas en comandos.
 - `EstadoJuego.versionFormato` identifica el formato para las migraciones (ADR 0001).
 - **Capas:** `core` ← `save` ← `game` (Phaser) / `ui` (Preact). Las capas superiores leen el estado y emiten comandos; `core` no importa nada de ellas.
