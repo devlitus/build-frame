@@ -28,3 +28,20 @@ Tests nuevos: `tests/prop/economia-rompedor.test.ts` (40 tests; 5 fallan a prop�
 ## No probado
 - La compra en sí (M3-02) y su interacción con `dinero` y `comprasHechas`.
 - No hay e2e ni capturas porque la historia no cambia nada visible.
+
+## Ronda 2 (balance 1100 / +40 %, fee3f90; arreglos S3, 916333b)
+
+Actualicé los tres tests con valores fijos sin debilitarlos: el umbral teórico ahora es 260 + 360 + 510 = 1130, y el cálculo exacto pasa a ser genérico (lee la subida de los datos en centésimas y falla si algún dato tiene más de dos decimales). Los tests que fallaban en la ronda 1 quedan como `[S2 corregido]` y `[S3 corregido]`. Tests totales: 46; falla 1 a propósito.
+
+### Fallos nuevos
+- S3 · **El redondeo a la decena falla en mitades exactas por coma flotante.** `1,4` no es exacto en binario: con 175 × 1,4 = 244,99999999999997, el precio sale 240 en vez de 250. Con los datos reales de hoy no ocurre (lo comprueba el cálculo exacto en las 27 combinaciones con 0 a 59 compras), pero basta un cambio de balance plausible: base 250, prado·media·río y 1 compra da 450 en lugar de 460; base 750, prado·media·seca y 1 compra da 940 en lugar de 950. Pasa en 7 de 103 140 casos (bases de 100 a 2000 de 10 en 10, hasta 19 compras). Se arregla calculando con factores en centésimas enteras o sumando un épsilon relativo antes de `Math.round`. Test: «[S3] las mitades exactas suben aunque 1,4 no sea representable en binario».
+
+### Comprobado
+- **Balance:** no caben tres parcelas en ninguna de 60 semillas (con adyacencia) ni de 200 (sin adyacencia). En todas las de 300 hay dos parcelas contiguas asequibles. La más cara (1010) cabe sola y no cabe con una segunda barata (1010 + 360 > 1100). Nunca caben cuatro. La primera parcela cuesta entre 260 y 1010 y siempre hay alguna asequible.
+- **Topes del esquema:** con todos los valores en el tope (base 1e6, factores 1000, subida 10), sin compras el precio es 1e15 (entero seguro). Con una compra (1,1e16) o con 400, `precioParcela` devuelve `undefined`. Pasar el tope por un poco se rechaza. Propiedad con fast-check (1000 casos) en todo el rango del esquema, con factores desde `MIN_VALUE` y hasta 5000 compras: el precio es siempre `undefined` o un entero seguro ≥ 10 múltiplo de 10, y sin compras nunca es `undefined`.
+- **`comprasHechas`:** con -1, -100, 1,5, NaN, 3200, Infinity, `MAX_SAFE_INTEGER` y `'1'` devuelve `undefined`; `-0` equivale a 0.
+- **`crearEstadoInicial`:** lanza un error con ahorros negativos, fraccionarios o no finitos. `undefined` explícito toma el valor de los datos.
+
+### Observaciones (sin test)
+- Ahora `precioParcela` también devuelve `undefined` con un índice válido, cuando el precio desborda. El comando de compra de M3-02 debe tratar `undefined` como «no se puede comprar», nunca como 0.
+- `crearEstadoInicial({ dineroInicial: -0 })` deja `dinero` en `-0`. Es inocuo (al serializar queda 0).
