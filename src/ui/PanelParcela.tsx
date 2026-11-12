@@ -75,6 +75,7 @@ function Contenido({ indice }: { indice: number }) {
     devolverFoco()
   }
   const { texto, tono } = estadoDeCompra(compra, dinero)
+  const propia = !compra.comprable && compra.motivo === 'ya-propia'
   const id = nombreParcela(parcela.fila, parcela.columna)
   const titulo = tp('parcelaTitulo', { id })
   return (
@@ -124,9 +125,9 @@ function Contenido({ indice }: { indice: number }) {
         <Atributo
           clase="precio"
           etiqueta={t('etiquetaPrecio')}
-          simbolo={parcela.estado === 'propia' ? '★' : '🪙'}
+          simbolo={propia ? '★' : '🪙'}
           texto={
-            parcela.estado === 'propia'
+            propia
               ? t('precioTuya')
               : precio === undefined
                 ? t('precioDesconocido')

@@ -104,6 +104,8 @@ export class EscenaValle extends Phaser.Scene {
   private desuscribirSeleccion: (() => void) | undefined = undefined
   /** Clave de la última guía de cámara (parcela y panel), para no repetirla. */
   private claveGuia = ''
+  /** Fotograma pendiente de la guía tras redimensionar. */
+  private idFotograma: number | undefined = undefined
   private quitarEsc: (() => void) | undefined = undefined
 
   constructor() {
@@ -178,13 +180,12 @@ export class EscenaValle extends Phaser.Scene {
     const valle = inicial.valle
     const rio = casillasRio(valle, inicial.cauce.ancho)
     const vados = new Set(inicial.cauce.vados)
-    const paraDibujar = valle
 
     // Terreno y decoración no cambian: se hornean a texturas por trozos (M1-04).
     const decoracion = inicial.obstaculos
     this.hornear = () =>
       hornearCapaBase(this, this.mundoPx, (region) => [
-        dibujarTerreno(this, paraDibujar, rio, vados, region),
+        dibujarTerreno(this, valle, rio, vados, region),
         dibujarDecoracion(this, decoracion, region),
       ])
     this.trozos = this.hornear()
@@ -194,7 +195,7 @@ export class EscenaValle extends Phaser.Scene {
       this.renderer.on(Phaser.Renderer.Events.RESTORE_WEBGL, this.rehornear, this)
     }
     // Las parcelas (36 bordes y tintes) cambiarán al comprar (M3): siguen en un Graphics pequeño.
-    this.parcelas = dibujarParcelas(this, paraDibujar)
+    this.parcelas = dibujarParcelas(this, valle)
     // Contorno de la parcela seleccionada (estado de interfaz): por encima del personaje y del
     // tinte, para que se vea igual de noche.
     this.resalte = this.add.graphics().setDepth(PROFUNDIDAD_TINTE + 1)
@@ -287,7 +288,9 @@ export class EscenaValle extends Phaser.Scene {
 
   private alRedimensionar(): void {
     this.claveGuia = ''
-    requestAnimationFrame(() => {
+    if (this.idFotograma !== undefined) cancelAnimationFrame(this.idFotograma)
+    this.idFotograma = requestAnimationFrame(() => {
+      this.idFotograma = undefined
       if (this.control) this.alCambiarSeleccion()
     })
   }
@@ -429,6 +432,8 @@ export class EscenaValle extends Phaser.Scene {
     this.desuscribirSeleccion?.()
     this.desuscribirSeleccion = undefined
     this.scale.off('resize', this.alRedimensionar, this)
+    if (this.idFotograma !== undefined) cancelAnimationFrame(this.idFotograma)
+    this.idFotograma = undefined
     this.quitarEsc?.()
     this.quitarEsc = undefined
     this.selector = undefined

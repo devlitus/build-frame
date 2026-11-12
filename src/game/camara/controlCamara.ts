@@ -255,7 +255,10 @@ export class ControlCamara {
 
   private mover(desde: Punto, hasta: Punto, factor: number): void {
     this.guia = undefined
-    this.borrarExtension()
+    this.soltando = false
+    // La extensión se encoge al centro actual: el gesto es continuo (sin salto a los límites
+    // normales) y la extensión desaparece sola cuando la vista vuelve a quedar dentro del valle.
+    if (this.extension) this.extension = { x: this.actual.cx, y: this.actual.cy }
     const pantalla = this.pantalla
     this.aplicar(
       transformar(
@@ -266,8 +269,13 @@ export class ControlCamara {
         factor,
         limitesZoom(pantalla, this.mundoPx),
         this.mundoPx,
+        this.extension,
       ),
     )
+    if (this.extension) {
+      const normal = limitarVista(this.actual, pantalla, this.mundoPx)
+      if (normal.cx === this.actual.cx && normal.cy === this.actual.cy) this.extension = undefined
+    }
   }
 
   private alRedimensionar(): void {

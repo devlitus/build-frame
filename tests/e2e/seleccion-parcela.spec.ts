@@ -28,6 +28,21 @@ async function abrir(
 const seleccionada = (page: Page) => page.evaluate(() => window.__raices?.seleccionada())
 const panel = (page: Page) => page.getByRole('region', { name: /^Parcela / })
 
+/** Espera a que la cámara deje de moverse (misma vista en dos lecturas separadas por un fotograma). */
+async function camaraEstable(page: Page): Promise<void> {
+  let previa = ''
+  await expect
+    .poll(async () => {
+      const c = await page.evaluate(() => window.__raices?.camara())
+      const actual = JSON.stringify(c)
+      const quieta = actual === previa
+      previa = actual
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(r)))
+      return quieta
+    })
+    .toBe(true)
+}
+
 /** Clic de verdad (ratón o toque, según el dispositivo) en la parcela `i`. */
 async function tocar(page: Page, i: number): Promise<void> {
   const punto = await page.evaluate((n) => window.__raices?.puntoClicParcela(n), i)
@@ -99,8 +114,7 @@ test('el panel no tapa la parcela seleccionada ni el HUD, y sus botones miden al
   const i = await parcelaVisible(page)
   await tocar(page, i)
   await expect(panel(page)).toBeVisible()
-  // Deja que la cámara termine de deslizarse.
-  await page.waitForTimeout(1200)
+  await camaraEstable(page)
   const rp = await panel(page).boundingBox()
   if (!rp) throw new Error('sin panel')
   const punto = await page.evaluate((n) => window.__raices?.puntoClicParcela(n), i)
@@ -135,7 +149,7 @@ test('tocar otra parcela cambia la selección y tocar la misma la mantiene', asy
   const a = await parcelaVisible(page)
   await tocar(page, a)
   await expect.poll(() => seleccionada(page)).toBe(a)
-  await page.waitForTimeout(900)
+  await camaraEstable(page)
   await tocar(page, a)
   await page.waitForTimeout(200)
   expect(await seleccionada(page)).toBe(a)
@@ -187,7 +201,7 @@ test('tocar fuera del valle deselecciona', async ({ page }) => {
   const v = page.viewportSize() ?? { width: 1280, height: 720 }
   await page.mouse.move(v.width / 2, v.height / 2)
   for (let n = 0; n < 8; n++) await page.mouse.wheel(0, 400)
-  await page.waitForTimeout(400)
+  await camaraEstable(page)
   const c = await page.evaluate(() => window.__raices?.camara())
   const mundo = await page.evaluate(() => window.__raices?.mundoPx())
   if (!c || !mundo) throw new Error('sin cámara')

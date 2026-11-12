@@ -121,12 +121,12 @@ test('seleccionar una parcela en el Modo Plano abre el panel', HUMO, async ({ pa
   await abrirValle(page, '?semilla=42&debug&modo=plano')
   await expect.poll(() => page.evaluate(() => window.__raices?.modo()), LENTO).toBe('plano')
   // Sin depender de los fps: se pulsa el punto de una parcela visible en el primer fotograma.
-  const punto = await expect
-    .poll(() => page.evaluate(() => window.__raices?.puntoClicParcela(14)), LENTO)
-    .toBeDefined()
-    .then(() => page.evaluate(() => window.__raices?.puntoClicParcela(14)))
+  await expect
+    .poll(() => page.evaluate(() => window.__raices?.puntoClicParcela(14) !== undefined), LENTO)
+    .toBe(true)
+  const punto = await page.evaluate(() => window.__raices?.puntoClicParcela(14))
   if (!punto) throw new Error('la parcela 14 no está visible')
   if (isMobile) await page.touchscreen.tap(punto.x, punto.y)
   else await page.mouse.click(punto.x, punto.y)
-  await expect(page.getByRole('region')).toBeVisible(LENTO)
+  await expect(page.getByRole('region', { name: /^Parcela / })).toBeVisible(LENTO)
 })

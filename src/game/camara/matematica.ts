@@ -101,6 +101,7 @@ export function transformar(
   factor: number,
   zoomLim: LimitesZoom,
   mundo: number,
+  extension?: Extension,
 ): Vista {
   const w = puntoMundo(v, pantalla, desde)
   const zoom = limitarZoom(v.zoom * factor, zoomLim)
@@ -109,7 +110,7 @@ export function transformar(
     cx: w.x - (hasta.x - pantalla.ancho / 2) / zoom,
     cy: w.y - (hasta.y - pantalla.alto / 2) / zoom,
   }
-  return limitarVista(nueva, pantalla, mundo)
+  return limitarVista(nueva, pantalla, mundo, extension)
 }
 
 /** Zoom alrededor de un punto de pantalla (el punto del mundo bajo él no se mueve). */

@@ -45,7 +45,7 @@ try {
       const errores = []
       pagina.on('pageerror', (e) => errores.push(e.message))
       await pagina.goto(`http://localhost:${PUERTO}${ruta}`)
-      await pagina.waitForTimeout(1500)
+      await pagina.waitForTimeout(3000)
       const archivo = `capturas/${nombreRuta}--${nombre}.png`
       await pagina.screenshot({ path: archivo })
       console.log(archivo, errores.length ? `ERRORES: ${errores.join(' | ')}` : '')
