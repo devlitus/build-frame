@@ -1,6 +1,6 @@
 # PROCESO — Cómo construimos el juego
 
-> **Versión:** 0.4 · 2026-11-11 (integraciones menores sin aprobación)
+> **Versión:** 0.5 · 2026-11-12 (e2e: tanda de humo en la CI, tanda completa en local)
 > Relacionado: [GDD](../GDD.md) · [ROADMAP](../ROADMAP.md)
 
 Este documento define **cómo** trabajamos: ramas, ciclo de cada tarea, roles (humano y agentes), reglas de calidad y releases. Si el proceso no funciona, se cambia aquí primero.
@@ -170,7 +170,11 @@ Las historias se gestionan como **GitHub Issues**, con el *milestone* del hito y
 - Los números mágicos de balance van en datos, no en el código.
 
 ### CI (GitHub Actions), en cada PR
-`lint` → `typecheck` → `test` (unitarios + propiedades) → `build` → `e2e` (en las PR hacia el hito y hacia `main`) → despliegue de la vista previa (desde M7, en Vercel).
+`lint` → `typecheck` → `test` (unitarios + propiedades) → `build` → `e2e` de humo (en las PR y en `main`) → despliegue de la vista previa (desde M7, en Vercel).
+
+**e2e en dos tandas.** El runner de GitHub no tiene GPU y va a 12–17 fps, así que los tests que dependen de fps, tiempo real o recorridos largos fallan allí sin que haya un fallo real.
+- **CI: tanda de humo** (`npm run e2e:humo`, tests con la etiqueta `@humo` en `tests/e2e/humo.spec.ts`). Corta y estable, en escritorio y móvil emulado: arrancar, moverse con el teclado, ir con un clic o toque a un destino cercano, cambiar de modo y pasar un día acelerado. Se amplía cuando un hito añade un flujo básico nuevo, con márgenes de tiempo amplios.
+- **Local: tanda completa** (`npm run e2e`), **obligatoria antes de abrir la PR de cada hito**. El resultado (pasan, se omiten y fallos esperados) se anota en la descripción de la PR. Incluye los tests de tiempo real y rendimiento, que corren al final y solos (ver `playwright.config.ts`).
 
 ### Verificación visual
 Los tests e2e comprueban que los elementos **existen**, no que se **vean** bien. Por eso, en toda historia que cambie lo que se ve:
@@ -186,7 +190,7 @@ Los tests e2e comprueban que los elementos **existen**, no que se **vean** bien.
 Las capturas viven en `capturas/`, que no se versiona. Los tests de regresión visual automáticos (`toHaveScreenshot`) se añadirán cuando haya arte final en pantallas estables; con *placeholders* que cambian a menudo darían más ruido que ayuda.
 
 ### Definición de "hecho"
-La del [ROADMAP](../ROADMAP.md#principios).
+La del [ROADMAP](../ROADMAP.md#principios). Para la CI de un hito cuentan la CI en verde (con la tanda de humo) **y** la tanda e2e completa en local, con su resultado anotado en la PR del hito.
 
 ---
 
