@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import * as v from 'valibot'
 // Con extensión .ts: Vite carga la config con el cargador nativo (sin ella avisa).
-import { EsquemaConfigValle } from './src/core/datos/esquemas.ts'
+import { EsquemaConfigEconomia, EsquemaConfigValle } from './src/core/datos/esquemas.ts'
 import pkg from './package.json' with { type: 'json' }
 
 function commitCorto(): string {
@@ -17,21 +17,28 @@ function commitCorto(): string {
 }
 
 /**
- * Aborta el build si data/valle.json no cumple el esquema (ADR 0006).
- * La ruta se resuelve desde la raíz del proyecto, no desde el cwd.
+ * Aborta el build si data/valle.json o data/economia.json no cumplen su esquema (ADR 0006).
+ * Las rutas se resuelven desde la raíz del proyecto, no desde el cwd.
  */
-export function validarDatos(ruta = resolve(import.meta.dirname, 'data/valle.json')): Plugin {
+export function validarDatos(
+  ruta = resolve(import.meta.dirname, 'data/valle.json'),
+  rutaEconomia = resolve(import.meta.dirname, 'data/economia.json'),
+): Plugin {
   return {
     name: 'validar-datos',
     buildStart() {
-      const json: unknown = JSON.parse(readFileSync(ruta, 'utf8'))
-      const r = v.safeParse(EsquemaConfigValle, json)
-      if (!r.success) {
-        const fallos = r.issues
-          .map((i) => `${v.getDotPath(i) ?? '(raíz)'}: ${i.message}`)
-          .join('; ')
-        this.error(`${ruta} inválido: ${fallos}`)
+      const comprobar = (r: string, esquema: v.GenericSchema) => {
+        const json: unknown = JSON.parse(readFileSync(r, 'utf8'))
+        const res = v.safeParse(esquema, json)
+        if (!res.success) {
+          const fallos = res.issues
+            .map((i) => `${v.getDotPath(i) ?? '(raíz)'}: ${i.message}`)
+            .join('; ')
+          this.error(`${r} inválido: ${fallos}`)
+        }
       }
+      comprobar(ruta, EsquemaConfigValle)
+      comprobar(rutaEconomia, EsquemaConfigEconomia)
     },
   }
 }

@@ -22,7 +22,7 @@ let partida: Partida | undefined
 function datosPartida(): DatosEscenaValle {
   const p = leerParametros(window.location.search)
   const semilla = p.semilla ?? semillaNueva()
-  partida ??= new Partida(crearEstadoInicial({ semilla, dineroInicial: 0 }))
+  partida ??= new Partida(crearEstadoInicial({ semilla }))
   return {
     semilla,
     partida,

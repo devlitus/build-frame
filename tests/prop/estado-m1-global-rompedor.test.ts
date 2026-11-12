@@ -57,7 +57,7 @@ describe('estado inicial con valle (M1)', () => {
   it('cabe holgadamente en el presupuesto de ADR 0001 (< 1 MB) y declara la versión vigente', () => {
     const e = crearEstadoInicial({ semilla: 42, dineroInicial: 0 })
     expect(e.versionFormato).toBe(VERSION_FORMATO)
-    expect(VERSION_FORMATO).toBe(5)
+    expect(VERSION_FORMATO).toBe(6)
     expect(JSON.stringify(e).length).toBeLessThan(100_000) // M2-02: el estado incluye los obstáculos (máximo medido ~65 KB); muy por debajo de 1 MB
   })
 })

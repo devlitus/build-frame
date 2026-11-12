@@ -133,10 +133,8 @@ export class EscenaValle extends Phaser.Scene {
   }
 
   create(): void {
-    // El dinero inicial llega con la economía (M3); de momento 0.
     let inicial = crearEstadoInicial({
       semilla: this.semilla,
-      dineroInicial: 0,
       ...(this.hora === undefined ? {} : { minutoInicial: this.hora }),
     })
     const primerVado = inicial.cauce.vados[0]

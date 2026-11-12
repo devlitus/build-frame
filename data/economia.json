@@ -1,0 +1,8 @@
+{
+  "dineroInicial": 1300,
+  "precioBase": 600,
+  "factorTerreno": { "prado": 1.0, "bosque": 0.9, "rocoso": 0.6 },
+  "factorFertilidad": { "baja": 0.8, "media": 1.0, "alta": 1.3 },
+  "factorAgua": { "rio": 1.3, "pozo": 1.1, "seca": 0.9 },
+  "subidaPorCompra": 0.25
+}
