@@ -6,7 +6,8 @@ Juego web de granja y construcción (Phaser 3 + Preact + TypeScript). Lee primer
 ## Comandos
 - `npm run dev` — servidor de desarrollo
 - `npm run check` — lint, formato, tipos, tests y build (lo que exige la CI)
-- `npm run e2e` — Playwright en escritorio y móvil emulado
+- `npm run e2e` — Playwright completo en escritorio y móvil emulado; obligatorio en local antes de la PR de un hito (resultado en la PR)
+- `npm run e2e:humo` — solo la tanda `@humo`, la que corre la CI (PROCESO §5)
 
 ## Estructura
 - `src/core/` lógica pura y determinista por comandos (ADR 0004). Sin Phaser, DOM, `Math.random` ni `Date`.
