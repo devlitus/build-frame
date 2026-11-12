@@ -199,7 +199,9 @@ test('un segundo desmayo con el aviso visible lo reanuncia (se vacía y vuelve a
       new MutationObserver(() => {
         ;(window as unknown as { __cambios: number }).__cambios++
       }).observe(zona, { childList: true, subtree: true })
-    window.__raices?.emitir({ tipo: 'AvanzarTiempo', minutos: 1200 })
+    // 06:00 + 1201 min supera las 02:00 (1560): con 1200 se llegaba justo a 1560, que no es
+    // desmayo, y el test dependía de que el bucle avanzara un minuto más antes del límite.
+    window.__raices?.emitir({ tipo: 'AvanzarTiempo', minutos: 1201 })
   })
   await expect(aviso).toHaveText(/Te quedaste dormido/)
   await expect
