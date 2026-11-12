@@ -50,11 +50,13 @@ function validar(e: EstadoJuego, aparicion: { x: number; y: number }): void {
   const m = mapaTransitabilidad(e)
   const h = CONFIG_PERSONAJE.tamanoCaja / 2
   const { x, y } = e.personaje
+  // Caja semiabierta [x-h, x+h), como en el núcleo y en el resto de tests: tocar justo el borde
+  // de una casilla bloqueada no es estar dentro (orquestador M3; fallaba con la semilla 80068071).
   for (const [cx, cy] of [
     [x - h, y - h],
-    [x + h, y - h],
-    [x - h, y + h],
-    [x + h, y + h],
+    [x + h - 1e-9, y - h],
+    [x - h, y + h - 1e-9],
+    [x + h - 1e-9, y + h - 1e-9],
   ] as const) {
     expect(casillaBloqueada(m, Math.floor(cx), Math.floor(cy)), `caja en bloqueo (${x},${y})`).toBe(
       false,
