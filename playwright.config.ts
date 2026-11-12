@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 /** Tests sensibles a la carga de la máquina (ver `projects`): miden tiempo real o umbrales en ms. */
 const SOLO =
-  /el reloj avanza ~1,33|umbral de distancia: 10 px es toque|umbral de tiempo: 600 ms quieto|20 clics en 1 s no bloquean|sin costuras ni huecos de fondo/
+  /el reloj avanza ~1,33|umbral de distancia: 10 px es toque|umbral de tiempo: 600 ms quieto|20 clics en 1 s no bloquean|sin costuras ni huecos de fondo|fps de noche andando|un día acelerado con teclado/
 
 const PORT = Number(process.env.PUERTO_E2E ?? 4173)
 
