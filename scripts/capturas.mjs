@@ -10,7 +10,8 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 
-const PUERTO = 4175
+// Puerto propio con PUERTO_CAPTURAS=NNNN si otra sesión ya usa el 4175.
+const PUERTO = Number(process.env.PUERTO_CAPTURAS ?? 4175)
 const args = process.argv.slice(2).map((r) => r.replaceAll(';', '&'))
 const rutas = args.length ? args : ['/']
 const vistas = [

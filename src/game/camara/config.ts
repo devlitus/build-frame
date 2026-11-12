@@ -15,6 +15,16 @@ export const CONFIG_CAMARA = {
   velocidadTecladoPx: 600,
   /** Zoom con `+`/`-` en el Modo Plano: factor exponencial por segundo. */
   zoomTeclaPorSegundo: 2,
+  /** Selección de parcela: desplazamiento máximo (px de pantalla) de un toque o clic corto. */
+  umbralSeleccionPx: 10,
+  /** Selección de parcela: duración máxima (ms) de un toque táctil corto. */
+  umbralSeleccionMs: 300,
+  /** Franja superior que ocupa el HUD (reloj, tiempo, aviso): la parcela elegida no se deja ahí. */
+  reservaHudSuperiorPx: 72,
+  /** Franja inferior del botón de modo. */
+  reservaHudInferiorPx: 72,
+  /** Constante de tiempo (ms) del deslizamiento suave que deja a la vista la parcela elegida. */
+  suavizadoGuiaMs: 140,
 } as const
 
 export function limitesZoom(pantalla: Pantalla, mundo: number): LimitesZoom {

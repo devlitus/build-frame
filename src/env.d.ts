@@ -37,6 +37,27 @@ interface Window {
     luz(): { alfa: number } | undefined
     /** Claves de casilla de los vados (`y * lado + x`) y lado del valle en casillas. */
     vados(): { lado: number; claves: number[] } | undefined
+    /** Índice de la parcela seleccionada (Modo Plano); undefined si no hay. */
+    seleccionada(): number | undefined
+    /** Selecciona una parcela por índice; solo con `?debug` y en Plano. */
+    seleccionar(indice: number): void
+    /** Atributos, precio y comprabilidad de una parcela según el estado; solo con `?debug`. */
+    parcelaInfo(indice: number):
+      | {
+          fila: number
+          columna: number
+          terreno: string
+          fertilidad: string
+          agua: string
+          estado: string
+          precio: number | undefined
+          comprable: boolean
+          motivo: string | undefined
+          dinero: number
+        }
+      | undefined
+    /** Punto de pantalla (px) donde pulsar para tocar la parcela; solo con `?debug`. */
+    puntoClicParcela(indice: number): { x: number; y: number } | undefined
     /** Cámara del valle; scrollX/Y es la esquina superior izquierda de la vista sin zoom. */
     camara():
       { zoom: number; scrollX: number; scrollY: number; ancho: number; alto: number } | undefined

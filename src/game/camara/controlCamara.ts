@@ -35,6 +35,8 @@ export class ControlCamara {
   private previa: Medida | undefined = undefined
   private objetivo: Punto | undefined = undefined
   private persiguiendo = false
+  /** Centro (mundo, px) al que la vista se desliza suavemente; lo cancela cualquier gesto. */
+  private guia: Punto | undefined = undefined
   /** Última vista aplicada: al redimensionar se conserva su centro. */
   private actual: Vista = { zoom: 1, cx: 0, cy: 0 }
 
@@ -106,6 +108,29 @@ export class ControlCamara {
     if (factor === 1) return
     const c = { x: this.pantalla.ancho / 2, y: this.pantalla.alto / 2 }
     this.mover(c, c, factor)
+  }
+
+  /** Desliza la vista hasta centrarla en `punto` (se avanza con `avanzarGuia`). */
+  guiarA(punto: Punto): void {
+    this.guia = { ...punto }
+    this.persiguiendo = false
+  }
+
+  /** Un paso del deslizamiento suave; `delta` en ms de tiempo real. */
+  avanzarGuia(delta: number): void {
+    const g = this.guia
+    if (!g) return
+    const v = this.actual
+    if (Math.hypot(g.x - v.cx, g.y - v.cy) < CONFIG_CAMARA.umbralSeguimientoPx) {
+      this.guia = undefined
+      return
+    }
+    this.aplicar(acercar(v, g, delta, CONFIG_CAMARA.suavizadoGuiaMs))
+  }
+
+  /** Vista vigente (zoom y centro en px del mundo). */
+  get vista(): Vista {
+    return this.actual
   }
 
   /** Coloca la vista sobre `punto` de golpe, sin barrido (p. ej. tras un desmayo). */
@@ -185,6 +210,7 @@ export class ControlCamara {
   }
 
   private mover(desde: Punto, hasta: Punto, factor: number): void {
+    this.guia = undefined
     const pantalla = this.pantalla
     this.aplicar(
       transformar(

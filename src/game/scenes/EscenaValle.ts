@@ -12,12 +12,20 @@ import {
 import { CONFIG_CAMARA } from '../camara/config'
 import { ControlCamara } from '../camara/controlCamara'
 import { marcarPropias } from '../valle/debug'
-import { dibujarDecoracion, dibujarParcelas, dibujarTerreno, tamanoMundoPx } from '../valle/dibujar'
+import {
+  dibujarDecoracion,
+  dibujarParcelas,
+  dibujarResalte,
+  dibujarTerreno,
+  tamanoMundoPx,
+} from '../valle/dibujar'
+import { areaLibre, centroParaVer, parcelaEnPunto, puntoDeToque, rectParcela } from '../picking'
+import { SelectorParcela } from '../selectorParcela'
 import { hornearCapaBase } from '../valle/hornear'
 import { AcumuladorTiempo, acotarDelta, comandosMovimiento } from '../bucle'
 import { EntradaMovimiento } from '../entrada'
 import { Partida } from '../partida'
-import { TAM_CASILLA } from '../valle/estilo'
+import { PROFUNDIDAD_TINTE, TAM_CASILLA } from '../valle/estilo'
 import { VistaPersonaje } from '../valle/personaje'
 import { VistaLuz } from '../valle/vistaLuz'
 import { SeguidorCamino } from '../seguirCamino'
@@ -36,6 +44,8 @@ export interface DatosEscenaValle {
   readonly propias?: readonly number[]
   /** Solo depuración: empezar con el personaje en el primer vado. */
   readonly en?: 'vado'
+  /** Solo depuración: parcela seleccionada al empezar (si el modo es Plano). */
+  readonly seleccion?: number
   /** Solo depuración: multiplicador del tiempo de juego. */
   readonly acelerar?: number
   /** Solo depuración: minuto del día inicial (1320 = 22:00). */
@@ -58,6 +68,7 @@ export class EscenaValle extends Phaser.Scene {
   private vista: VistaPersonaje | undefined = undefined
   private luz: VistaLuz | undefined = undefined
   private acelerar = 1
+  private seleccionInicial: number | undefined = undefined
   private hora: number | undefined = undefined
   private tactil: ControlTactil | undefined = undefined
   private desmayoVisto = false
@@ -87,6 +98,12 @@ export class EscenaValle extends Phaser.Scene {
   private hornear: () => Phaser.GameObjects.RenderTexture[] = () => []
   private trozos: Phaser.GameObjects.RenderTexture[] = []
   private parcelas: Phaser.GameObjects.Graphics | undefined = undefined
+  private resalte: Phaser.GameObjects.Graphics | undefined = undefined
+  private selector: SelectorParcela | undefined = undefined
+  private desuscribirSeleccion: (() => void) | undefined = undefined
+  /** Clave de la última guía de cámara (parcela y panel), para no repetirla. */
+  private claveGuia = ''
+  private quitarEsc: (() => void) | undefined = undefined
 
   constructor() {
     super('valle')
@@ -98,6 +115,7 @@ export class EscenaValle extends Phaser.Scene {
     this.propias = datos.propias ?? []
     this.en = datos.en
     this.acelerar = datos.acelerar ?? 1
+    this.seleccionInicial = datos.seleccion
     this.hora = datos.hora
     this.modoInicial = datos.modo ?? 'vida'
   }
@@ -175,6 +193,9 @@ export class EscenaValle extends Phaser.Scene {
     }
     // Las parcelas (36 bordes y tintes) cambiarán al comprar (M3): siguen en un Graphics pequeño.
     this.parcelas = dibujarParcelas(this, paraDibujar)
+    // Contorno de la parcela seleccionada (estado de interfaz): por encima del personaje y del
+    // tinte, para que se vea igual de noche.
+    this.resalte = this.add.graphics().setDepth(PROFUNDIDAD_TINTE + 1)
     this.events.once('shutdown', this.liberar, this)
 
     // Accesibilidad: el foco pasa al contenedor del lienzo al entrar en el valle.
@@ -195,6 +216,24 @@ export class EscenaValle extends Phaser.Scene {
         this.desmayoVisto = true
       }
     })
+    this.selector = new SelectorParcela(this, (p) => {
+      const g = this.geometria()
+      const i = g ? parcelaEnPunto(g, p.x, p.y) : undefined
+      // Tocar fuera del valle deselecciona; tocar la misma parcela la mantiene.
+      if (i === undefined) partida.seleccion.deseleccionar()
+      else partida.seleccion.seleccionar(i)
+    })
+    this.selector.activo = inicial.modo === 'plano'
+    this.desuscribirSeleccion?.()
+    this.claveGuia = ''
+    this.desuscribirSeleccion = partida.seleccion.suscribir(() => this.alCambiarSeleccion())
+    this.quitarEsc?.()
+    const alEsc = (): void => {
+      partida.seleccion.deseleccionar()
+    }
+    const teclado = this.input.keyboard
+    teclado?.on('keydown-ESC', alEsc)
+    this.quitarEsc = () => teclado?.off('keydown-ESC', alEsc)
     this.tactil = new ControlTactil(this)
     this.tactil.activo = inicial.modo === 'vida'
     this.marca = new MarcaDestino(this)
@@ -213,6 +252,56 @@ export class EscenaValle extends Phaser.Scene {
       enVida ? posicion : undefined,
       posicion,
     )
+    const sel = this.seleccionInicial
+    if (sel !== undefined && !enVida && sel < valle.parcelas.length) {
+      partida.seleccion.seleccionar(sel)
+    }
+  }
+
+  /** Lado de una parcela y del valle en px del mundo, para el picking. */
+  private geometria(): { parcelasPorLado: number; ladoParcelaPx: number } | undefined {
+    const v = this._partida?.estado.valle
+    return (
+      v && {
+        parcelasPorLado: v.parcelasPorLado,
+        ladoParcelaPx: v.casillasPorParcela * TAM_CASILLA,
+      }
+    )
+  }
+
+  /** Punto de pantalla (px) donde pulsar para tocar la parcela `i`; undefined si no se ve. */
+  puntoClic(i: number): { x: number; y: number } | undefined {
+    const g = this.geometria()
+    const c = this.control
+    if (!g || !c || !this._partida || !Number.isInteger(i)) return undefined
+    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const libre = areaLibre(pantalla, this._partida.seleccion.ocupado)
+    return puntoDeToque(c.vista, pantalla, libre, rectParcela(g, i))
+  }
+
+  /** Redibuja el contorno y, si la parcela queda tapada por el panel o el HUD, la deja a la vista. */
+  private alCambiarSeleccion(): void {
+    const partida = this._partida
+    const g = this.geometria()
+    if (!partida || !g) return
+    const i = partida.seleccion.indice
+    if (this.resalte) dibujarResalte(this.resalte, partida.estado.valle, i)
+    if (i === undefined) {
+      this.claveGuia = ''
+      return
+    }
+    const o = partida.seleccion.ocupado
+    const clave = `${i}|${o ? `${o.x},${o.y},${o.ancho},${o.alto}` : ''}`
+    if (clave === this.claveGuia || !this.control) return
+    this.claveGuia = clave
+    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const centro = centroParaVer(
+      this.control.vista,
+      pantalla,
+      areaLibre(pantalla, o),
+      rectParcela(g, i),
+    )
+    if (centro) this.control.guiarA(centro)
   }
 
   /**
@@ -275,6 +364,7 @@ export class EscenaValle extends Phaser.Scene {
     const p = partida.estado.personaje
     this.vista?.colocar(p)
     const punto = { x: p.x * TAM_CASILLA, y: p.y * TAM_CASILLA }
+    const real = Number.isFinite(delta) ? Math.min(Math.max(delta, 0), 1000) : 0
     // Tras un desmayo el personaje reaparece lejos: la cámara salta, sin barrido.
     if (this.desmayoVisto) {
       this.desmayoVisto = false
@@ -282,8 +372,8 @@ export class EscenaValle extends Phaser.Scene {
     }
     // El suavizado de la cámara usa el tiempo real (no el acotado del juego): con pocos fps
     // alcanza igual al personaje en el mismo tiempo.
-    else
-      this.control?.seguir(punto, Number.isFinite(delta) ? Math.min(Math.max(delta, 0), 1000) : 0)
+    else this.control?.seguir(punto, real)
+    this.control?.avanzarGuia(real)
   }
 
   /** Cámara y teclado según el modo: Vida sigue al personaje (suave, aunque esté quieto); Plano queda libre. */
@@ -295,6 +385,8 @@ export class EscenaValle extends Phaser.Scene {
     this.seguidor.cancelar()
     this.tactil?.reiniciar()
     if (this.tactil) this.tactil.activo = modo === 'vida'
+    this.selector?.reiniciar()
+    if (this.selector) this.selector.activo = modo === 'plano'
     if (!this.control) return
     const enVida = modo === 'vida'
     this.control.arrastreActivo = !enVida || ARRASTRE_EN_MODO_VIDA
@@ -318,6 +410,13 @@ export class EscenaValle extends Phaser.Scene {
     this.trozos = []
     this.parcelas?.destroy()
     this.parcelas = undefined
+    this.resalte?.destroy()
+    this.resalte = undefined
+    this.desuscribirSeleccion?.()
+    this.desuscribirSeleccion = undefined
+    this.quitarEsc?.()
+    this.quitarEsc = undefined
+    this.selector = undefined
     this.vista?.destruir()
     this.vista = undefined
     this.luz?.destruir()

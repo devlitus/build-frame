@@ -7,6 +7,7 @@ import {
   COLOR_VADO,
   COLOR_TERRENO,
   TAM_CASILLA,
+  ESTILO_RESALTE,
   estiloParcela,
 } from './estilo'
 
@@ -137,4 +138,26 @@ export function dibujarParcelas(escena: Phaser.Scene, valle: Valle): Phaser.Game
     g.strokeRect(x + m, y + m, lado - e.grosorBorde, lado - e.grosorBorde)
   }
   return g
+}
+
+/** Redibuja el contorno de la parcela seleccionada (o lo borra si `indice` es undefined). */
+export function dibujarResalte(
+  g: Phaser.GameObjects.Graphics,
+  valle: Valle,
+  indice: number | undefined,
+): void {
+  g.clear()
+  if (indice === undefined) return
+  const lado = valle.casillasPorParcela * TAM_CASILLA
+  const n = valle.parcelasPorLado
+  const x = (indice % n) * lado
+  const y = Math.floor(indice / n) * lado
+  const e = ESTILO_RESALTE
+  g.fillStyle(e.crema, e.alfaRelleno)
+  g.fillRect(x, y, lado, lado)
+  const m = e.grosorTinta / 2
+  g.lineStyle(e.grosorTinta, e.tinta, 1)
+  g.strokeRect(x + m, y + m, lado - e.grosorTinta, lado - e.grosorTinta)
+  g.lineStyle(e.grosorCrema, e.crema, 1)
+  g.strokeRect(x + m, y + m, lado - e.grosorTinta, lado - e.grosorTinta)
 }
