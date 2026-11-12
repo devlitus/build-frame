@@ -38,7 +38,7 @@ export function estiloParcela(estado: EstadoParcela): EstiloParcela {
 /**
  * Parcelas en el Modo Plano: tres estados que se distinguen sin depender del color.
  * - propia: tinte y borde dorados gruesos y continuos;
- * - comprable: borde crema DISCONTINUO y una moneda de «se vende» en la esquina;
+ * - comprable: borde crema DISCONTINUO y una moneda de «se vende» en el centro;
  * - no-comprable: velo oscuro, rayado diagonal y borde fino apagado.
  * En el Modo Vida se mantiene `estiloParcela` (la información de compra no hace falta mientras
  * se juega y así el valle se ve limpio).
@@ -68,7 +68,7 @@ export const ESTILO_PLANO: Readonly<Record<EstadoVisualParcela, EstiloParcelaPla
     alfaTinte: 0.1,
     borde: 0xfff3c4,
     grosorBorde: 8,
-    discontinuo: { trazo: 56, hueco: 32 },
+    discontinuo: { trazo: 72, hueco: 44 },
     moneda: { radio: 46, relleno: 0xffd34d, borde: 0x6b4a00 },
   },
   'no-comprable': {
@@ -76,7 +76,7 @@ export const ESTILO_PLANO: Readonly<Record<EstadoVisualParcela, EstiloParcelaPla
     alfaTinte: 0.45,
     borde: 0x2a2a33,
     grosorBorde: 3,
-    rayado: { color: 0x000000, alfa: 0.3, paso: 64, grosor: 6 },
+    rayado: { color: 0x000000, alfa: 0.3, paso: 96, grosor: 7 },
   },
 }
 

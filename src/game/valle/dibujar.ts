@@ -123,17 +123,6 @@ export function dibujarDecoracion(
   return g
 }
 
-/** Parcelas (tinte y borde) en un `Graphics` propio, que se redibuja al comprar; ver `redibujarParcelas`. */
-export function dibujarParcelas(
-  escena: Phaser.Scene,
-  valle: Valle,
-  visuales?: readonly EstadoVisualParcela[],
-): Phaser.GameObjects.Graphics {
-  const g = escena.add.graphics().setDepth(2)
-  redibujarParcelas(g, valle, visuales)
-  return g
-}
-
 /**
  * Borra y vuelve a pintar las 36 parcelas (sin tocar el valle horneado). Con `visuales` (Modo
  * Plano) usa los tres estados de `ESTILO_PLANO`; sin él (Modo Vida) el estilo de siempre:
@@ -167,13 +156,20 @@ export function redibujarParcelas(
     g.fillRect(x, y, lado, lado)
     if (e.rayado) {
       g.lineStyle(e.rayado.grosor, e.rayado.color, e.rayado.alfa)
-      for (const [x1, y1, x2, y2] of rayasDiagonales(x, y, lado, e.rayado.paso))
-        g.lineBetween(x1, y1, x2, y2)
+      // Todas las rayas de la parcela en un solo trazo (un `strokePath`, no uno por raya).
+      g.beginPath()
+      for (const [x1, y1, x2, y2] of rayasDiagonales(x, y, lado, e.rayado.paso)) {
+        g.moveTo(x1, y1)
+        g.lineTo(x2, y2)
+      }
+      g.strokePath()
     }
     g.lineStyle(e.grosorBorde, e.borde, 1)
     const m = e.grosorBorde / 2
     const ancho = lado - e.grosorBorde
     if (e.discontinuo) {
+      // Todos los trazos del borde en un solo `strokePath`.
+      g.beginPath()
       for (const [x1, y1, x2, y2] of segmentosDiscontinuos(
         x + m,
         y + m,
@@ -181,8 +177,11 @@ export function redibujarParcelas(
         ancho,
         e.discontinuo.trazo,
         e.discontinuo.hueco,
-      ))
-        g.lineBetween(x1, y1, x2, y2)
+      )) {
+        g.moveTo(x1, y1)
+        g.lineTo(x2, y2)
+      }
+      g.strokePath()
     } else g.strokeRect(x + m, y + m, ancho, ancho)
     if (e.moneda) {
       const c = e.moneda

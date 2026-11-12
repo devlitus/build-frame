@@ -11,8 +11,7 @@ import {
   textoPrecio,
   textoTerreno,
 } from './parcelaTextos'
-import { MS_VENTANA_ANTIDOBLE } from '../game/seleccion'
-import { RADIO_MISMO_TOQUE_PX, intentarCompra } from './compra'
+import { MS_VENTANA_ANTIDOBLE, RADIO_MISMO_TOQUE_PX, intentarCompra } from './compra'
 import { formatearDinero } from './formatoDinero'
 import { t, tp } from './textos'
 import { useEstado, usePartida, useSeleccion } from './useEstado'
@@ -233,19 +232,19 @@ function Contenido({ indice }: { indice: number }) {
               </p>
               <div class="compra-botones">
                 <button
+                  type="button"
+                  class="boton-compra boton-compra-confirmar"
+                  onClick={confirmarCompra}
+                >
+                  {t('compraConfirmarSi')}
+                </button>
+                <button
                   ref={refCancelar}
                   type="button"
                   class="boton-compra boton-compra-cancelar"
                   onClick={cancelarConfirmacion}
                 >
                   {t('compraCancelar')}
-                </button>
-                <button
-                  type="button"
-                  class="boton-compra boton-compra-confirmar"
-                  onClick={confirmarCompra}
-                >
-                  {t('compraConfirmarSi')}
                 </button>
               </div>
             </div>

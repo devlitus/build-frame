@@ -54,7 +54,6 @@
   "compraConfirmar": "¿Comprar esta parcela por {n}? Te quedarán {m}",
   "compraConfirmarSi": "Comprar",
   "compraCancelar": "Cancelar",
-  "compraConfirmarAria": "Confirmar la compra",
   "errorCompra_fondos-insuficientes": "No se pudo comprar: ya no te llega el dinero",
   "errorCompra_ya-propia": "No se pudo comprar: la parcela ya es tuya",
   "errorCompra_no-adyacente": "No se pudo comprar: debe tocar una de tus parcelas",

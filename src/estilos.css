@@ -470,6 +470,11 @@ body {
   outline: none;
 }
 
+.panel-parcela:focus-visible {
+  outline: 3px solid var(--tinta);
+  outline-offset: -5px;
+}
+
 .panel-parcela-acciones {
   display: flex;
   flex-direction: column;
@@ -499,9 +504,9 @@ body {
 
 .compra-botones {
   display: flex;
-  /* «Cancelar» (primero en el DOM y en el foco) a la derecha, donde cae la mitad derecha del botón
-     «Comprar por N»: un doble toque acaba en Cancelar y no compra sin leer la pregunta. */
-  flex-direction: row-reverse;
+  /* «Comprar» a la izquierda y «Cancelar» a la derecha (mismo orden en el DOM y en pantalla): la
+     mitad derecha del botón «Comprar por N» queda sobre «Cancelar», así que un doble toque acaba
+     en Cancelar y no compra sin leer la pregunta. El foco inicial está en «Cancelar». */
   gap: 8px;
 }
 

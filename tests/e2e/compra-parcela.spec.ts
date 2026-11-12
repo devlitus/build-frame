@@ -202,7 +202,7 @@ test('con el teclado: Enter pide la confirmación y Espacio la acepta', async ({
   await page.keyboard.press('Enter')
   const grupo = panel(page).getByRole('group', { name: /Comprar esta parcela/ })
   await expect(grupo).toBeVisible()
-  await page.keyboard.press('Tab')
+  await page.keyboard.press('Shift+Tab')
   await expect(grupo.getByRole('button', { name: 'Comprar', exact: true })).toBeFocused()
   await page.keyboard.press('Space')
   await expect.poll(() => dinero(page)).toBe(1100 - precio)

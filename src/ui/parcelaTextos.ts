@@ -1,8 +1,7 @@
 import type { ComprabilidadParcela, Fertilidad, Terreno, Agua } from '../core'
 import type { ErrorComando } from '../core'
 import { formatearDinero } from './formatoDinero'
-import es from './textos/es.json'
-import { t, tp, type ClaveTexto } from './textos'
+import { existeTexto, t, tp, type ClaveTexto } from './textos'
 
 /** Nombre amable de una parcela: columna en letras (A, B...) y fila en números desde 1: «B3». */
 export function nombreParcela(fila: number, columna: number): string {
@@ -51,7 +50,7 @@ export function textoPrecio(precio: number): string {
 /** Motivo, en texto, de que el núcleo rechazara `ComprarParcela`. */
 export function textoErrorCompra(error: ErrorComando): string {
   const clave = `errorCompra_${error}`
-  return clave in es ? t(clave as ClaveTexto) : t('errorCompra_otro')
+  return existeTexto(clave) ? t(clave) : t('errorCompra_otro')
 }
 
 export type TonoCompra = 'ok' | 'no' | 'propia'

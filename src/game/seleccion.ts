@@ -13,13 +13,6 @@ export interface RectPantalla {
 
 export type AvisoSeleccion = () => void
 
-/**
- * Ventana (ms) tras abrir la confirmación de compra o tras comprar en la que se ignora el
- * segundo toque de un doble toque o doble clic: caería sobre el botón que acaba de aparecer o,
- * tras comprar, sobre el lienzo (y seleccionaría otra parcela).
- */
-export const MS_VENTANA_ANTIDOBLE = 400
-
 function igualesRect(a: RectPantalla | undefined, b: RectPantalla | undefined): boolean {
   if (!a || !b) return a === b
   return a.x === b.x && a.y === b.y && a.ancho === b.ancho && a.alto === b.alto
