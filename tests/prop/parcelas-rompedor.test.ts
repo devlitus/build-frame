@@ -290,7 +290,9 @@ describe('comando y parcelaComprable no discrepan nunca', () => {
           const r = comprar(e, i)
           expect(r.ok).toBe(c.comprable)
           if (c.comprable && r.ok) {
-            expect(r.eventos).toEqual([{ tipo: 'parcela-comprada', indice: i, precio: c.precio }])
+            expect(r.eventos).toEqual([
+              { tipo: 'parcela-comprada', indice: i + 0, precio: c.precio },
+            ])
             expect(c.precio).toBe(precioParcela(e, i))
             // Con dinero manipulado no entero (Infinity, 0,5) ver los tests [S3] de más abajo.
             if (Number.isSafeInteger(e.dinero)) expect(e.dinero - r.estado.dinero).toBe(c.precio)
@@ -478,6 +480,8 @@ describe('estados manipulados', () => {
     for (const dinero of [1e300, 2 ** 60, Infinity]) {
       const e = { ...BASE, dinero }
       const r = comprar(e, 0)
+      // Orquestador: fija el arreglo de forma explícita (revisor M3-02).
+      expect(r).toMatchObject({ ok: false, error: 'fondos-insuficientes' })
       if (r.ok) {
         const precio = r.eventos[0] && 'precio' in r.eventos[0] ? r.eventos[0].precio : 0
         // Diferencia exacta (en BigInt cuando es finito); con Infinity, Infinity - p es Infinity.
@@ -491,6 +495,7 @@ describe('estados manipulados', () => {
     const precio = precioParcela(BASE, 0) as number
     const e = { ...BASE, dinero: precio + 0.1 }
     const r = comprar(e, 0)
+    expect(r).toMatchObject({ ok: false, error: 'fondos-insuficientes' })
     if (r.ok) expect(r.estado.dinero).toBe(0.1)
   })
 })
