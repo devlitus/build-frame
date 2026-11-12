@@ -76,17 +76,20 @@ function alcanzables(
   return vista
 }
 
-/** Casilla libre más cercana (centro de casilla) al punto medio del borde del lado del pueblo. */
+/** Casilla libre más cercana (centro de casilla) al punto medio del lado del pueblo, `margen` casillas hacia dentro. */
 function elegirAparicion(
   lado: number,
   libre: (i: number) => boolean,
   ladoPueblo: ConfigPersonaje['ladoPueblo'],
+  margen: number,
 ): number {
+  // El margen nunca pasa de la mitad del valle (valles diminutos).
+  const m = Math.min(Math.max(margen, 0), lado / 2)
   const objetivo = {
-    norte: { x: lado / 2, y: 0 },
-    sur: { x: lado / 2, y: lado },
-    este: { x: lado, y: lado / 2 },
-    oeste: { x: 0, y: lado / 2 },
+    norte: { x: lado / 2, y: m },
+    sur: { x: lado / 2, y: lado - m },
+    este: { x: lado - m, y: lado / 2 },
+    oeste: { x: m, y: lado / 2 },
   }[ladoPueblo]
   let mejor = -1
   let mejorD = Infinity
@@ -141,7 +144,8 @@ export function generarMundo(
   valle: Valle,
   semilla: number,
   config: Pick<ConfigValle, 'anchoRio' | 'densidadDecoracion' | 'vados'>,
-  personaje: Pick<ConfigPersonaje, 'ladoPueblo'>,
+  personaje: Pick<ConfigPersonaje, 'ladoPueblo'> &
+    Partial<Pick<ConfigPersonaje, 'margenAparicion'>>,
 ): Pick<DatosMapa, 'cauce' | 'obstaculos' | 'aparicion'> {
   const lado = ladoValle(valle)
   const rio = casillasRio(valle, config.anchoRio)
@@ -155,6 +159,7 @@ export function generarMundo(
     lado,
     (i) => agua[i] === 0 && !ocupadas.has(i),
     personaje.ladoPueblo,
+    personaje.margenAparicion ?? 0,
   )
   if (inicio < 0) {
     throw new Error('Valle sin ninguna casilla libre: no hay dónde colocar la aparición')

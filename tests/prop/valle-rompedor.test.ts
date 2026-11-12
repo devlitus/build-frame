@@ -172,8 +172,8 @@ describe('rompedor · crearEstadoInicial', () => {
 
   it.each(extremas)('semilla extrema %s: no rompe y deja un valle válido', (s) => {
     const e = crearEstadoInicial({ semilla: s, dineroInicial: 0 })
-    expect(e.versionFormato).toBe(4)
-    expect(VERSION_FORMATO).toBe(4)
+    expect(e.versionFormato).toBe(5)
+    expect(VERSION_FORMATO).toBe(5)
     expect(Number.isInteger(e.semilla)).toBe(true)
     expect(e.semilla).toBeGreaterThanOrEqual(0)
     expect(e.semilla).toBeLessThan(2 ** 32)

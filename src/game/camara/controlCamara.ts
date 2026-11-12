@@ -93,6 +93,21 @@ export class ControlCamara {
     this.aplicar(acercar(v, objetivo, delta, CONFIG_CAMARA.suavizadoSeguimientoMs))
   }
 
+  /** Desplaza la vista (px de pantalla ; dx a la derecha, dy hacia abajo). */
+  desplazar(dx: number, dy: number): void {
+    if (dx === 0 && dy === 0) return
+    const { ancho, alto } = this.pantalla
+    this.persiguiendo = false
+    this.mover({ x: ancho / 2 + dx, y: alto / 2 + dy }, { x: ancho / 2, y: alto / 2 }, 1)
+  }
+
+  /** Zoom anclado en el centro de la pantalla; `factor` > 1 acerca. */
+  zoomCentro(factor: number): void {
+    if (factor === 1) return
+    const c = { x: this.pantalla.ancho / 2, y: this.pantalla.alto / 2 }
+    this.mover(c, c, factor)
+  }
+
   /** Coloca la vista sobre `punto` de golpe, sin barrido (p. ej. tras un desmayo). */
   centrarEn(punto: Punto): void {
     this.objetivo = { ...punto }
@@ -136,7 +151,11 @@ export class ControlCamara {
     const factor = ahora.ids.length === 2 ? factorPellizco(antes, ahora) : 1
     if (!this.opciones.arrastre) {
       // Sin arrastre solo hay zoom, anclado en el punto medio de los dedos.
-      if (factor !== 1) this.mover(ahora.medio, ahora.medio, factor)
+      if (factor !== 1) {
+        const ancla = this.anclaZoom(ahora.medio)
+        this.mover(ancla, ancla, factor)
+        this.recuperarSeguimiento()
+      }
       return
     }
     this.persiguiendo = false
@@ -148,7 +167,21 @@ export class ControlCamara {
     // deltaMode 1 = líneas (Firefox), 2 = páginas.
     const modo = pointer.event instanceof WheelEvent ? pointer.event.deltaMode : 0
     const px = modo === 1 ? dy * 16 : modo === 2 ? dy * this.pantalla.alto : dy
-    this.mover(p, p, Math.exp(-px * CONFIG_CAMARA.sensibilidadRueda))
+    const ancla = this.anclaZoom(p)
+    this.mover(ancla, ancla, Math.exp(-px * CONFIG_CAMARA.sensibilidadRueda))
+    this.recuperarSeguimiento()
+  }
+
+  /** En Vida el zoom se ancla en el centro de la pantalla (el personaje); si no, en el puntero. */
+  private anclaZoom(puntero: Punto): Punto {
+    return this.opciones.seguir
+      ? { x: this.pantalla.ancho / 2, y: this.pantalla.alto / 2 }
+      : puntero
+  }
+
+  /** En el Modo Vida el zoom o el cambio de tamaño no deben dejar al personaje fuera de la vista. */
+  private recuperarSeguimiento(): void {
+    if (this.opciones.seguir) this.persiguiendo = true
   }
 
   private mover(desde: Punto, hasta: Punto, factor: number): void {
@@ -169,6 +202,8 @@ export class ControlCamara {
   private alRedimensionar(): void {
     const v = this.actual
     this.aplicar({ ...v, zoom: limitarZoom(v.zoom, limitesZoom(this.pantalla, this.mundoPx)) })
+    // En Vida el personaje (quieto o no) debe seguir a la vista tras girar o redimensionar.
+    this.recuperarSeguimiento()
   }
 
   private destruir(): void {

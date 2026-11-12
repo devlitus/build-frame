@@ -2,5 +2,6 @@
   "velocidadCasillasPorSegundo": 4,
   "tamanoCaja": 0.6,
   "ladoPueblo": "sur",
+  "margenAparicion": 3,
   "maxMsPorComando": 250
 }

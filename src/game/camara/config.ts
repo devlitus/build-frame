@@ -11,6 +11,10 @@ export const CONFIG_CAMARA = {
   suavizadoSeguimientoMs: 120,
   /** Por debajo de esta distancia (px del mundo) el seguimiento da el alcance por logrado. */
   umbralSeguimientoPx: 0.25,
+  /** Desplazamiento de la cámara con el teclado en el Modo Plano (px de pantalla por segundo). */
+  velocidadTecladoPx: 600,
+  /** Zoom con `+`/`-` en el Modo Plano: factor exponencial por segundo. */
+  zoomTeclaPorSegundo: 2,
 } as const
 
 export function limitesZoom(pantalla: Pantalla, mundo: number): LimitesZoom {

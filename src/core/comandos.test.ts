@@ -8,6 +8,7 @@ import {
   EsquemaConfigTiempo,
   fechaDe,
   horaDe,
+  tiempoDetenido,
   minutosDeJuegoPorMs,
   VERSION_FORMATO,
   type EstadoJuego,
@@ -24,8 +25,14 @@ const avanzar = (e: EstadoJuego, minutos: number) =>
 
 describe('estado inicial del reloj', () => {
   it('empieza el día 1 a las 06:00, sin pausa y a velocidad 1', () => {
-    expect(VERSION_FORMATO).toBe(4)
-    expect(inicial).toMatchObject({ dia: 1, minutoDelDia: 360, pausado: false, velocidad: 1 })
+    expect(VERSION_FORMATO).toBe(5)
+    expect(inicial).toMatchObject({
+      dia: 1,
+      minutoDelDia: 360,
+      pausado: false,
+      velocidad: 1,
+      modo: 'vida',
+    })
     expect(horaDe(inicial)).toEqual({ horas: 6, minutos: 0 })
   })
 })
@@ -193,5 +200,61 @@ describe('esquema de data/tiempo.json', () => {
     ['clave desconocida', { extra: 1 }],
   ])('rechaza %s', (_n, cambio) => {
     expect(ok({ ...valido, ...cambio })).toBe(false)
+  })
+})
+
+describe('CambiarModo (M2-05)', () => {
+  const cambiar = (e: EstadoJuego, modo: 'vida' | 'plano' | 'x') =>
+    aplicarComando(e, { tipo: 'CambiarModo', modo: modo as 'vida' })
+  const plano = cambiar(inicial, 'plano').estado
+
+  it('empieza en Vida y cambia a Plano y de vuelta sin tocar `pausado`', () => {
+    expect(inicial.modo).toBe('vida')
+    expect(plano.modo).toBe('plano')
+    expect(plano.pausado).toBe(false)
+    expect(cambiar(plano, 'vida').estado).toEqual(inicial)
+  })
+
+  it('el mismo modo devuelve el mismo objeto de estado', () => {
+    expect(cambiar(inicial, 'vida')).toEqual({ ok: true, estado: inicial, eventos: [] })
+    expect(cambiar(inicial, 'vida').estado).toBe(inicial)
+  })
+
+  it('un modo inválido se rechaza sin cambiar el estado', () => {
+    expect(cambiar(inicial, 'x')).toEqual({
+      ok: false,
+      estado: inicial,
+      error: 'parametro-invalido',
+    })
+  })
+
+  it('en Plano el reloj no avanza (ni cruzando las 02:00) y MoverPersonaje no cambia el estado', () => {
+    const e = cambiar(conTiempo(3, 1500), 'plano').estado
+    for (const minutos of [0, 30, 10_000]) expect(avanzar(e, minutos).estado).toBe(e)
+    const mover = aplicarComando(e, { tipo: 'MoverPersonaje', dx: 1, dy: 0, ms: 100 })
+    expect(mover).toEqual({ ok: true, estado: e, eventos: [] })
+    expect(mover.estado).toBe(e)
+  })
+
+  it('volver a Vida conserva la pausa que eligió el jugador', () => {
+    const pausado = aplicarComandos(inicial, [
+      { tipo: 'Pausar' },
+      { tipo: 'CambiarModo', modo: 'plano' },
+      { tipo: 'CambiarModo', modo: 'vida' },
+    ])
+    expect(pausado.pausado).toBe(true)
+    expect(avanzar(pausado, 10).estado).toBe(pausado)
+    const sinPausa = aplicarComandos(inicial, [
+      { tipo: 'CambiarModo', modo: 'plano' },
+      { tipo: 'CambiarModo', modo: 'vida' },
+    ])
+    expect(avanzar(sinPausa, 10).estado.minutoDelDia).toBe(CONFIG_TIEMPO.horaInicio + 10)
+  })
+
+  it('tiempoDetenido: pausa o Plano', () => {
+    expect(tiempoDetenido(inicial)).toBe(false)
+    expect(tiempoDetenido(plano)).toBe(true)
+    expect(tiempoDetenido({ pausado: true, modo: 'vida' })).toBe(true)
+    expect(tiempoDetenido({ pausado: true, modo: 'plano' })).toBe(true)
   })
 })

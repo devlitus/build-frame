@@ -11,6 +11,8 @@ interface Window {
     texturas(): number
     /** Reinicia la escena del valle; solo hace algo con `?debug`. */
     reiniciarValle(): void
+    /** Aplica un comando del nucleo a la partida; solo hace algo con `?debug`. */
+    emitir(comando: { tipo: string; [campo: string]: unknown }): void
     /** Fotogramas por segundo medidos por el bucle de Phaser. */
     fps(): number
     /** Texto del contador de fps; undefined si no hay escena de depuración (sin `?debug`). */
@@ -19,6 +21,8 @@ interface Window {
     objetosValle(): number | undefined
     /** Tamaño (en órdenes de dibujo) de cada `Graphics` vivo en la escena del valle. */
     graficosValle(): number[]
+    /** Modo de juego vigente; undefined si no hay valle. */
+    modo(): 'vida' | 'plano' | undefined
     /** Personaje en casillas (centro de su caja); undefined si no hay valle. */
     personaje(): { x: number; y: number; orientacion: string } | undefined
     /** Reloj de la partida; undefined si no hay valle. */

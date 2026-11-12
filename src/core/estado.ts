@@ -15,11 +15,17 @@ import { personajeEnAparicion, type Personaje } from './personaje'
  * `velocidad`. Sin migración: sigue sin haber partidas guardadas.
  * v4 (M2-02): se añaden `cauce` (ancho y vados del río), `obstaculos` (árboles y rocas),
  * `aparicion` y `personaje`. Sin migración: sigue sin haber partidas guardadas.
+ * v5 (M2-05): se añade `modo` (Vida o Plano). Sin migración: sigue sin haber partidas guardadas.
  */
-export const VERSION_FORMATO = 4
+export const VERSION_FORMATO = 5
 
 /** Velocidad del tiempo al empezar una partida. */
 export const VELOCIDAD_INICIAL = 1
+
+/** Modo de juego (GDD §4): Vida (mover al personaje) o Plano (gestionar el valle). */
+export type ModoJuego = 'vida' | 'plano'
+
+export const MODOS_JUEGO: readonly ModoJuego[] = ['vida', 'plano']
 
 export interface EstadoJuego {
   readonly versionFormato: number
@@ -29,7 +35,9 @@ export interface EstadoJuego {
   readonly dia: number
   /** Minutos desde las 00:00 del día; rango [horaInicio, horaFin] (360..1560 = 06:00..02:00). */
   readonly minutoDelDia: number
+  /** Pausa elegida por el jugador. La del Modo Plano es derivada (`tiempoDetenido`), no se guarda aquí. */
   readonly pausado: boolean
+  readonly modo: ModoJuego
   /** Velocidad del tiempo (una de `CONFIG_TIEMPO.velocidades`). */
   readonly velocidad: number
   readonly dinero: number
@@ -42,6 +50,11 @@ export interface EstadoJuego {
   /** Centro de la casilla de aparición («entrada del valle»), en unidades de casilla. */
   readonly aparicion: { readonly x: number; readonly y: number }
   readonly personaje: Personaje
+}
+
+/** El reloj y el personaje están quietos: pausa del jugador o Modo Plano (pausa automática). */
+export function tiempoDetenido(estado: Pick<EstadoJuego, 'pausado' | 'modo'>): boolean {
+  return estado.pausado || estado.modo === 'plano'
 }
 
 export interface OpcionesNuevaPartida {
@@ -63,6 +76,7 @@ export function crearEstadoInicial(opciones: OpcionesNuevaPartida): EstadoJuego 
     dia: 1,
     minutoDelDia: CONFIG_TIEMPO.horaInicio,
     pausado: false,
+    modo: 'vida',
     velocidad: VELOCIDAD_INICIAL,
     dinero: opciones.dineroInicial,
     valle,

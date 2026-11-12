@@ -1,7 +1,14 @@
+import type { ModoJuego } from '../core'
+
 export interface ParametrosUrl {
   /** Semilla fijada con `?semilla=N`; si no, se genera una nueva. */
   readonly semilla?: number
   readonly debug: boolean
+  /**
+   * Modo con el que empieza la partida (`?modo=plano`). Vale siempre, sin `debug`: es un modo
+   * legítimo del juego y no da ventaja. Empieza en Plano con la vista centrada en el valle.
+   */
+  readonly modo?: ModoJuego
   /** Índices de parcela a marcar como propias; solo con `debug`. */
   readonly propias: readonly number[]
   /** Solo con `debug`: dónde empieza el personaje (`?debug&en=vado`). */
@@ -38,9 +45,12 @@ export function leerParametros(busqueda: string): ParametrosUrl {
       ]
     : []
   const en = debug && q.get('en')?.trim().toLowerCase() === 'vado' ? ('vado' as const) : undefined
+  const modo: ModoJuego | undefined =
+    q.get('modo')?.trim().toLowerCase() === 'plano' ? 'plano' : undefined
   return {
     ...(semilla === undefined ? {} : { semilla }),
     debug,
+    ...(modo === undefined ? {} : { modo }),
     propias,
     ...(en === undefined ? {} : { en }),
   }

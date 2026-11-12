@@ -1,7 +1,8 @@
 import { render } from 'preact'
 import { useState } from 'preact/hooks'
-import { arrancaDirecto, crearJuego, iniciarPartida } from './game/juego'
+import { arrancaDirecto, crearJuego, iniciarPartida, partidaActual } from './game/juego'
 import { t } from './ui/textos'
+import { Hud } from './ui/Hud'
 import { Portada } from './ui/Portada'
 import './estilos.css'
 
@@ -16,8 +17,8 @@ crearJuego(juego)
 
 function App() {
   const [jugando, setJugando] = useState(arrancaDirecto())
-  // Sin interfaz de partida todavía (llega en M2): jugando = solo el lienzo.
-  if (jugando) return null
+  const partida = partidaActual()
+  if (jugando && partida) return <Hud partida={partida} />
   return (
     <Portada
       version={__VERSION__}

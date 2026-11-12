@@ -15,9 +15,9 @@ export function acotarDelta(delta: number): number {
 export class AcumuladorTiempo {
   private resto = 0
 
-  /** `delta` ya acotado; devuelve los minutos enteros a avanzar (0 si en pausa). */
-  acumular(delta: number, velocidad: number, pausado: boolean): number {
-    if (pausado) return 0
+  /** `delta` ya acotado; devuelve los minutos enteros a avanzar (0 si el tiempo está detenido). */
+  acumular(delta: number, velocidad: number, detenido: boolean): number {
+    if (detenido) return 0
     this.resto += minutosDeJuegoPorMs(delta, velocidad)
     const enteros = Math.floor(this.resto)
     this.resto -= enteros

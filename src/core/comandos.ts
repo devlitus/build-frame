@@ -1,4 +1,4 @@
-import type { EstadoJuego } from './estado'
+import { MODOS_JUEGO, tiempoDetenido, type EstadoJuego, type ModoJuego } from './estado'
 import { CONFIG_TIEMPO } from './datos/tiempo'
 import { moverPersonaje, personajeEnAparicion } from './personaje'
 
@@ -16,6 +16,8 @@ export type Comando =
       /** Milisegundos de movimiento (≥ 0); el núcleo procesa como máximo `maxMsPorComando`. */
       readonly ms: number
     }
+  /** Cambia de modo; no toca `pausado` (la pausa del Plano se deriva en `tiempoDetenido`). */
+  | { readonly tipo: 'CambiarModo'; readonly modo: ModoJuego }
   | { readonly tipo: 'Pausar' }
   | { readonly tipo: 'Reanudar' }
   | { readonly tipo: 'CambiarVelocidad'; readonly velocidad: number }
@@ -42,7 +44,8 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
       if (!Number.isInteger(comando.minutos) || comando.minutos < 0) {
         return { ok: false, estado, error: 'parametro-invalido' }
       }
-      if (estado.pausado || comando.minutos === 0) return { ok: true, estado, eventos: SIN_EVENTOS }
+      if (tiempoDetenido(estado) || comando.minutos === 0)
+        return { ok: true, estado, eventos: SIN_EVENTOS }
       const minuto = estado.minutoDelDia + comando.minutos
       if (minuto > CONFIG_TIEMPO.horaFin) {
         if (!Number.isSafeInteger(estado.dia + 1)) {
@@ -69,7 +72,7 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
       if (!eje(dx) || !eje(dy) || typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) {
         return { ok: false, estado, error: 'parametro-invalido' }
       }
-      if (estado.pausado || ms === 0 || (dx === 0 && dy === 0)) {
+      if (tiempoDetenido(estado) || ms === 0 || (dx === 0 && dy === 0)) {
         return { ok: true, estado, eventos: SIN_EVENTOS }
       }
       const personaje = moverPersonaje(estado, estado.personaje, dx, dy, ms)
@@ -83,6 +86,13 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
         return { ok: true, estado, eventos: SIN_EVENTOS }
       }
       return { ok: true, eventos: SIN_EVENTOS, estado: { ...estado, personaje } }
+    }
+    case 'CambiarModo': {
+      if (!MODOS_JUEGO.includes(comando.modo)) {
+        return { ok: false, estado, error: 'parametro-invalido' }
+      }
+      if (comando.modo === estado.modo) return { ok: true, estado, eventos: SIN_EVENTOS }
+      return { ok: true, eventos: SIN_EVENTOS, estado: { ...estado, modo: comando.modo } }
     }
     case 'Pausar':
       return { ok: true, eventos: SIN_EVENTOS, estado: { ...estado, pausado: true } }

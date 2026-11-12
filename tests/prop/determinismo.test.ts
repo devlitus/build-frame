@@ -5,6 +5,7 @@ import {
   CONFIG_TIEMPO,
   crearEstadoInicial,
   siguienteAleatorio,
+  tiempoDetenido,
   type Comando,
 } from '../../src/core'
 
@@ -21,6 +22,10 @@ const comando: fc.Arbitrary<Comando> = fc.oneof(
   }),
   fc.constant({ tipo: 'Pausar' as const }),
   fc.constant({ tipo: 'Reanudar' as const }),
+  fc.record({
+    tipo: fc.constant('CambiarModo' as const),
+    modo: fc.constantFrom('vida' as const, 'plano' as const),
+  }),
   fc.record({
     tipo: fc.constant('CambiarVelocidad' as const),
     velocidad: fc.integer({ min: 0, max: 4 }),
@@ -64,6 +69,25 @@ describe('núcleo determinista', () => {
           const antes = estado
           estado = aplicarComandos(estado, [c])
           expect(estado.dia - antes.dia).toBeLessThanOrEqual(1)
+        }
+      }),
+    )
+  })
+
+  it('con el tiempo detenido (pausa o Plano) el reloj y el personaje no cambian', () => {
+    fc.assert(
+      fc.property(fc.array(comando), (comandos) => {
+        let estado = crearEstadoInicial({ semilla: 1, dineroInicial: 0 })
+        for (const c of comandos) {
+          const antes = estado
+          estado = aplicarComandos(estado, [c])
+          if (
+            tiempoDetenido(antes) &&
+            (c.tipo === 'AvanzarTiempo' || c.tipo === 'MoverPersonaje')
+          ) {
+            expect(estado).toBe(antes)
+          }
+          if (c.tipo === 'CambiarModo') expect(estado.pausado).toBe(antes.pausado)
         }
       }),
     )

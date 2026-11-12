@@ -51,10 +51,22 @@ test('al pulsar una tecla de movimiento el personaje se mueve y la cámara lo si
     if (!c0 || !c1) throw new Error('sin cámara')
     const k = eje === 'x' ? 'scrollX' : 'scrollY'
     expect((c1[k] - c0[k]) * signo).toBeGreaterThan(5)
-    // El centro de la cámara está más cerca del personaje (en px) que al empezar.
-    const dist = (c: NonNullable<typeof c0>) =>
-      Math.hypot(c.scrollX + c.ancho / 2 - p1.x * 32, c.scrollY + c.alto / 2 - p1.y * 32)
-    expect(dist(c1)).toBeLessThan(dist(c0) - 5)
+    // Desde M2-05 la cámara empieza junto al personaje: al detenerse, su centro queda a menos de
+    // 16 px del personaje (o del punto más cercano que permite el borde del valle).
+    await page.waitForTimeout(1000)
+    const c2 = await camara(page)
+    const mundo = (await page.evaluate(() => window.__raices?.mundoPx())) ?? 0
+    if (!c2) throw new Error('sin cámara')
+    const ajustar = (v: number, mitad: number) => Math.min(Math.max(v, mitad), mundo - mitad)
+    const pf = await personaje(page)
+    if (!pf) throw new Error('sin personaje')
+    const esperado = {
+      x: ajustar(pf.x * 32, c2.ancho / c2.zoom / 2),
+      y: ajustar(pf.y * 32, c2.alto / c2.zoom / 2),
+    }
+    expect(
+      Math.hypot(c2.scrollX + c2.ancho / 2 - esperado.x, c2.scrollY + c2.alto / 2 - esperado.y),
+    ).toBeLessThan(16)
     break
   }
   expect(movido).toBe(true)

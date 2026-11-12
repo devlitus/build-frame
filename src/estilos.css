@@ -108,3 +108,43 @@ body {
   opacity: 0.85;
   text-shadow: 0 1px 3px var(--sombra);
 }
+
+/* Interfaz de partida: arriba (M2-06) hora y botones de tiempo; abajo a la izquierda (M2-04) el joystick. */
+.hud {
+  align-self: stretch;
+  justify-self: stretch;
+  position: relative;
+}
+
+.boton-modo {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  pointer-events: auto;
+  font: inherit;
+  font-weight: 700;
+  min-width: 72px;
+  min-height: 48px;
+  padding: 0.5rem 1.1rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--crema);
+  color: var(--tierra);
+  box-shadow: 0 4px 12px var(--sombra);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.boton-modo[aria-pressed='true'] {
+  background: var(--tierra);
+  color: var(--crema);
+}
+
+.boton-modo:focus-visible {
+  /* Doble anillo: el crema se ve sobre el terreno oscuro y el tinta sobre el claro (>= 3:1). */
+  outline: 3px solid var(--crema);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px var(--tinta),
+    0 4px 12px var(--sombra);
+}

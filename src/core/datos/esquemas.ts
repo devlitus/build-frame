@@ -82,6 +82,8 @@ export const EsquemaConfigPersonaje = v.strictObject({
   tamanoCaja: v.pipe(v.number(), v.minValue(0.1), v.maxValue(0.95)),
   /** Lado del valle donde está el pueblo: allí aparece el personaje (la entrada del valle). */
   ladoPueblo: v.picklist(LADOS),
+  /** Casillas hacia dentro del valle, desde el borde del pueblo, a las que aparece el personaje. */
+  margenAparicion: v.pipe(v.number(), v.finite(), v.minValue(0), v.maxValue(16)),
   /** Tope de ms que procesa un solo comando `MoverPersonaje` (evita efecto túnel y bucles largos). */
   maxMsPorComando: v.pipe(v.number(), v.finite(), v.minValue(1), v.maxValue(1000)),
 })

@@ -26,7 +26,7 @@ test('el contador de fps solo existe con ?debug', async ({ page }) => {
 test('fps medias arrastrando (informativo, sin GPU en CI)', async ({ page }, info) => {
   test.skip(info.project.name !== 'escritorio', 'se mide solo en escritorio')
   test.setTimeout(60_000)
-  await abrir(page, './?semilla=42')
+  await abrir(page, './?semilla=42&modo=plano')
   const v = page.viewportSize() ?? { width: 1280, height: 720 }
   await page.mouse.move(v.width / 2, v.height / 2)
   await page.mouse.down()

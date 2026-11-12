@@ -120,7 +120,7 @@ test.describe('flujo completo', () => {
   }) => {
     const errores = espiar(page)
     const g = new Gestos(page, isMobile)
-    await page.goto('./')
+    await page.goto('./?modo=plano')
     await expect.poll(() => escena(page)).toBe('portada')
     await page.getByRole('button', { name: 'Nueva partida' }).click()
     await expect.poll(() => escena(page)).toBe('valle')
@@ -208,7 +208,7 @@ test.describe('se recorre todo el valle', () => {
         test.setTimeout(240_000)
         const errores = espiar(page)
         await page.setViewportSize(caso.tam)
-        await abrir(page, './?semilla=42')
+        await abrir(page, './?semilla=42&modo=plano')
         const g = new Gestos(page, isMobile)
         await g.zoomExtremo(extremo === 'máximo')
         const z = (await camara(page)).zoom
@@ -301,7 +301,7 @@ test('horneado: con zoom máximo en las cuatro esquinas el terreno cubre la pant
   isMobile,
 }) => {
   test.setTimeout(180_000)
-  await abrir(page, './?semilla=42')
+  await abrir(page, './?semilla=42&modo=plano')
   const g = new Gestos(page, isMobile)
   await g.zoomExtremo(true)
   for (const [dx, dy] of [
@@ -329,7 +329,7 @@ test('contador de fps: sigue en la esquina y legible tras zoom y giro', async ({
 }) => {
   test.setTimeout(120_000)
   const errores = espiar(page)
-  await abrir(page, './?semilla=42&debug')
+  await abrir(page, './?semilla=42&debug&modo=plano')
   const g = new Gestos(page, isMobile)
   await g.zoomExtremo(true)
   const v = page.viewportSize() ?? { width: 1280, height: 720 }
@@ -361,7 +361,7 @@ test('reiniciarValle: la cámara vuelve al encuadre inicial y los gestos no se d
 }) => {
   test.setTimeout(120_000)
   const errores = espiar(page)
-  await abrir(page, './?semilla=42&debug')
+  await abrir(page, './?semilla=42&debug&modo=plano')
   const g = new Gestos(page, isMobile)
   const inicial = await camara(page)
   for (let k = 0; k < 3; k++) {
@@ -416,7 +416,7 @@ test('rendimiento: fps medias durante 5 s de arrastre y zoom continuos (solo reg
   page,
 }, info) => {
   test.skip(info.project.name !== 'escritorio')
-  await abrir(page, './?semilla=42')
+  await abrir(page, './?semilla=42&modo=plano')
   const reposo = await page.evaluate(
     () =>
       new Promise<number>((res) => {

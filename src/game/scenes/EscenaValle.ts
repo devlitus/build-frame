@@ -1,11 +1,15 @@
 import Phaser from 'phaser'
 import {
+  aplicarComando,
   casillasRio,
   crearEstadoInicial,
   ladoValle,
+  tiempoDetenido,
   type Comando,
   type EstadoJuego,
+  type ModoJuego,
 } from '../../core'
+import { CONFIG_CAMARA } from '../camara/config'
 import { ControlCamara } from '../camara/controlCamara'
 import { marcarPropias } from '../valle/debug'
 import { dibujarDecoracion, dibujarParcelas, dibujarTerreno, tamanoMundoPx } from '../valle/dibujar'
@@ -16,17 +20,15 @@ import { Partida } from '../partida'
 import { TAM_CASILLA } from '../valle/estilo'
 import { VistaPersonaje } from '../valle/personaje'
 
-/**
- * En el Modo Vida el arrastre de la cámara está desactivado (lo recupera el Modo Plano, M2-05).
- * Se deja activo de forma provisional: los e2e de M1 (cámara, recorrido del valle) se apoyan en
- * arrastrar; la cámara solo vuelve a seguir al personaje cuando este se mueve.
- */
-const ARRASTRE_EN_MODO_VIDA = true
+/** El arrastre de la cámara solo existe en el Modo Plano; en Vida la cámara sigue al personaje. */
+const ARRASTRE_EN_MODO_VIDA = false
 
 export interface DatosEscenaValle {
   readonly semilla: number
   /** Partida compartida con el resto del juego (HUD); sobrevive a los reinicios de la escena. */
   readonly partida: Partida
+  /** Modo con el que empieza la partida (`?modo=plano`); por defecto Vida. */
+  readonly modo?: ModoJuego
   /** Solo depuración: índices de parcela que se dibujan como propias. */
   readonly propias?: readonly number[]
   /** Solo depuración: empezar con el personaje en el primer vado. */
@@ -41,6 +43,9 @@ export interface DatosEscenaValle {
 export class EscenaValle extends Phaser.Scene {
   private _partida: Partida | undefined = undefined
   private en: 'vado' | undefined = undefined
+  private modoInicial: ModoJuego = 'vida'
+  /** Modo ya aplicado a la cámara y al teclado; si el estado cambia, `update()` lo reaplica. */
+  private modoAplicado: ModoJuego = 'vida'
   private control: ControlCamara | undefined = undefined
   private entrada: EntradaMovimiento | undefined = undefined
   private vista: VistaPersonaje | undefined = undefined
@@ -53,6 +58,7 @@ export class EscenaValle extends Phaser.Scene {
       semilla: this.semilla,
       partida: this.partidaCompartida(),
       propias: this.propias,
+      ...(this.modoInicial === 'plano' ? { modo: this.modoInicial } : {}),
       ...(this.en === undefined ? {} : { en: this.en }),
     }
   }
@@ -74,6 +80,7 @@ export class EscenaValle extends Phaser.Scene {
     this._partida = datos.partida
     this.propias = datos.propias ?? []
     this.en = datos.en
+    this.modoInicial = datos.modo ?? 'vida'
   }
 
   /** Solo lectura desde fuera; lo escribe únicamente `create()`. */
@@ -106,6 +113,7 @@ export class EscenaValle extends Phaser.Scene {
         },
       }
     }
+    inicial = aplicarComando(inicial, { tipo: 'CambiarModo', modo: this.modoInicial }).estado
     // La misma instancia de Partida: los suscriptores (HUD) siguen suscritos tras un reinicio.
     const partida = this.partidaCompartida()
     partida.reemplazar(inicial)
@@ -142,13 +150,15 @@ export class EscenaValle extends Phaser.Scene {
       x: inicial.personaje.x * TAM_CASILLA,
       y: inicial.personaje.y * TAM_CASILLA,
     }
-    // Modo Vida: la cámara sigue al personaje y no se arrastra (el arrastre vuelve con el Modo Plano).
+    // Vida: la cámara empieza centrada en el personaje, lo sigue y no se arrastra. Plano: cámara
+    // libre (como en M1), con la vista centrada en el valle.
+    const enVida = inicial.modo === 'vida'
+    this.modoAplicado = inicial.modo
     this.control = new ControlCamara(
       this,
       this.mundoPx,
-      { seguir: true, arrastre: ARRASTRE_EN_MODO_VIDA },
-      // Como en M1 la vista empieza centrada en el valle; con `?debug&en=vado` en el personaje.
-      this.en === undefined ? undefined : posicion,
+      { seguir: enVida, arrastre: !enVida || ARRASTRE_EN_MODO_VIDA },
+      enVida ? posicion : undefined,
       posicion,
     )
   }
@@ -166,16 +176,48 @@ export class EscenaValle extends Phaser.Scene {
       const r = partida.emitir(c)
       if (r.ok && r.eventos.some((e) => e.tipo === 'desmayo')) desmayo = true
     }
-    for (const c of comandosMovimiento(this.entrada.leer(), ms)) emitir(c)
-    const { velocidad, pausado } = partida.estado
-    const minutos = this.tiempo.acumular(ms, velocidad, pausado)
+    if (this.entrada.cambiarModo()) {
+      emitir({ tipo: 'CambiarModo', modo: partida.estado.modo === 'vida' ? 'plano' : 'vida' })
+    }
+    // El cambio puede venir de la tecla o del botón de la interfaz.
+    if (partida.estado.modo !== this.modoAplicado) this.aplicarModo(partida.estado.modo)
+    const modo = this.modoAplicado
+    const intencion = this.entrada.leer()
+    if (modo === 'vida') {
+      for (const c of comandosMovimiento(intencion, ms)) emitir(c)
+    } else {
+      // Plano: las teclas desplazan la cámara y `+`/`-` hacen zoom; el personaje no se mueve.
+      const s = ms / 1000
+      // La diagonal no es más rápida que los ejes.
+      const norma = intencion.dx !== 0 && intencion.dy !== 0 ? Math.SQRT1_2 : 1
+      const v = CONFIG_CAMARA.velocidadTecladoPx * s * norma
+      this.control?.desplazar(intencion.dx * v, intencion.dy * v)
+      this.control?.zoomCentro(
+        Math.pow(CONFIG_CAMARA.zoomTeclaPorSegundo, this.entrada.leerZoom() * s),
+      )
+    }
+    const { velocidad } = partida.estado
+    const minutos = this.tiempo.acumular(ms, velocidad, tiempoDetenido(partida.estado))
     if (minutos > 0) emitir({ tipo: 'AvanzarTiempo', minutos })
     const p = partida.estado.personaje
     this.vista?.colocar(p)
     const punto = { x: p.x * TAM_CASILLA, y: p.y * TAM_CASILLA }
     // Tras un desmayo el personaje reaparece lejos: la cámara salta, sin barrido.
     if (desmayo) this.control?.centrarEn(punto)
-    else this.control?.seguir(punto, ms)
+    // El suavizado de la cámara usa el tiempo real (no el acotado del juego): con pocos fps
+    // alcanza igual al personaje en el mismo tiempo.
+    else
+      this.control?.seguir(punto, Number.isFinite(delta) ? Math.min(Math.max(delta, 0), 1000) : 0)
+  }
+
+  /** Cámara y teclado según el modo: Vida sigue al personaje (suave, aunque esté quieto); Plano queda libre. */
+  private aplicarModo(modo: ModoJuego): void {
+    this.modoAplicado = modo
+    this.entrada?.soltar()
+    if (!this.control) return
+    const enVida = modo === 'vida'
+    this.control.arrastreActivo = !enVida || ARRASTRE_EN_MODO_VIDA
+    this.control.seguirActivo = enVida
   }
 
   private rehornear(): void {

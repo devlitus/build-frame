@@ -2,5 +2,10 @@
   "titulo": "Raíces",
   "lema": "Deja la ciudad. Echa raíces.",
   "nuevaPartida": "Nueva partida",
-  "lienzoValle": "Valle de cultivo"
+  "lienzoValle": "Valle de cultivo",
+  "modoVida": "Vida",
+  "modoPlano": "Plano",
+  "botonModoAyuda": "Cambiar de modo (M)",
+  "cambiarAModoVida": "Modo de juego: Plano. Cambiar al Modo Vida",
+  "cambiarAModoPlano": "Modo de juego: Vida. Cambiar al Modo Plano"
 }

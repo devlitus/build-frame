@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { EscenaPortada } from './scenes/EscenaPortada'
 import { EscenaDepuracion } from './scenes/EscenaDepuracion'
 import { EscenaValle, type DatosEscenaValle } from './scenes/EscenaValle'
-import { crearEstadoInicial, ladoValle } from '../core'
+import { crearEstadoInicial, ladoValle, type Comando } from '../core'
 import { Partida } from './partida'
 import { leerParametros, semillaNueva } from './parametros'
 
@@ -21,8 +21,14 @@ function datosPartida(): DatosEscenaValle {
     semilla,
     partida,
     propias: p.propias,
+    ...(p.modo === undefined ? {} : { modo: p.modo }),
     ...(p.en === undefined ? {} : { en: p.en }),
   }
+}
+
+/** La partida en curso (la interfaz se suscribe a ella); undefined hasta que se juega. */
+export function partidaActual(): Partida | undefined {
+  return partida
 }
 
 /** Con `?semilla=N` en la URL se salta la portada y se abre el valle directamente. */
@@ -73,7 +79,7 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
   } else g.scene.add('valle', EscenaValle, false)
   if (leerParametros(window.location.search).debug)
     g.scene.add('depuracion', EscenaDepuracion, true)
-  // Solo lectura, para los tests e2e.
+  // Ganchos para los tests e2e: lectura y, solo con `?debug`, `reiniciarValle` y `emitir`.
   window.__raices = {
     escenaActiva: () => g.scene.getScenes(true)[0]?.scene.key,
     semilla: () => semillaActual,
@@ -87,6 +93,11 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
       if (!leerParametros(window.location.search).debug) return
       const e = g.scene.getScene('valle')
       if (e instanceof EscenaValle && e.scene.isActive()) e.scene.restart(e.datos)
+    },
+    emitir: (comando) => {
+      // Solo con `?debug` (como `reiniciarValle`): los e2e fijan la pausa, la velocidad...
+      if (!leerParametros(window.location.search).debug) return
+      partida?.emitir(comando as Comando)
     },
     fps: () => g.loop.actualFps,
     contadorFps: () => {
@@ -103,6 +114,10 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
       return e.children.list
         .filter((o): o is Phaser.GameObjects.Graphics => o instanceof Phaser.GameObjects.Graphics)
         .map((o) => o.commandBuffer.length)
+    },
+    modo: () => {
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.estado?.modo : undefined
     },
     personaje: () => {
       const e = g.scene.getScene('valle')
