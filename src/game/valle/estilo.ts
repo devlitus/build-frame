@@ -34,6 +34,18 @@ export function estiloParcela(estado: EstadoParcela): EstiloParcela {
   return ESTILO_PARCELA[estado]
 }
 
+/**
+ * Resaltado de la parcela seleccionada: doble trazo (tinta por fuera, crema por dentro) a
+ * propósito distinto del dorado de las propias; se lee sobre terreno claro y oscuro.
+ */
+export const ESTILO_RESALTE = {
+  tinta: 0x3b2a1a,
+  crema: 0xfff3c4,
+  grosorTinta: 14,
+  grosorCrema: 6,
+  alfaRelleno: 0.18,
+} as const
+
 export const COLOR_ARBOL = { copa: 0x2f6b2f, copaClara: 0x3f8a3a, tronco: 0x6b4a2b } as const
 export const COLOR_ROCA = { relleno: 0x8a8a8a, borde: 0x5e5e5e } as const
 

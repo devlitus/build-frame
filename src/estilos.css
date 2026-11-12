@@ -291,3 +291,146 @@ body {
   transform: translate(-50%, -50%);
 }
 /* === Fin controles táctiles === */
+
+/* === M3-03 · Panel de detalle de la parcela seleccionada === */
+/* Escritorio y móvil horizontal: tarjeta a la derecha, entre el HUD de arriba y el botón de modo. */
+.panel-parcela {
+  position: absolute;
+  top: 72px;
+  right: 12px;
+  width: min(320px, 42%);
+  max-height: calc(100% - 148px);
+  overflow-y: auto;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-radius: 14px;
+  background: rgb(246 236 214 / 96%);
+  color: var(--tinta);
+  box-shadow: 0 4px 16px var(--sombra);
+  border: 2px solid var(--tierra);
+  touch-action: pan-y;
+  user-select: none;
+}
+
+/* Con el contador de fps (?debug) el HUD de arriba baja 32 px. */
+.hud-debug .panel-parcela {
+  top: 104px;
+  max-height: calc(100% - 180px);
+}
+
+.panel-parcela-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.panel-parcela h2 {
+  margin: 0;
+  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.boton-cerrar {
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.8rem;
+  border: 0;
+  border-radius: 12px;
+  background: var(--tierra);
+  color: var(--crema);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.boton-cerrar:focus-visible {
+  outline: 3px solid var(--tinta);
+  outline-offset: 2px;
+}
+
+.parcela-atributos {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.parcela-atributo {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 28px;
+  padding: 2px 0;
+  border-bottom: 1px dotted rgb(138 90 59 / 55%);
+}
+
+.parcela-atributo dt {
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.parcela-atributo dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.parcela-simbolo {
+  display: inline-block;
+  min-width: 1.6em;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+.parcela-compra {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  background: rgb(138 90 59 / 14%);
+  border: 2px solid var(--tierra);
+}
+
+.parcela-compra-ok {
+  background: var(--tinta);
+  color: var(--crema);
+  border-color: var(--tinta);
+}
+
+.parcela-compra-propia {
+  background: rgb(255 201 60 / 35%);
+  border-color: #b8860b;
+}
+
+/* Hueco para el botón Comprar y su confirmación (M3-04). */
+.panel-parcela-acciones:empty {
+  display: none;
+}
+
+/* Móvil vertical: hoja inferior, por encima del botón de modo. */
+@media (orientation: portrait) and (max-width: 700px) {
+  .panel-parcela,
+  .hud-debug .panel-parcela {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: 72px;
+    width: auto;
+    max-height: 55%;
+    border-radius: 18px 18px 14px 14px;
+  }
+}
+/* === Fin panel de parcela === */

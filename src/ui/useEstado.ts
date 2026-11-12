@@ -12,6 +12,20 @@ export function usePartida(): Partida {
   return p
 }
 
+/** Índice de la parcela seleccionada (estado de interfaz), o undefined; repinta al cambiar. */
+export function useSeleccion(): number | undefined {
+  const { seleccion } = usePartida()
+  const [indice, setIndice] = useState(seleccion.indice)
+  useEffect(() => {
+    const actualizar = () => {
+      setIndice(seleccion.indice)
+    }
+    actualizar()
+    return seleccion.suscribir(actualizar)
+  }, [seleccion])
+  return indice
+}
+
 /** Fuente externa: la porción del estado que elige `selector`. */
 export function fuenteDeEstado<T>(partida: Partida, selector: (estado: EstadoJuego) => T) {
   return {

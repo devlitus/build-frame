@@ -35,6 +35,16 @@ export class ControlCamara {
   private previa: Medida | undefined = undefined
   private objetivo: Punto | undefined = undefined
   private persiguiendo = false
+  /** Centro (mundo, px) al que la vista se desliza suavemente; lo cancela cualquier gesto. */
+  private guia: Punto | undefined = undefined
+  /**
+   * Objetivo de la última guía: amplía el rango del centro mientras haya parcela elegida, para
+   * que las de borde o esquina puedan quedar fuera del panel. Se borra al soltarla y llegar,
+   * con un gesto del usuario o al pasar a Vida.
+   */
+  private extension: Punto | undefined = undefined
+  /** La extensión se está soltando: la vista vuelve suavemente a los límites normales. */
+  private soltando = false
   /** Última vista aplicada: al redimensionar se conserva su centro. */
   private actual: Vista = { zoom: 1, cx: 0, cy: 0 }
 
@@ -65,7 +75,11 @@ export class ControlCamara {
 
   set seguirActivo(v: boolean) {
     this.opciones.seguir = v
-    if (v) this.persiguiendo = true
+    if (v) {
+      this.persiguiendo = true
+      this.guia = undefined
+      this.borrarExtension()
+    }
   }
 
   set arrastreActivo(v: boolean) {
@@ -108,6 +122,61 @@ export class ControlCamara {
     this.mover(c, c, factor)
   }
 
+  /** Desliza la vista hasta centrarla en `punto` (se avanza con `avanzarGuia`). */
+  guiarA(punto: Punto): void {
+    this.guia = { ...punto }
+    this.extension = { ...punto }
+    this.soltando = false
+    this.persiguiendo = false
+  }
+
+  /**
+   * Fin de la selección: la vista vuelve suavemente a los límites normales (con `avanzarGuia`)
+   * y la extensión se borra al llegar.
+   */
+  soltarExtension(): void {
+    if (!this.extension) return
+    this.guia = undefined
+    this.soltando = true
+  }
+
+  /** Un paso del deslizamiento suave; `delta` en ms de tiempo real. */
+  avanzarGuia(delta: number): void {
+    const g = this.guia
+    if (g) {
+      const v = this.actual
+      const antes = Math.hypot(g.x - v.cx, g.y - v.cy)
+      if (antes < CONFIG_CAMARA.umbralSeguimientoPx) {
+        this.guia = undefined
+        return
+      }
+      this.aplicar(acercar(v, g, delta, CONFIG_CAMARA.suavizadoGuiaMs))
+      // Objetivo inalcanzable (el centro está limitado): la guía se da por terminada.
+      const w = this.actual
+      if (!(Math.hypot(g.x - w.cx, g.y - w.cy) < antes)) this.guia = undefined
+      return
+    }
+    if (!this.soltando || !this.extension) return
+    const v = this.actual
+    const meta = limitarVista(v, this.pantalla, this.mundoPx)
+    if (Math.hypot(meta.cx - v.cx, meta.cy - v.cy) < CONFIG_CAMARA.umbralSeguimientoPx) {
+      this.borrarExtension()
+      this.aplicar(meta)
+      return
+    }
+    this.aplicar(acercar(v, { x: meta.cx, y: meta.cy }, delta, CONFIG_CAMARA.suavizadoGuiaMs))
+  }
+
+  private borrarExtension(): void {
+    this.extension = undefined
+    this.soltando = false
+  }
+
+  /** Vista vigente (zoom y centro en px del mundo). */
+  get vista(): Vista {
+    return this.actual
+  }
+
   /** Coloca la vista sobre `punto` de golpe, sin barrido (p. ej. tras un desmayo). */
   centrarEn(punto: Punto): void {
     this.objetivo = { ...punto }
@@ -122,7 +191,7 @@ export class ControlCamara {
   private aplicar(v: Vista): void {
     if (this.pantalla.ancho <= 0 || this.pantalla.alto <= 0) return
     const cam = this.escena.cameras.main
-    const l = limitarVista(v, this.pantalla, this.mundoPx)
+    const l = limitarVista(v, this.pantalla, this.mundoPx, this.extension)
     cam.setZoom(l.zoom)
     cam.setScroll(l.cx - cam.width / 2, l.cy - cam.height / 2)
     this.actual = l
@@ -185,6 +254,11 @@ export class ControlCamara {
   }
 
   private mover(desde: Punto, hasta: Punto, factor: number): void {
+    this.guia = undefined
+    this.soltando = false
+    // La extensión se encoge al centro actual: el gesto es continuo (sin salto a los límites
+    // normales) y la extensión desaparece sola cuando la vista vuelve a quedar dentro del valle.
+    if (this.extension) this.extension = { x: this.actual.cx, y: this.actual.cy }
     const pantalla = this.pantalla
     this.aplicar(
       transformar(
@@ -195,8 +269,13 @@ export class ControlCamara {
         factor,
         limitesZoom(pantalla, this.mundoPx),
         this.mundoPx,
+        this.extension,
       ),
     )
+    if (this.extension) {
+      const normal = limitarVista(this.actual, pantalla, this.mundoPx)
+      if (normal.cx === this.actual.cx && normal.cy === this.actual.cy) this.extension = undefined
+    }
   }
 
   private alRedimensionar(): void {

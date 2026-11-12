@@ -2,6 +2,7 @@ import type { ModoJuego } from '../core'
 import type { Partida } from '../game/partida'
 import { Aviso } from './Aviso'
 import { ControlesTiempo } from './ControlesTiempo'
+import { PanelParcela } from './PanelParcela'
 import { Reloj } from './Reloj'
 import { t } from './textos'
 import { ContextoPartida, useEstado, usePartida } from './useEstado'
@@ -42,7 +43,7 @@ export function BotonModo() {
 export function Hud({ partida, debug = false }: { partida: Partida; debug?: boolean }) {
   return (
     <ContextoPartida.Provider value={partida}>
-      <div class="hud">
+      <div class={debug ? 'hud hud-debug' : 'hud'}>
         <div class={debug ? 'hud-arriba hud-arriba-debug' : 'hud-arriba'}>
           <div class="hud-superior">
             <Reloj />
@@ -50,6 +51,7 @@ export function Hud({ partida, debug = false }: { partida: Partida; debug?: bool
           </div>
           <Aviso />
         </div>
+        <PanelParcela />
         <BotonModo />
       </div>
     </ContextoPartida.Provider>
