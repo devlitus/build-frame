@@ -1,6 +1,6 @@
 # Biblia de arte — «Raíces»
 
-**Estado:** prototipo de arte (ROADMAP, Transversal). Estilo elegido en la PARADA 1: **B, tinta sepia + acuarela** (ver [la comparativa](../../assets-src/prototipo/propuestas/comparativa.png) y [la ficha](../../assets-src/fichas/propuestas-estilo.md)).
+**Estado:** aprobada por la PO en la PARADA 2 (prototipo de arte, ROADMAP Transversal). Estilo: **B, tinta sepia + acuarela** (ver [la comparativa](../../assets-src/prototipo/propuestas/comparativa.png) y [la ficha](../../assets-src/fichas/propuestas-estilo.md)).
 **Relacionado:** [GDD §3 y §9](../../GDD.md#9-arte-y-audio) · [ADR 0003](../adr/0003-perspectiva.md) · [PROCESO §8](../PROCESO.md#8-arte-comfyui-y-blender) · issue #11 (nitidez con DPR alto)
 
 Esta biblia fija las reglas que todo recurso debe cumplir para que el arte se vea como una sola obra. Si una regla choca con el GDD o un ADR, manda el documento de diseño y se propone el cambio a la PO.

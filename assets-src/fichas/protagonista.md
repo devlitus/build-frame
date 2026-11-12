@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Recurso | Protagonista: reposo (4 fotogramas) y caminar (8) en las direcciones abajo, arriba y derecha (izquierda = espejo) |
-| Estado | Prototipo de arte (PARADA 2 pendiente) |
+| Estado | Prototipo de arte, aprobado en la PARADA 2 |
 | Concepto | `assets-src/prototipo/propuestas/propuesta-b-personaje.png` (estilo B, semilla 5201) |
 | Fuente | `assets-src/protagonista/protagonista.blend`, generado por `assets-src/prototipo/blender/protagonista.py` |
 | Herramientas | Blender 5.2.2 LTS (EEVEE), Node 22 + sharp para el montaje |

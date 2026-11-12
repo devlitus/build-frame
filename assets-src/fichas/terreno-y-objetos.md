@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Recursos | `tile-hierba`, `tile-tierra`, `tile-agua`, `tile-camino` (4 variantes cada uno); `arbol`, `roca` |
-| Estado | Prototipo de arte (PARADA 2 pendiente) |
+| Estado | Prototipo de arte, aprobado en la PARADA 2 |
 | Modelo | Qwen-Image 2512 fp8, 30 pasos, CFG 4, euler/simple, AuraFlow 3.1, sin LoRA |
 | Fuentes | `assets-src/prototipo/fase4/textura-*.png` y `objeto-*.png`; workflows en `assets-src/prototipo/comfy/json/` |
 | Generador | `assets-src/prototipo/comfy/workflows.py` (*prompts* y semillas) + `comfy/lanzar.py` |
