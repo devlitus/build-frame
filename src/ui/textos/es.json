@@ -58,6 +58,7 @@
   "errorCompra_ya-propia": "No se pudo comprar: la parcela ya es tuya",
   "errorCompra_no-adyacente": "No se pudo comprar: debe tocar una de tus parcelas",
   "errorCompra_otro": "No se pudo comprar la parcela",
+  "ayudaPlano": "Modo Plano. Enter o Espacio eligen la parcela del centro de la vista. Con una parcela elegida, las flechas pasan a la parcela vecina, Tab llega al panel para comprarla y Escape la suelta. Sin parcela elegida, las flechas mueven la cámara.",
   "dineroAria": "Dinero",
   "dineroMonedas": "monedas"
 }

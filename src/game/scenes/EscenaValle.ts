@@ -17,6 +17,7 @@ import { VistaParcelas } from '../valle/vistaParcelas'
 import { dibujarDecoracion, dibujarResalte, dibujarTerreno, tamanoMundoPx } from '../valle/dibujar'
 import { medirReservasHud } from '../areaHud'
 import { areaLibre, centroParaVer, parcelaEnPunto, puntoDeToque, rectParcela } from '../picking'
+import { parcelaEnCentroDeVista, parcelaVecina, type DireccionParcela } from '../cursorParcela'
 import { SelectorParcela } from '../selectorParcela'
 import { hornearCapaBase } from '../valle/hornear'
 import { AcumuladorTiempo, acotarDelta, comandosMovimiento } from '../bucle'
@@ -107,6 +108,7 @@ export class EscenaValle extends Phaser.Scene {
   /** Fotograma pendiente de la guía tras redimensionar. */
   private idFotograma: number | undefined = undefined
   private quitarEsc: (() => void) | undefined = undefined
+  private quitarTeclasLienzo: (() => void) | undefined = undefined
 
   constructor() {
     super('valle')
@@ -251,6 +253,13 @@ export class EscenaValle extends Phaser.Scene {
     const teclado = this.input.keyboard
     teclado?.on('keydown-ESC', alEsc)
     this.quitarEsc = () => teclado?.off('keydown-ESC', alEsc)
+    // Plano sin ratón: Enter o Espacio eligen la parcela del centro y las flechas mueven la elección.
+    this.quitarTeclasLienzo?.()
+    const lienzo = this.game.canvas
+    const contenedor = lienzo.parentElement
+    contenedor?.addEventListener('keydown', this.alTeclaLienzo)
+    this.quitarTeclasLienzo = () => contenedor?.removeEventListener('keydown', this.alTeclaLienzo)
+    this.ajustarLienzoAccesible(inicial.modo)
     this.tactil = new ControlTactil(this)
     this.tactil.activo = inicial.modo === 'vida'
     this.marca = new MarcaDestino(this)
@@ -306,6 +315,61 @@ export class EscenaValle extends Phaser.Scene {
     return puntoDeToque(c.vista, pantalla, libre, rectParcela(g, i))
   }
 
+  /** ¿Tiene el foco el lienzo (o su contenedor)? Solo entonces Enter, Espacio y flechas eligen parcela. */
+  private focoEnLienzo(): boolean {
+    const a = document.activeElement
+    return a !== null && (a === this.game.canvas || a === this.game.canvas.parentElement)
+  }
+
+  private readonly alTeclaLienzo = (ev: KeyboardEvent): void => {
+    const partida = this._partida
+    const g = this.geometria()
+    if (!partida || !g || !this.control || this.modoAplicado !== 'plano') return
+    if (ev.ctrlKey || ev.altKey || ev.metaKey || ev.shiftKey) return
+    // Solo con el foco en el lienzo: en los botones del panel y del HUD Enter y Espacio son suyos.
+    if (ev.target !== this.game.canvas && ev.target !== this.game.canvas.parentElement) return
+    const seleccion = partida.seleccion
+    if (ev.code === 'Enter' || ev.code === 'NumpadEnter' || ev.code === 'Space') {
+      ev.preventDefault()
+      if (ev.repeat || seleccion.indice !== undefined) return
+      seleccion.seleccionar(parcelaEnCentroDeVista(g, this.control.vista))
+      return
+    }
+    const direccion: Record<string, DireccionParcela | undefined> = {
+      ArrowUp: 'arriba',
+      ArrowDown: 'abajo',
+      ArrowLeft: 'izquierda',
+      ArrowRight: 'derecha',
+    }
+    const d = direccion[ev.code]
+    const actual = seleccion.indice
+    // Sin selección las flechas siguen moviendo la cámara.
+    if (!d || actual === undefined) return
+    ev.preventDefault()
+    seleccion.seleccionar(parcelaVecina(g.parcelasPorLado, actual, d))
+  }
+
+  /**
+   * En Plano el lienzo entra en el orden de tabulación, con su ayuda para lectores de pantalla;
+   * en Vida no (el teclado del juego funciona con el foco en cualquier sitio).
+   */
+  private ajustarLienzoAccesible(modo: ModoJuego): void {
+    const lienzo = this.game.canvas
+    const contenedor = lienzo.parentElement
+    if (modo === 'plano') {
+      lienzo.tabIndex = 0
+      lienzo.setAttribute('aria-labelledby', 'juego')
+      lienzo.setAttribute('aria-describedby', 'ayuda-plano')
+      if (contenedor) contenedor.dataset['modo'] = 'plano'
+    } else {
+      if (document.activeElement === lienzo) contenedor?.focus({ preventScroll: true })
+      lienzo.removeAttribute('tabindex')
+      lienzo.removeAttribute('aria-labelledby')
+      lienzo.removeAttribute('aria-describedby')
+      if (contenedor) delete contenedor.dataset['modo']
+    }
+  }
+
   private alRedimensionar(): void {
     this.claveGuia = ''
     if (this.idFotograma !== undefined) cancelAnimationFrame(this.idFotograma)
@@ -339,14 +403,17 @@ export class EscenaValle extends Phaser.Scene {
     )
       return
     const o = partida.seleccion.ocupado
-    const clave = `${i}|${o ? `${o.x},${o.y},${o.ancho},${o.alto}` : ''}`
+    // Las reservas del HUD cambian (p. ej. con el aviso de compra): entran en la clave para que
+    // la guía se repita cuando aparecen o desaparecen, igual que con el panel.
+    const reservas = medirReservasHud()
+    const clave = `${i}|${o ? `${o.x},${o.y},${o.ancho},${o.alto}` : ''}|${reservas.arriba},${reservas.abajo}`
     if (clave === this.claveGuia || !this.control) return
     this.claveGuia = clave
     const pantalla = { ancho: this.scale.width, alto: this.scale.height }
     const centro = centroParaVer(
       this.control.vista,
       pantalla,
-      areaLibre(pantalla, o, medirReservasHud()),
+      areaLibre(pantalla, o, reservas),
       rectParcela(g, i),
     )
     if (centro) this.control.guiarA(centro)
@@ -369,7 +436,9 @@ export class EscenaValle extends Phaser.Scene {
     // El cambio puede venir de la tecla o del botón de la interfaz.
     if (partida.estado.modo !== this.modoAplicado) this.aplicarModo(partida.estado.modo)
     const modo = this.modoAplicado
-    const teclado = this.entrada.leer()
+    const teclado = this.entrada.leer(
+      modo === 'plano' && partida.seleccion.indice !== undefined && this.focoEnLienzo(),
+    )
     const joystick = this.tactil?.leer() ?? { dx: 0, dy: 0 }
     // El teclado tiene prioridad sobre el joystick; cualquiera de los dos cancela el destino.
     const intencion = teclado.dx !== 0 || teclado.dy !== 0 ? teclado : joystick
@@ -436,6 +505,7 @@ export class EscenaValle extends Phaser.Scene {
     if (this.tactil) this.tactil.activo = modo === 'vida'
     this.selector?.reiniciar()
     if (this.selector) this.selector.activo = modo === 'plano'
+    this.ajustarLienzoAccesible(modo)
     if (!this.control) return
     const enVida = modo === 'vida'
     this.control.arrastreActivo = !enVida || ARRASTRE_EN_MODO_VIDA
@@ -468,6 +538,8 @@ export class EscenaValle extends Phaser.Scene {
     this.idFotograma = undefined
     this.quitarEsc?.()
     this.quitarEsc = undefined
+    this.quitarTeclasLienzo?.()
+    this.quitarTeclasLienzo = undefined
     this.selector = undefined
     this.vista?.destruir()
     this.vista = undefined

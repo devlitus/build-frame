@@ -51,11 +51,17 @@ export class EntradaMovimiento {
     this.escena.input.keyboard?.resetKeys()
   }
 
-  leer(): Intencion {
+  /**
+   * Intención de movimiento. Con `sinFlechas` solo cuentan WASD: las flechas las usa entonces la
+   * selección de parcela (Plano con una parcela elegida y el foco en el lienzo).
+   */
+  leer(sinFlechas = false): Intencion {
     const t = this.teclas
+    const activa = (teclas: readonly Phaser.Input.Keyboard.Key[]) =>
+      this.pulsada(sinFlechas ? teclas.slice(0, 1) : teclas)
     return {
-      dx: (this.pulsada(t.derecha) ? 1 : 0) - (this.pulsada(t.izquierda) ? 1 : 0),
-      dy: (this.pulsada(t.abajo) ? 1 : 0) - (this.pulsada(t.arriba) ? 1 : 0),
+      dx: (activa(t.derecha) ? 1 : 0) - (activa(t.izquierda) ? 1 : 0),
+      dy: (activa(t.abajo) ? 1 : 0) - (activa(t.arriba) ? 1 : 0),
     }
   }
 

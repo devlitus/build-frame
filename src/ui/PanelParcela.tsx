@@ -77,6 +77,7 @@ function Contenido({ indice }: { indice: number }) {
   const [confirmando, setConfirmando] = useState(false)
   const [errorCompra, setErrorCompra] = useState<string | undefined>(undefined)
   const refComprar = useRef<HTMLButtonElement>(null)
+  const refConfirmar = useRef<HTMLButtonElement>(null)
   const refCancelar = useRef<HTMLButtonElement>(null)
   const pedirFoco = useRef<'comprar' | 'cancelar' | 'panel' | undefined>(undefined)
   const puedeConfirmar = confirmando && compra.comprable
@@ -163,6 +164,19 @@ function Contenido({ indice }: { indice: number }) {
       data-parcela={indice}
       tabIndex={-1}
       onKeyDown={(ev) => {
+        // La confirmación es un ciclo corto: Tab pasa de «Cancelar» a «Comprar» y Mays+Tab de
+        // «Comprar» a «Cancelar», así se puede confirmar con el teclado sin salir del panel.
+        if (ev.key === 'Tab' && puedeConfirmar) {
+          const activo = document.activeElement
+          if (!ev.shiftKey && activo === refCancelar.current) {
+            ev.preventDefault()
+            refConfirmar.current?.focus({ preventScroll: true })
+          } else if (ev.shiftKey && activo === refConfirmar.current) {
+            ev.preventDefault()
+            refCancelar.current?.focus({ preventScroll: true })
+          }
+          return
+        }
         if (ev.key === 'Escape') {
           ev.stopPropagation()
           // Primero se cancela la confirmación; el siguiente Esc cierra el panel.
@@ -232,6 +246,7 @@ function Contenido({ indice }: { indice: number }) {
               </p>
               <div class="compra-botones">
                 <button
+                  ref={refConfirmar}
                   type="button"
                   class="boton-compra boton-compra-confirmar"
                   onClick={confirmarCompra}
