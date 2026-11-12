@@ -13,7 +13,9 @@ export type ComprabilidadParcela =
  * Prioridad de motivos cuando hay varios:
  * parametro-invalido > ya-propia > precio-invalido > no-adyacente > fondos-insuficientes.
  * Sin parcelas propias vale cualquier parcela en venta; con propias, solo las 4-adyacentes
- * a alguna propia (la diagonal no cuenta). `precio` se incluye siempre que se conozca.
+ * a alguna propia (la diagonal no cuenta). `precio` se incluye en `no-adyacente` y
+ * `fondos-insuficientes` (no en `parametro-invalido`, `ya-propia` ni `precio-invalido`).
+ * Si `dinero` no es un entero seguro >= 0 (estado corrupto) cuenta como `fondos-insuficientes`.
  */
 export function parcelaComprable(
   estado: Pick<EstadoJuego, 'valle' | 'comprasHechas' | 'dinero'>,
@@ -43,7 +45,7 @@ export function parcelaComprable(
   ) {
     return { comprable: false, motivo: 'no-adyacente', precio }
   }
-  if (!(estado.dinero >= precio))
+  if (!Number.isSafeInteger(estado.dinero) || estado.dinero < precio)
     return { comprable: false, motivo: 'fondos-insuficientes', precio }
   return { comprable: true, precio }
 }

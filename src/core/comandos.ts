@@ -117,9 +117,9 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
       return { ok: true, eventos: SIN_EVENTOS, estado: { ...estado, velocidad: comando.velocidad } }
     }
     case 'ComprarParcela': {
-      const { indice } = comando
-      const r = parcelaComprable(estado, indice)
+      const r = parcelaComprable(estado, comando.indice)
       if (!r.comprable) return { ok: false, estado, error: r.motivo }
+      const indice = comando.indice + 0 // -0 se normaliza a 0
       const parcelas = estado.valle.parcelas.map((p, i) =>
         i === indice ? { ...p, estado: 'propia' as const } : p,
       )
