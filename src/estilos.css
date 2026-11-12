@@ -449,9 +449,11 @@ body {
 }
 
 .parcela-compra-ok {
-  background: var(--tinta);
-  color: var(--crema);
-  border-color: var(--tinta);
+  /* Etiqueta, no botón: fondo verde claro, borde fino y sin relleno oscuro. */
+  background: rgb(63 93 58 / 14%);
+  color: var(--tinta);
+  border: 1px solid #3f5d3a;
+  font-weight: 600;
 }
 
 .parcela-compra-propia {
@@ -472,6 +474,12 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* Los botones de acción siempre a la vista: si el panel desplaza, se quedan al pie. */
+  position: sticky;
+  bottom: -8px;
+  padding-bottom: 8px;
+  margin-bottom: -8px;
+  background: rgb(246 236 214 / 100%);
 }
 
 .compra-confirmacion {
@@ -491,6 +499,9 @@ body {
 
 .compra-botones {
   display: flex;
+  /* «Cancelar» (primero en el DOM y en el foco) a la derecha, donde cae la mitad derecha del botón
+     «Comprar por N»: un doble toque acaba en Cancelar y no compra sin leer la pregunta. */
+  flex-direction: row-reverse;
   gap: 8px;
 }
 
@@ -579,6 +590,18 @@ body {
   .panel-confirmando .parcela-atributos,
   .panel-confirmando .parcela-compra {
     display: none;
+  }
+}
+
+/* Móviles bajos (hasta 400 px): el panel se aparta del botón de modo para tener toda la altura. */
+@media (orientation: landscape) and (max-height: 400px) {
+  .panel-parcela {
+    right: 128px;
+    max-height: calc(100% - 84px);
+  }
+
+  .hud-debug .panel-parcela {
+    max-height: calc(100% - 116px);
   }
 }
 

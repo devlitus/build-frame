@@ -57,7 +57,7 @@ export interface EstiloParcelaPlano {
     readonly paso: number
     readonly grosor: number
   }
-  /** Moneda de «se vende» en la esquina superior izquierda. */
+  /** Moneda de «se vende» en el centro de la parcela. */
   readonly moneda?: { readonly radio: number; readonly relleno: number; readonly borde: number }
 }
 
@@ -69,7 +69,7 @@ export const ESTILO_PLANO: Readonly<Record<EstadoVisualParcela, EstiloParcelaPla
     borde: 0xfff3c4,
     grosorBorde: 8,
     discontinuo: { trazo: 56, hueco: 32 },
-    moneda: { radio: 38, relleno: 0xffd34d, borde: 0x6b4a00 },
+    moneda: { radio: 46, relleno: 0xffd34d, borde: 0x6b4a00 },
   },
   'no-comprable': {
     tinte: 0x14141c,

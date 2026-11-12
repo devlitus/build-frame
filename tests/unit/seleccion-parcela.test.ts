@@ -199,9 +199,17 @@ describe('Área libre y cámara', () => {
     expect(sy).toBeCloseTo(libre.y + libre.alto / 2)
   })
 
-  it('una parcela mayor que la zona libre se deja si su centro ya está en ella', () => {
+  it('una parcela mayor que la zona libre se recentra si se ve menos del 60 %, y recentrar es idempotente', () => {
     const grande = { x: 1024, y: 1024, ancho: 1024, alto: 1024 }
-    expect(centroParaVer(vista, pantalla, libre, grande)).toBeUndefined()
+    const centro = centroParaVer(vista, pantalla, libre, grande)
+    expect(centro).toBeDefined()
+    if (!centro) return
+    // Con la vista ya centrada en ella, repetir la guía no la mueve.
+    const otra = centroParaVer({ ...vista, cx: centro.x, cy: centro.y }, pantalla, libre, grande)
+    if (otra) {
+      expect(otra.x).toBeCloseTo(centro.x, 6)
+      expect(otra.y).toBeCloseTo(centro.y, 6)
+    }
   })
 
   it('punto de toque: dentro de la parcela y de la zona libre', () => {

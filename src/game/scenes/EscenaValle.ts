@@ -114,6 +114,7 @@ export class EscenaValle extends Phaser.Scene {
     | {
         valle: Valle
         dinero: number
+        compras: number
         modo: ModoJuego
       }
     | undefined = undefined
@@ -247,6 +248,8 @@ export class EscenaValle extends Phaser.Scene {
       }
     })
     this.selector = new SelectorParcela(this, (p) => {
+      // Tras comprar, el segundo clic de un doble clic no debe cambiar la selección.
+      if (partida.seleccion.clicsBloqueados()) return
       const g = this.geometria()
       const i = g ? parcelaEnPunto(g, p.x, p.y) : undefined
       // Tocar fuera del valle deselecciona; tocar la misma parcela la mantiene.
@@ -263,6 +266,8 @@ export class EscenaValle extends Phaser.Scene {
     this.scale.on('resize', this.alRedimensionar, this)
     this.quitarEsc?.()
     const alEsc = (): void => {
+      // Con una confirmación de compra abierta, el primer Esc solo la cancela.
+      if (partida.seleccion.cancelarConfirmacion()) return
       partida.seleccion.deseleccionar()
     }
     const teclado = this.input.keyboard
@@ -311,10 +316,17 @@ export class EscenaValle extends Phaser.Scene {
     const g = this.parcelas
     if (!e || !g) return
     const p = this.pintado
-    if (p && p.valle === e.valle && p.dinero === e.dinero && p.modo === e.modo) return
+    if (
+      p &&
+      p.valle === e.valle &&
+      p.dinero === e.dinero &&
+      p.compras === e.comprasHechas &&
+      p.modo === e.modo
+    )
+      return
     this.visualPintado = this.clasificar(e)
     redibujarParcelas(g, e.valle, e.modo === 'plano' ? this.visualPintado : undefined)
-    this.pintado = { valle: e.valle, dinero: e.dinero, modo: e.modo }
+    this.pintado = { valle: e.valle, dinero: e.dinero, compras: e.comprasHechas, modo: e.modo }
     this._repintados++
   }
 

@@ -13,6 +13,13 @@ export interface RectPantalla {
 
 export type AvisoSeleccion = () => void
 
+/**
+ * Ventana (ms) tras abrir la confirmación de compra o tras comprar en la que se ignora el
+ * segundo toque de un doble toque o doble clic: caería sobre el botón que acaba de aparecer o,
+ * tras comprar, sobre el lienzo (y seleccionaría otra parcela).
+ */
+export const MS_VENTANA_ANTIDOBLE = 400
+
 function igualesRect(a: RectPantalla | undefined, b: RectPantalla | undefined): boolean {
   if (!a || !b) return a === b
   return a.x === b.x && a.y === b.y && a.ancho === b.ancho && a.alto === b.alto
@@ -22,6 +29,8 @@ export class Seleccion {
   private _indice: number | undefined = undefined
   private _ocupado: RectPantalla | undefined = undefined
   private readonly suscriptores = new Set<AvisoSeleccion>()
+  private _cancelarConfirmacion: (() => void) | undefined = undefined
+  private _clicsBloqueadosHasta = 0
 
   /** Índice de la parcela seleccionada (fila * lado + columna), o undefined. */
   get indice(): number | undefined {
@@ -31,6 +40,34 @@ export class Seleccion {
   /** Zona de pantalla que tapa el panel de detalle (la fija el propio panel), o undefined. */
   get ocupado(): RectPantalla | undefined {
     return this._ocupado
+  }
+
+  /** ¿Hay una confirmación de compra abierta en el panel? La escena lo consulta antes de cerrar con Esc. */
+  get confirmando(): boolean {
+    return this._cancelarConfirmacion !== undefined
+  }
+
+  /** El panel registra cómo cancelar su confirmación (o `undefined` al cerrarla). */
+  fijarConfirmacion(cancelar: (() => void) | undefined): void {
+    this._cancelarConfirmacion = cancelar
+  }
+
+  /** Cancela la confirmación abierta; devuelve true si había una (y entonces Esc no cierra el panel). */
+  cancelarConfirmacion(): boolean {
+    const c = this._cancelarConfirmacion
+    if (!c) return false
+    this._cancelarConfirmacion = undefined
+    c()
+    return true
+  }
+
+  /** Ignora la selección por clic o toque durante `ms` milisegundos (tras una compra). */
+  bloquearClics(ms: number, ahora: number = performance.now()): void {
+    this._clicsBloqueadosHasta = ahora + ms
+  }
+
+  clicsBloqueados(ahora: number = performance.now()): boolean {
+    return ahora < this._clicsBloqueadosHasta
   }
 
   /** Seleccionar la que ya está seleccionada no avisa. Un índice no entero o negativo se ignora. */
@@ -43,6 +80,7 @@ export class Seleccion {
   deseleccionar(): void {
     if (this._indice === undefined) return
     this._indice = undefined
+    this._cancelarConfirmacion = undefined
     // Sin selección no hay panel: la zona ocupada se libera con él.
     this._ocupado = undefined
     this.avisar()

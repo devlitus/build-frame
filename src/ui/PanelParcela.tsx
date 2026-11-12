@@ -11,7 +11,8 @@ import {
   textoPrecio,
   textoTerreno,
 } from './parcelaTextos'
-import { intentarCompra } from './compra'
+import { MS_VENTANA_ANTIDOBLE } from '../game/seleccion'
+import { RADIO_MISMO_TOQUE_PX, intentarCompra } from './compra'
 import { formatearDinero } from './formatoDinero'
 import { t, tp } from './textos'
 import { useEstado, usePartida, useSeleccion } from './useEstado'
@@ -97,24 +98,50 @@ function Contenido({ indice }: { indice: number }) {
     ;(destino ?? raiz.current)?.focus({ preventScroll: true })
   })
 
+  // La escena consulta si hay confirmación abierta para que Esc la cancele antes de cerrar el panel.
+  const cancelarRef = useRef<() => void>(() => undefined)
+  useEffect(() => {
+    if (!puedeConfirmar) return
+    partida.seleccion.fijarConfirmacion(() => cancelarRef.current())
+    return () => partida.seleccion.fijarConfirmacion(undefined)
+  }, [partida, puedeConfirmar])
+  // Cuándo y dónde se abrió la confirmación con un toque o clic (no con teclado).
+  const abiertaEn = useRef<{ t: number; x: number; y: number } | undefined>(undefined)
+
   if (!parcela) return null
-  const pedirConfirmacion = () => {
+  const pedirConfirmacion = (ev: MouseEvent) => {
     if (!compra.comprable) return
     setErrorCompra(undefined)
     setConfirmando(true)
     pedirFoco.current = 'cancelar'
+    abiertaEn.current =
+      ev.detail > 0 ? { t: performance.now(), x: ev.clientX, y: ev.clientY } : undefined
   }
   const cancelarConfirmacion = () => {
     setConfirmando(false)
     pedirFoco.current = 'comprar'
   }
-  const confirmarCompra = () => {
+  cancelarRef.current = cancelarConfirmacion
+  const confirmarCompra = (ev: MouseEvent) => {
+    // El segundo toque de un doble toque sobre «Comprar por N» cae en el mismo sitio, justo
+    // cuando aparece la confirmación: se ignora durante una ventana corta (con teclado o desde
+    // código, `detail` es 0, siempre se acepta).
+    const a = abiertaEn.current
+    if (
+      a &&
+      ev.detail > 0 &&
+      performance.now() - a.t < MS_VENTANA_ANTIDOBLE &&
+      Math.hypot(ev.clientX - a.x, ev.clientY - a.y) < RADIO_MISMO_TOQUE_PX
+    )
+      return
     const r = intentarCompra(partida, indice)
     setConfirmando(false)
     if (r.ok) {
       setErrorCompra(undefined)
-      // El botón desaparece al pasar a «Tuya»: el foco se queda en el propio panel.
+      // El botón desaparece al pasar a «Tuya»: el foco se queda en el propio panel, y el segundo
+      // clic de un doble clic no debe seleccionar otra parcela al encoger el panel.
       pedirFoco.current = 'panel'
+      partida.seleccion.bloquearClics(MS_VENTANA_ANTIDOBLE)
     } else {
       setErrorCompra(r.texto)
       pedirFoco.current = 'comprar'

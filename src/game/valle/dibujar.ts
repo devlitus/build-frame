@@ -186,9 +186,9 @@ export function redibujarParcelas(
     } else g.strokeRect(x + m, y + m, ancho, ancho)
     if (e.moneda) {
       const c = e.moneda
-      const margen = e.grosorBorde + 24 + c.radio
-      const cx = x + margen
-      const cy = y + margen
+      // En el centro: las esquinas y los bordes de arriba los puede tapar el HUD.
+      const cx = x + lado / 2
+      const cy = y + lado / 2
       g.fillStyle(c.relleno, 1)
       g.fillCircle(cx, cy, c.radio)
       g.lineStyle(8, c.borde, 1)

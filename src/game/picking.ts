@@ -72,6 +72,8 @@ export function esToqueDeSeleccion(
  * una tarjeta lateral.
  */
 const FRACCION_HOJA_INFERIOR = 0.6
+/** Fracción de una parcela grande que debe verse para no recentrarla. */
+const FRACCION_VISIBLE_MINIMA = 0.6
 
 /** Zona de la pantalla que queda libre (sin HUD ni panel). */
 export function areaLibre(
@@ -111,7 +113,7 @@ function rectEnPantalla(vista: VistaCamara, pantalla: Pantalla, mundo: RectPanta
 /**
  * Si la parcela no se ve entera en la zona libre, el centro de vista (px del mundo) que la deja
  * en el centro de esa zona; undefined si no hace falta mover. Una parcela mayor que la zona
- * libre solo se mueve si su centro queda fuera de ella.
+ * libre solo se mueve si su centro queda fuera de ella o se ve menos del 60 %.
  */
 export function centroParaVer(
   vista: VistaCamara,
@@ -133,7 +135,11 @@ export function centroParaVer(
     centro.x <= libre.x + libre.ancho &&
     centro.y >= libre.y &&
     centro.y <= libre.y + libre.alto
-  if (mayor && centroLibre) return undefined
+  // Una parcela mayor que la zona libre solo se deja si su centro y buena parte de ella ya se ven.
+  const ancho = Math.min(r.x + r.ancho, libre.x + libre.ancho) - Math.max(r.x, libre.x)
+  const alto = Math.min(r.y + r.alto, libre.y + libre.alto) - Math.max(r.y, libre.y)
+  const visible = ancho > 0 && alto > 0 ? (ancho * alto) / (r.ancho * r.alto) : 0
+  if (mayor && centroLibre && visible >= FRACCION_VISIBLE_MINIMA) return undefined
   const meta = { x: libre.x + libre.ancho / 2, y: libre.y + libre.alto / 2 }
   return {
     x: vista.cx + (centro.x - meta.x) / vista.zoom,
