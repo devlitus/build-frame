@@ -87,6 +87,10 @@ export function crearEstadoInicial(opciones: OpcionesNuevaPartida): EstadoJuego 
   ) {
     throw new RangeError(`minutoInicial fuera de la jornada: ${minuto}`)
   }
+  const dinero = opciones.dineroInicial ?? CONFIG_ECONOMIA.dineroInicial
+  if (!Number.isSafeInteger(dinero) || dinero < 0) {
+    throw new RangeError(`dineroInicial inválido: ${dinero}`)
+  }
   const mundo = generarMundo(valle, semilla, config, CONFIG_PERSONAJE)
   return {
     versionFormato: VERSION_FORMATO,
@@ -97,7 +101,7 @@ export function crearEstadoInicial(opciones: OpcionesNuevaPartida): EstadoJuego 
     pausado: false,
     modo: 'vida',
     velocidad: VELOCIDAD_INICIAL,
-    dinero: opciones.dineroInicial ?? CONFIG_ECONOMIA.dineroInicial,
+    dinero,
     comprasHechas: 0,
     valle,
     ...mundo,

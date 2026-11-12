@@ -94,7 +94,7 @@ export type ConfigPersonaje = v.InferOutput<typeof EsquemaConfigPersonaje>
 const factorPositivo = v.pipe(
   v.number(),
   v.finite(),
-  v.check((n) => n > 0, 'El factor debe ser > 0'),
+  v.check((n) => n > 0 && n <= 1000, 'El factor debe estar en (0, 1000]'),
 )
 
 function factores<const K extends string>(claves: readonly K[]) {
@@ -107,14 +107,14 @@ function factores<const K extends string>(claves: readonly K[]) {
 
 export const EsquemaConfigEconomia = v.strictObject({
   /** Ahorros con los que empieza una partida nueva. */
-  dineroInicial: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  dineroInicial: v.pipe(v.number(), v.safeInteger(), v.minValue(0)),
   /** Precio de una parcela de referencia (todos los factores a 1) antes de subidas. */
-  precioBase: v.pipe(v.number(), v.integer(), v.minValue(1)),
+  precioBase: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(1_000_000)),
   factorTerreno: factores(TERRENOS),
   factorFertilidad: factores(FERTILIDADES),
   factorAgua: factores(AGUAS),
   /** Subida fraccionaria del precio por cada compra hecha (0.25 = +25 %). */
-  subidaPorCompra: v.pipe(v.number(), v.finite(), v.minValue(0)),
+  subidaPorCompra: v.pipe(v.number(), v.finite(), v.minValue(0), v.maxValue(10)),
 })
 
 export type ConfigEconomia = v.InferOutput<typeof EsquemaConfigEconomia>
