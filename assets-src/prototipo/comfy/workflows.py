@@ -86,11 +86,63 @@ def muestra_terreno(estilo: str) -> str:
     return f"{TERRENO}. Style: {ESTILOS[estilo]}. No people, no text, no letters, no border."
 
 
+# --- Fase 4: texturas de terreno y objetos con el estilo B elegido -------------------
+# Los tiles no llevan tinta (biblia §5): solo acuarela sobre papel, vistos desde arriba.
+ACUARELA_TILE = (
+    "transparent watercolor washes on light cold-press paper, soft granulation, subtle pigment "
+    "pooling, muted warm palette, even soft lighting with no cast shadows, no ink lines"
+)
+TEXTURAS = {
+    # v2: la v1 (7101) pintaba matas sueltas en cuadrícula, que delataban la repetición.
+    "hierba": "dense continuous short meadow grass covering everything, soft mottled washes of "
+    "muted sage green (#A2B282 to #6B7D4C) with many tiny fine grass strokes in random directions, "
+    "irregular, no separate tufts, no grid, no flowers, no stones",
+    "tierra": "freshly tilled farm soil in warm brown (#785838) with straight evenly spaced "
+    "horizontal furrows running left to right across the whole image, darker brown (#56402B) "
+    "grooves, small clods",
+    # v2: la v1 (7103) salía demasiado plana una vez repetida.
+    "agua": "calm stream water surface in blue-green (#8FB8BE) evenly mixed with deeper teal "
+    "(#6F9CA6), many small soft horizontal ripple strokes evenly spread, a few tiny cream glints",
+    "camino": "packed earth footpath in warm ochre (#CAB071 to #9A844D) with small scattered "
+    "pebbles and faint wheel-worn texture",
+}
+
+
+def textura(tipo: str) -> str:
+    return (
+        f"Seamless flat ground texture for a 2D top-down video game, seen from directly above, "
+        f"orthographic, uniform pattern filling the whole image edge to edge: {TEXTURAS[tipo]}. "
+        f"{ACUARELA_TILE}. No objects, no border, no horizon, no perspective, no text."
+    )
+
+
+OBJETOS = {
+    "arbol": "one round leafy deciduous oak tree with a full soft canopy of clustered sage and "
+    "moss green leaf masses, short sturdy brown trunk with a few roots at the base",
+    "roca": "one medium mossy grey-beige boulder with rounded facets, a few patches of moss on top "
+    "and a couple of grass tufts at its base",
+}
+
+
+def objeto(tipo: str) -> str:
+    return (
+        f"Single isolated game asset for a cozy 2D top-down farming game, three-quarter view from "
+        f"above at about 45 degrees, {ESTILOS['b']}, lit from the left: {OBJETOS[tipo]}. "
+        f"Centered, whole object visible with wide margin around it, perfectly plain flat uniform "
+        f"cream background, no sun rays, no light beams, no glow, no ground, no shadow, no text."
+    )
+
+
 # nombre -> (prompt, semilla, ancho, alto)
 PIEZAS: dict[str, tuple[str, int, int, int]] = {}
 for _e, _s in (("a", 5101), ("b", 5201), ("c", 5301)):
     PIEZAS[f"propuesta-{_e}-personaje"] = (hoja_personaje(_e), _s, 1664, 928)
     PIEZAS[f"propuesta-{_e}-terreno"] = (muestra_terreno(_e), _s + 51, 1328, 1328)
+for _i, _t in enumerate(TEXTURAS):
+    PIEZAS[f"textura-{_t}"] = (textura(_t), 7101 + _i + (10 if _t in ("hierba", "agua") else 0), 1024, 1024)
+# v1 (7201, 7202) salió con rayos de sol en el fondo y sombra pintada: descartada.
+for _i, _t in enumerate(OBJETOS):
+    PIEZAS[f"objeto-{_t}"] = (objeto(_t), 7211 + _i, 1024, 1024)
 
 
 def workflow(nombre: str, prompt: str, semilla: int, ancho: int, alto: int, pasos: int = 30) -> dict:

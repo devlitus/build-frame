@@ -28,14 +28,14 @@ from mathutils import Matrix, Vector
 PALETA = {
     "piel": (0.937, 0.749, 0.565),  # melocotón #EFBF90
     "mejillas": (0.88, 0.52, 0.45),
-    "pelo": (0.40, 0.24, 0.14),  # castaño
+    "pelo": (0.56, 0.33, 0.18),  # castaño claro del concepto B
     "ojos": (0.18, 0.16, 0.20),  # #2E2A33
     "camisa": (0.961, 0.925, 0.808),  # crema #F5ECCE
-    "peto": (0.588, 0.612, 0.365),  # salvia #969C5D
+    "peto": (0.53, 0.60, 0.44),  # verde salvia grisáceo del concepto B
     "panuelo": (0.706, 0.345, 0.235),  # terracota #B4583C
-    "botas": (0.47, 0.345, 0.22),  # tierra #785838
+    "botas": (0.52, 0.36, 0.22),  # tierra #785838 algo más clara
     "suela": (0.337, 0.251, 0.169),  # #56402B
-    "bolsa": (0.604, 0.518, 0.302),  # ocre tostado #9A844D
+    "bolsa": (0.55, 0.33, 0.19),  # cuero
 }
 SEPIA = (0.29, 0.204, 0.149)  # #4A3426
 SOMBRA = (0.353, 0.329, 0.439)  # #5A5470
@@ -85,10 +85,10 @@ def material_npr(nombre: str, rgb, estilo: str) -> bpy.types.Material:
     ramp = N("ShaderNodeValToRGB")  # luz -> factor 0 (sombra) .. 1 (luz)
     ramp.color_ramp.interpolation = "EASE"
     e = ramp.color_ramp.elements
-    e[0].position, e[0].color = 0.05, (0, 0, 0, 1)
-    e[1].position, e[1].color = 0.35, (1, 1, 1, 1)
-    medio = e.new(0.16)
-    medio.color = (0.55, 0.55, 0.55, 1)
+    e[0].position, e[0].color = 0.30, (0, 0, 0, 1)
+    e[1].position, e[1].color = 0.62, (1, 1, 1, 1)
+    medio = e.new(0.46)
+    medio.color = (0.5, 0.5, 0.5, 1)
     L(bw.outputs[0], ramp.inputs[0])
 
     base = N("ShaderNodeRGB")
@@ -200,7 +200,7 @@ def caja(tam, pos) -> bmesh.types.BMesh:
     bm = bmesh.new()
     bmesh.ops.create_cube(bm, size=1.0)
     bmesh.ops.transform(bm, matrix=Matrix.Translation(pos) @ Matrix.Diagonal((*tam, 1)), verts=bm.verts)
-    bmesh.ops.bevel(bm, geom=bm.edges[:], offset=min(tam) * 0.3, segments=2, affect="EDGES")
+    bmesh.ops.bevel(bm, geom=bm.edges[:], offset=min(tam) * 0.3, segments=3, affect="EDGES", clamp_overlap=True, profile=0.5)
     return bm
 
 
@@ -238,18 +238,28 @@ def construir(estilo: str) -> bpy.types.Object:
         pieza(f"mejilla.{'L' if lado > 0 else 'R'}", esfera(0.04, 8, 6, (1.2, 0.35, 0.7), (lado * 0.15, -0.205, CABEZA_Z - 0.075)), c_cuerpo, "mejillas", "cabeza")
     pieza("cuello", capsula(CUELLO_Z - 0.06, CUELLO_Z + 0.04, 0.06, 0.06), c_cuerpo, "piel", "torso")
 
-    # Pelo: casquete que deja la cara a la vista + mechones ondulados en el nacimiento.
-    pelo = esfera(CABEZA_R * 1.1, 18, 12, (1.05, 1.02, 1.0), (0, 0.025, CABEZA_Z + 0.04))
-    fuera = [v for v in pelo.verts if (v.co.y < -0.06 and v.co.z < CABEZA_Z + 0.07) or v.co.z < CABEZA_Z - 0.17]
+    # Pelo: media melena ondulada (concepto B). Casquete que deja la cara libre, flequillo de
+    # mechones sueltos y una corona de mechones alargados que cae hasta la mandíbula por los lados
+    # y la nuca. Simétrico (el espejo izquierdo lo hace el juego, biblia §10).
+    pelo = esfera(CABEZA_R * 1.08, 20, 14, (1.04, 1.02, 0.98), (0, 0.02, CABEZA_Z + 0.035))
+    fuera = [v for v in pelo.verts if (v.co.y < -0.05 and v.co.z < CABEZA_Z + 0.08) or v.co.z < CABEZA_Z - 0.05]
     bmesh.ops.delete(pelo, geom=fuera, context="VERTS")
     mechones = [pelo]
-    for i in range(7):
-        a = math.radians(-70 + i * (140 / 6))
-        x, y = math.sin(a) * 0.24, -math.cos(a) * 0.22
-        mechones.append(esfera(0.075, 8, 6, (1.1, 0.8, 0.8), (x, y + 0.02, CABEZA_Z + 0.10 - abs(math.sin(a)) * 0.06)))
-    for i in range(6):  # nuca
-        a = math.radians(110 + i * 28)
-        mechones.append(esfera(0.08, 8, 6, (1, 0.9, 1.1), (math.sin(a) * 0.23, -math.cos(a) * 0.22 + 0.02, CABEZA_Z - 0.12)))
+    for i in range(6):  # flequillo: mechones que caen sobre la frente, abiertos al centro
+        a = math.radians(-62 + i * (124 / 5))
+        x, y = math.sin(a) * 0.2, -math.cos(a) * 0.215
+        z = CABEZA_Z + 0.125 - abs(math.sin(a)) * 0.05
+        mechones.append(esfera(0.07, 8, 6, (1.25, 0.7, 0.85), (x, y + 0.01, z)))
+    for i in range(9):  # melena corta: de oreja a oreja por la nuca, sin tapar la cara
+        a = math.radians(95 + i * (170 / 8))
+        r = 0.23
+        x, y = math.sin(a) * r, -math.cos(a) * r + 0.03
+        z = CABEZA_Z - 0.07
+        mechones.append(esfera(0.075, 8, 6, (1.0, 0.9, 1.45), (x, y, z)))
+        # puntas onduladas que se abren un poco hacia fuera, a la altura de la mandíbula
+        mechones.append(esfera(0.045, 8, 6, (1.15, 1.0, 0.8), (x * 1.1, y * 1.06, z - 0.11)))
+    for lado in (-1, 1):  # patillas: un mechón delante de cada oreja
+        mechones.append(esfera(0.05, 8, 6, (0.8, 0.9, 1.6), (lado * 0.24, 0.0, CABEZA_Z - 0.05)))
     pieza("pelo", unir(*mechones), c_pelo, "pelo", "cabeza")
 
     # Torso: camisa arriba, peto abajo; tirantes y babero del peto.
@@ -260,15 +270,24 @@ def construir(estilo: str) -> bpy.types.Object:
         caja((0.045, 0.30, 0.03), (-0.1, 0.0, HOMBRO_Z + 0.005)),
         caja((0.045, 0.30, 0.03), (0.1, 0.0, HOMBRO_Z + 0.005)),
     ), c_ropa, "peto", "torso")
+    pico = bmesh.new()  # pico del pañuelo: triángulo con algo de volumen que cuelga sobre el pecho
+    vs = [pico.verts.new(v) for v in (
+        (-0.10, -0.155, CUELLO_Z - 0.03), (0.10, -0.155, CUELLO_Z - 0.03), (0, -0.19, CUELLO_Z - 0.20),
+        (-0.10, -0.12, CUELLO_Z - 0.03), (0.10, -0.12, CUELLO_Z - 0.03), (0, -0.155, CUELLO_Z - 0.20),
+    )]
+    for cara in ((0, 2, 1), (3, 4, 5), (0, 1, 4, 3), (1, 2, 5, 4), (2, 0, 3, 5)):
+        pico.faces.new([vs[i] for i in cara])
     pieza("panuelo", unir(
-        capsula(CUELLO_Z - 0.05, CUELLO_Z - 0.0, 0.085, 0.08, seg=12),
-        esfera(0.05, 8, 6, (1.0, 0.5, 1.3), (0, -0.08, CUELLO_Z - 0.06)),
-    ), c_acc, "panuelo", "torso")
-    pieza("bolsa", unir(caja((0.2, 0.08, 0.15), (0, 0.16, 0.66)), caja((0.21, 0.03, 0.06), (0, 0.205, 0.71))), c_acc, "bolsa", "torso")
+        capsula(CUELLO_Z - 0.06, CUELLO_Z - 0.01, 0.15, 0.10, seg=14, esc_y=0.85),
+        pico,
+        esfera(0.045, 8, 6, (1.2, 0.8, 1.0), (0, -0.165, CUELLO_Z - 0.045)),  # nudo
+    ), c_acc, "panuelo", "torso", suave=False)
+    pieza("bolsa", unir(caja((0.22, 0.09, 0.17), (0, 0.165, 0.68)), caja((0.23, 0.035, 0.09), (0, 0.215, 0.73))), c_acc, "bolsa", "torso")
 
     for lado, s in (("L", 1), ("R", -1)):
         # Brazos: manga remangada (crema) arriba, antebrazo y mano en piel.
-        pieza(f"manga.{lado}", capsula(CODO_Z + 0.03, HOMBRO_Z, 0.062, 0.07, x=s * HOMBRO_X), c_ropa, "camisa", f"brazo.{lado}")
+        pieza(f"manga.{lado}", capsula(CODO_Z, HOMBRO_Z, 0.068, 0.078, x=s * HOMBRO_X), c_ropa, "camisa", f"brazo.{lado}")
+        pieza(f"puno.{lado}", capsula(CODO_Z - 0.07, CODO_Z - 0.01, 0.062, 0.066, x=s * HOMBRO_X), c_ropa, "camisa", f"antebrazo.{lado}")
         pieza(f"antebrazo.{lado}", unir(
             capsula(MUNECA_Z, CODO_Z, 0.045, 0.05, x=s * HOMBRO_X),
             esfera(0.058, 10, 8, (1, 1, 1.1), (s * HOMBRO_X, 0, MUNECA_Z - 0.04)),
@@ -292,6 +311,8 @@ def construir(estilo: str) -> bpy.types.Object:
             mod.thickness = 0.012
             mod.offset = 1.0
             mod.use_flip_normals = True
+            mod.use_even_offset = True
+            mod.use_quality_normals = True
             mod.material_offset = 1
 
     return esqueleto(piezas)
@@ -404,7 +425,7 @@ def camara_y_luz() -> None:
     esc.camera = cam
 
     sol_data = bpy.data.lights.new("sol", "SUN")
-    sol_data.energy = 3.0
+    sol_data.energy = 1.0
     sol_data.color = (1.0, 0.945, 0.84)  # #FFF1D6
     sol_data.angle = math.radians(8)
     sol = bpy.data.objects.new("sol", sol_data)
