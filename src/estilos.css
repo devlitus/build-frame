@@ -263,3 +263,31 @@ body {
   text-align: center;
   box-shadow: 0 4px 12px var(--sombra);
 }
+/* === Controles táctiles (M2-04): joystick virtual === */
+.joystick-base {
+  position: absolute;
+  width: 112px;
+  height: 112px;
+  margin: -56px 0 0 -56px;
+  border-radius: 50%;
+  background: rgb(255 243 196 / 0.22);
+  border: 3px solid rgb(255 243 196 / 0.75);
+  pointer-events: none;
+}
+
+.joystick-base[hidden] {
+  display: none;
+}
+
+.joystick-mando {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgb(255 243 196 / 0.85);
+  border: 3px solid var(--tinta, #3b2a1a);
+  transform: translate(-50%, -50%);
+}
+/* === Fin controles táctiles === */

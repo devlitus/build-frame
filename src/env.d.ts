@@ -25,6 +25,12 @@ interface Window {
     modo(): 'vida' | 'plano' | undefined
     /** Personaje en casillas (centro de su caja); undefined si no hay valle. */
     personaje(): { x: number; y: number; orientacion: string } | undefined
+    /** ¿La casilla (cx, cy) no se puede pisar? (true también fuera del valle o sin valle) */
+    bloqueada(cx: number, cy: number): boolean
+    /** Destino del personaje en casillas (centro); undefined si no hay ruta en curso. */
+    destino(): { x: number; y: number } | undefined
+    /** ¿Hay un joystick virtual en pantalla? */
+    joystickVisible(): boolean
     /** Reloj de la partida; undefined si no hay valle. */
     reloj(): { dia: number; minutoDelDia: number; pausado: boolean; velocidad: number } | undefined
     /** Tinte del ciclo día/noche (opacidad 0..1); undefined si no hay valle. */

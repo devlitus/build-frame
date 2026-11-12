@@ -20,6 +20,8 @@ import { Partida } from '../partida'
 import { TAM_CASILLA } from '../valle/estilo'
 import { VistaPersonaje } from '../valle/personaje'
 import { VistaLuz } from '../valle/vistaLuz'
+import { SeguidorCamino } from '../seguirCamino'
+import { ControlTactil, MarcaDestino } from '../tactil'
 
 /** El arrastre de la cámara solo existe en el Modo Plano; en Vida la cámara sigue al personaje. */
 const ARRASTRE_EN_MODO_VIDA = false
@@ -57,6 +59,11 @@ export class EscenaValle extends Phaser.Scene {
   private luz: VistaLuz | undefined = undefined
   private acelerar = 1
   private hora: number | undefined = undefined
+  private tactil: ControlTactil | undefined = undefined
+  private desmayoVisto = false
+  private desuscribir: (() => void) | undefined = undefined
+  private marca: MarcaDestino | undefined = undefined
+  private readonly seguidor = new SeguidorCamino()
   private tiempo = new AcumuladorTiempo()
   private propias: readonly number[] = []
   private semilla = 0
@@ -108,6 +115,16 @@ export class EscenaValle extends Phaser.Scene {
   /** La partida (estado, comandos y suscripción); undefined hasta `create()`. */
   get partida(): Partida | undefined {
     return this._partida
+  }
+
+  /** Destino actual del personaje en casillas (centro), para los tests e2e. */
+  get destino(): { x: number; y: number } | undefined {
+    return this.seguidor.destino
+  }
+
+  /** ¿Hay un joystick en pantalla? (tests e2e) */
+  get joystickVisible(): boolean {
+    return this.tactil?.joystickVisible ?? false
   }
 
   get mundoPx(): number {
@@ -169,6 +186,20 @@ export class EscenaValle extends Phaser.Scene {
     this.luz.actualizar(inicial.minutoDelDia)
     this.vista.colocar(inicial.personaje)
     this.entrada = new EntradaMovimiento(this)
+    this.seguidor.cancelar()
+    // El desmayo puede emitirse fuera de `update()` (p. ej. dormir desde la interfaz): se
+    // atiende al evento de la partida, no a lo visto en el bucle.
+    this.desmayoVisto = false
+    this.desuscribir?.()
+    this.desuscribir = partida.suscribir((cambio) => {
+      if (cambio.eventos.some((e) => e.tipo === 'desmayo')) {
+        this.seguidor.cancelar()
+        this.desmayoVisto = true
+      }
+    })
+    this.tactil = new ControlTactil(this)
+    this.tactil.activo = inicial.modo === 'vida'
+    this.marca = new MarcaDestino(this)
     const posicion = {
       x: inicial.personaje.x * TAM_CASILLA,
       y: inicial.personaje.y * TAM_CASILLA,
@@ -194,10 +225,8 @@ export class EscenaValle extends Phaser.Scene {
     const partida = this._partida
     if (!partida || !this.entrada) return
     const ms = acotarDelta(delta)
-    let desmayo = false
     const emitir = (c: Comando): void => {
-      const r = partida.emitir(c)
-      if (r.ok && r.eventos.some((e) => e.tipo === 'desmayo')) desmayo = true
+      partida.emitir(c)
     }
     if (this.entrada.cambiarModo()) {
       emitir({ tipo: 'CambiarModo', modo: partida.estado.modo === 'vida' ? 'plano' : 'vida' })
@@ -205,9 +234,24 @@ export class EscenaValle extends Phaser.Scene {
     // El cambio puede venir de la tecla o del botón de la interfaz.
     if (partida.estado.modo !== this.modoAplicado) this.aplicarModo(partida.estado.modo)
     const modo = this.modoAplicado
-    const intencion = this.entrada.leer()
+    const teclado = this.entrada.leer()
+    const joystick = this.tactil?.leer() ?? { dx: 0, dy: 0 }
+    // El teclado tiene prioridad sobre el joystick; cualquiera de los dos cancela el destino.
+    const intencion = teclado.dx !== 0 || teclado.dy !== 0 ? teclado : joystick
     if (modo === 'vida') {
+      const tocado = this.tactil?.tomarDestino()
+      if (intencion.dx !== 0 || intencion.dy !== 0) this.seguidor.cancelar()
+      else if (tocado && !tiempoDetenido(partida.estado)) {
+        const e = partida.estado
+        this.seguidor.fijar(e, e.personaje, {
+          x: tocado.x / TAM_CASILLA,
+          y: tocado.y / TAM_CASILLA,
+        })
+      }
+      // Con el tiempo detenido (pausa) el personaje no se mueve: el destino se cancela.
+      if (tiempoDetenido(partida.estado)) this.seguidor.cancelar()
       for (const c of comandosMovimiento(intencion, ms)) emitir(c)
+      for (const c of this.seguidor.comandos(partida.estado.personaje, ms)) emitir(c)
     } else {
       // Plano: las teclas desplazan la cámara y `+`/`-` hacen zoom; el personaje no se mueve.
       const s = ms / 1000
@@ -227,11 +271,17 @@ export class EscenaValle extends Phaser.Scene {
     )
     if (minutos > 0) emitir({ tipo: 'AvanzarTiempo', minutos })
     this.luz?.actualizar(partida.estado.minutoDelDia)
+    const destino = this.seguidor.destino
+    if (destino) this.marca?.mostrar(destino.x * TAM_CASILLA, destino.y * TAM_CASILLA)
+    else this.marca?.ocultar()
     const p = partida.estado.personaje
     this.vista?.colocar(p)
     const punto = { x: p.x * TAM_CASILLA, y: p.y * TAM_CASILLA }
     // Tras un desmayo el personaje reaparece lejos: la cámara salta, sin barrido.
-    if (desmayo) this.control?.centrarEn(punto)
+    if (this.desmayoVisto) {
+      this.desmayoVisto = false
+      this.control?.centrarEn(punto)
+    }
     // El suavizado de la cámara usa el tiempo real (no el acotado del juego): con pocos fps
     // alcanza igual al personaje en el mismo tiempo.
     else
@@ -242,6 +292,11 @@ export class EscenaValle extends Phaser.Scene {
   private aplicarModo(modo: ModoJuego): void {
     this.modoAplicado = modo
     this.entrada?.soltar()
+    // En Plano no hay ruta ni joystick: el destino se cancela (no se congela, para no sorprender
+    // al volver) y los gestos de un dedo pasan a la cámara.
+    this.seguidor.cancelar()
+    this.tactil?.reiniciar()
+    if (this.tactil) this.tactil.activo = modo === 'vida'
     if (!this.control) return
     const enVida = modo === 'vida'
     this.control.arrastreActivo = !enVida || ARRASTRE_EN_MODO_VIDA
@@ -271,5 +326,11 @@ export class EscenaValle extends Phaser.Scene {
     this.luz = undefined
     this.entrada = undefined
     this.control = undefined
+    this.tactil = undefined
+    this.desuscribir?.()
+    this.desuscribir = undefined
+    this.marca?.destruir()
+    this.marca = undefined
+    this.seguidor.cancelar()
   }
 }

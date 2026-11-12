@@ -2,7 +2,13 @@ import Phaser from 'phaser'
 import { EscenaPortada } from './scenes/EscenaPortada'
 import { EscenaDepuracion } from './scenes/EscenaDepuracion'
 import { EscenaValle, type DatosEscenaValle } from './scenes/EscenaValle'
-import { crearEstadoInicial, ladoValle, type Comando } from '../core'
+import {
+  casillaBloqueada,
+  crearEstadoInicial,
+  ladoValle,
+  mapaTransitabilidad,
+  type Comando,
+} from '../core'
 import { Partida } from './partida'
 import { leerParametros, semillaNueva } from './parametros'
 
@@ -130,6 +136,19 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
       const e = g.scene.getScene('valle')
       const p = e instanceof EscenaValle ? e.estado?.personaje : undefined
       return p && { x: p.x, y: p.y, orientacion: p.orientacion }
+    },
+    bloqueada: (cx, cy) => {
+      const e = g.scene.getScene('valle')
+      const s = e instanceof EscenaValle ? e.estado : undefined
+      return s ? casillaBloqueada(mapaTransitabilidad(s), cx, cy) : true
+    },
+    destino: () => {
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.destino : undefined
+    },
+    joystickVisible: () => {
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle && e.joystickVisible
     },
     reloj: () => {
       const e = g.scene.getScene('valle')
