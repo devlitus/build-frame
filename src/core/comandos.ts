@@ -1,5 +1,6 @@
 import { MODOS_JUEGO, tiempoDetenido, type EstadoJuego, type ModoJuego } from './estado'
 import { CONFIG_TIEMPO } from './datos/tiempo'
+import { parcelaComprable } from './parcelas'
 import { moverPersonaje, personajeEnAparicion } from './personaje'
 
 /**
@@ -21,19 +22,30 @@ export type Comando =
   | { readonly tipo: 'Pausar' }
   | { readonly tipo: 'Reanudar' }
   | { readonly tipo: 'CambiarVelocidad'; readonly velocidad: number }
+  /** Compra la parcela `indice` (reglas en `parcelaComprable`); no depende del reloj. */
+  | { readonly tipo: 'ComprarParcela'; readonly indice: number }
 
 /**
  * Hechos ocurridos al aplicar un comando, para que la capa de juego reaccione (avisos, efectos).
  * `desmayo`: el avance superó el fin de la jornada (02:00); el reloj pasó al día siguiente a
  * las 06:00 sin penalización y el personaje vuelve a la aparición (aviso en M2-06).
  */
-export type EventoJuego = { readonly tipo: 'desmayo' }
+export type EventoJuego =
+  | { readonly tipo: 'desmayo' }
+  | { readonly tipo: 'parcela-comprada'; readonly indice: number; readonly precio: number }
 
 export type ResultadoComando =
   | { readonly ok: true; readonly estado: EstadoJuego; readonly eventos: readonly EventoJuego[] }
   | { readonly ok: false; readonly estado: EstadoJuego; readonly error: ErrorComando }
 
-export type ErrorComando = 'parametro-invalido' | 'comando-desconocido' | 'limite-de-dia'
+export type ErrorComando =
+  | 'parametro-invalido'
+  | 'comando-desconocido'
+  | 'limite-de-dia'
+  | 'fondos-insuficientes'
+  | 'ya-propia'
+  | 'no-adyacente'
+  | 'precio-invalido'
 
 const SIN_EVENTOS: readonly EventoJuego[] = Object.freeze([])
 
@@ -103,6 +115,24 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
         return { ok: false, estado, error: 'parametro-invalido' }
       }
       return { ok: true, eventos: SIN_EVENTOS, estado: { ...estado, velocidad: comando.velocidad } }
+    }
+    case 'ComprarParcela': {
+      const { indice } = comando
+      const r = parcelaComprable(estado, indice)
+      if (!r.comprable) return { ok: false, estado, error: r.motivo }
+      const parcelas = estado.valle.parcelas.map((p, i) =>
+        i === indice ? { ...p, estado: 'propia' as const } : p,
+      )
+      return {
+        ok: true,
+        eventos: [{ tipo: 'parcela-comprada', indice, precio: r.precio }],
+        estado: {
+          ...estado,
+          dinero: estado.dinero - r.precio,
+          comprasHechas: estado.comprasHechas + 1,
+          valle: { ...estado.valle, parcelas },
+        },
+      }
     }
     default:
       return { ok: false, estado, error: 'comando-desconocido' }
