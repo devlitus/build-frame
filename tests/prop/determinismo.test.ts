@@ -10,6 +10,12 @@ import {
 
 const comando: fc.Arbitrary<Comando> = fc.oneof(
   fc.record({
+    tipo: fc.constant('MoverPersonaje' as const),
+    dx: fc.double({ min: -1.5, max: 1.5, noNaN: true }),
+    dy: fc.double({ min: -1.5, max: 1.5, noNaN: true }),
+    ms: fc.integer({ min: -10, max: 600 }),
+  }),
+  fc.record({
     tipo: fc.constant('AvanzarTiempo' as const),
     minutos: fc.integer({ min: -10, max: 1440 }),
   }),

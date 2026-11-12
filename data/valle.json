@@ -8,5 +8,12 @@
     "rocoso": { "baja": 7, "media": 3, "alta": 0.5 }
   },
   "pesosAguaSinRio": { "pozo": 2, "seca": 3 },
-  "probabilidadDesvioRio": 0.35
+  "probabilidadDesvioRio": 0.35,
+  "anchoRio": 4,
+  "densidadDecoracion": {
+    "prado": { "arbol": 0.015, "roca": 0.006 },
+    "bosque": { "arbol": 0.16, "roca": 0.01 },
+    "rocoso": { "arbol": 0.012, "roca": 0.1 }
+  },
+  "vados": { "min": 1, "max": 2, "grosor": 2 }
 }

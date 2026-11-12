@@ -6,10 +6,9 @@ import { join } from 'node:path'
 import { crearEstadoInicial } from '../../src/core'
 import { leerParametros } from '../../src/game/parametros'
 import { marcarPropias } from '../../src/game/valle/debug'
-import { decorarValle } from '../../src/game/valle/decoracion'
 import { dibujarDecoracion } from '../../src/game/valle/dibujar'
 import { TAM_CASILLA } from '../../src/game/valle/estilo'
-import { casillasRio, claveCasilla } from '../../src/game/valle/rio'
+import { casillasRio, claveCasilla, decorarValle } from '../../src/core'
 
 describe('leerParametros (URL rara)', () => {
   it.each(['?semilla=abc', '?semilla=', '?semilla=-5', '?semilla=3.5', '?semilla=1e3', '?semilla'])(

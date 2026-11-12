@@ -1,5 +1,6 @@
 import type { EstadoJuego } from './estado'
 import { CONFIG_TIEMPO } from './datos/tiempo'
+import { moverPersonaje, personajeEnAparicion } from './personaje'
 
 /**
  * Todo cambio de estado del juego ocurre mediante un comando (ADR 0004).
@@ -7,6 +8,14 @@ import { CONFIG_TIEMPO } from './datos/tiempo'
  */
 export type Comando =
   | { readonly tipo: 'AvanzarTiempo'; readonly minutos: number }
+  | {
+      readonly tipo: 'MoverPersonaje'
+      /** Intención de movimiento en [-1, 1] por eje (x al este, y al sur); se normaliza. */
+      readonly dx: number
+      readonly dy: number
+      /** Milisegundos de movimiento (≥ 0); el núcleo procesa como máximo `maxMsPorComando`. */
+      readonly ms: number
+    }
   | { readonly tipo: 'Pausar' }
   | { readonly tipo: 'Reanudar' }
   | { readonly tipo: 'CambiarVelocidad'; readonly velocidad: number }
@@ -14,7 +23,7 @@ export type Comando =
 /**
  * Hechos ocurridos al aplicar un comando, para que la capa de juego reaccione (avisos, efectos).
  * `desmayo`: el avance superó el fin de la jornada (02:00); el reloj pasó al día siguiente a
- * las 06:00 sin penalización (aviso en M2-06, personaje a la aparición en M2-02).
+ * las 06:00 sin penalización y el personaje vuelve a la aparición (aviso en M2-06).
  */
 export type EventoJuego = { readonly tipo: 'desmayo' }
 
@@ -44,10 +53,27 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
         return {
           ok: true,
           eventos: [{ tipo: 'desmayo' }],
-          estado: { ...estado, dia: estado.dia + 1, minutoDelDia: CONFIG_TIEMPO.horaInicio },
+          estado: {
+            ...estado,
+            dia: estado.dia + 1,
+            minutoDelDia: CONFIG_TIEMPO.horaInicio,
+            personaje: personajeEnAparicion(estado.aparicion),
+          },
         }
       }
       return { ok: true, eventos: SIN_EVENTOS, estado: { ...estado, minutoDelDia: minuto } }
+    }
+    case 'MoverPersonaje': {
+      const { dx, dy, ms } = comando
+      const eje = (n: unknown): boolean => typeof n === 'number' && n >= -1 && n <= 1
+      if (!eje(dx) || !eje(dy) || typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) {
+        return { ok: false, estado, error: 'parametro-invalido' }
+      }
+      if (estado.pausado || ms === 0 || (dx === 0 && dy === 0)) {
+        return { ok: true, estado, eventos: SIN_EVENTOS }
+      }
+      const personaje = moverPersonaje(estado, estado.personaje, dx, dy, ms)
+      return { ok: true, eventos: SIN_EVENTOS, estado: { ...estado, personaje } }
     }
     case 'Pausar':
       return { ok: true, eventos: SIN_EVENTOS, estado: { ...estado, pausado: true } }

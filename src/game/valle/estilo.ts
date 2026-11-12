@@ -2,14 +2,10 @@ import type { EstadoParcela, Terreno } from '../../core'
 
 /**
  * Valores VISUALES provisionales (arte definitivo en M9): colores, tamaños y estilos.
- * TODO M5: árboles y rocas serán recursos del juego; su posición pasará a `EstadoJuego`
- * (con el RNG del núcleo) y su densidad por terreno, que sí es de balance, a `data/`.
- * Hoy `DENSIDAD_DECORACION` y la decoración son solo visuales y se derivan de la semilla.
+ * La posición de árboles y rocas y su densidad son del núcleo (`EstadoJuego.obstaculos`,
+ * `data/valle.json`) desde M2-02; aquí solo queda cómo se ven.
  */
 export const TAM_CASILLA = 32
-
-/** Ancho del cauce del río, en casillas. */
-export const ANCHO_RIO = 4
 
 export const COLOR_TERRENO: Readonly<Record<Terreno, { base: number; alterno: number }>> = {
   prado: { base: 0x7cb55a, alterno: 0x73ab52 },
@@ -18,6 +14,9 @@ export const COLOR_TERRENO: Readonly<Record<Terreno, { base: number; alterno: nu
 }
 
 export const COLOR_RIO = { base: 0x4a90c8, alterno: 0x5aa0d6 } as const
+
+/** Vado: agua más clara y piedras de paso, para ver por dónde se cruza. */
+export const COLOR_VADO = { agua: 0x9fd3ee, piedra: 0xb9b2a3, piedraBorde: 0x7a7468 } as const
 
 export interface EstiloParcela {
   readonly tinte: number
@@ -33,15 +32,6 @@ const ESTILO_PARCELA: Readonly<Record<EstadoParcela, EstiloParcela>> = {
 
 export function estiloParcela(estado: EstadoParcela): EstiloParcela {
   return ESTILO_PARCELA[estado]
-}
-
-/** Probabilidad por casilla de llevar un árbol o una roca, según el terreno. */
-export const DENSIDAD_DECORACION: Readonly<
-  Record<Terreno, { readonly arbol: number; readonly roca: number }>
-> = {
-  prado: { arbol: 0.015, roca: 0.006 },
-  bosque: { arbol: 0.16, roca: 0.01 },
-  rocoso: { arbol: 0.012, roca: 0.1 },
 }
 
 export const COLOR_ARBOL = { copa: 0x2f6b2f, copaClara: 0x3f8a3a, tronco: 0x6b4a2b } as const

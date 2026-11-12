@@ -2,6 +2,10 @@ import { CONFIG_VALLE } from './datos/valle'
 import { CONFIG_TIEMPO } from './datos/tiempo'
 import type { ConfigValle } from './datos/esquemas'
 import { generarValle, type Valle } from './valle'
+import { CONFIG_PERSONAJE } from './datos/personaje'
+import type { Obstaculo } from './decoracion'
+import { generarMundo, type Cauce } from './mapa'
+import { personajeEnAparicion, type Personaje } from './personaje'
 
 /**
  * Versión del formato del estado. Cualquier cambio exige una migración (ADR 0001).
@@ -9,8 +13,10 @@ import { generarValle, type Valle } from './valle'
  * partidas guardadas (el guardado llega en M7).
  * v3 (M2-01): `minutos` se sustituye por `dia` + `minutoDelDia`, y se añaden `pausado` y
  * `velocidad`. Sin migración: sigue sin haber partidas guardadas.
+ * v4 (M2-02): se añaden `cauce` (ancho y vados del río), `obstaculos` (árboles y rocas),
+ * `aparicion` y `personaje`. Sin migración: sigue sin haber partidas guardadas.
  */
-export const VERSION_FORMATO = 3
+export const VERSION_FORMATO = 4
 
 /** Velocidad del tiempo al empezar una partida. */
 export const VELOCIDAD_INICIAL = 1
@@ -28,6 +34,14 @@ export interface EstadoJuego {
   readonly velocidad: number
   readonly dinero: number
   readonly valle: Valle
+  /** Ancho del río y vados (casillas de río transitables). */
+  readonly cauce: Cauce
+  /** Árboles y rocas: bloquean el paso. Se talarán en M5. */
+  // TODO: compactar obstáculos y derivar `variante` en la capa de juego antes de fijar el formato de guardado (M7).
+  readonly obstaculos: readonly Obstaculo[]
+  /** Centro de la casilla de aparición («entrada del valle»), en unidades de casilla. */
+  readonly aparicion: { readonly x: number; readonly y: number }
+  readonly personaje: Personaje
 }
 
 export interface OpcionesNuevaPartida {
@@ -39,7 +53,9 @@ export interface OpcionesNuevaPartida {
 
 export function crearEstadoInicial(opciones: OpcionesNuevaPartida): EstadoJuego {
   const semilla = opciones.semilla >>> 0
-  const { valle, estadoRng } = generarValle(opciones.configValle ?? CONFIG_VALLE, semilla)
+  const config = opciones.configValle ?? CONFIG_VALLE
+  const { valle, estadoRng } = generarValle(config, semilla)
+  const mundo = generarMundo(valle, semilla, config, CONFIG_PERSONAJE)
   return {
     versionFormato: VERSION_FORMATO,
     semilla,
@@ -50,5 +66,7 @@ export function crearEstadoInicial(opciones: OpcionesNuevaPartida): EstadoJuego 
     velocidad: VELOCIDAD_INICIAL,
     dinero: opciones.dineroInicial,
     valle,
+    ...mundo,
+    personaje: personajeEnAparicion(mundo.aparicion),
   }
 }

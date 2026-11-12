@@ -1,0 +1,6 @@
+{
+  "velocidadCasillasPorSegundo": 4,
+  "tamanoCaja": 0.6,
+  "ladoPueblo": "sur",
+  "maxMsPorComando": 250
+}

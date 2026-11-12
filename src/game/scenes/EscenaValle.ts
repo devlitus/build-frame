@@ -1,11 +1,9 @@
 import Phaser from 'phaser'
-import { crearEstadoInicial, type EstadoJuego } from '../../core'
+import { casillasRio, crearEstadoInicial, type EstadoJuego } from '../../core'
 import { ControlCamara } from '../camara/controlCamara'
-import { decorarValle } from '../valle/decoracion'
 import { marcarPropias } from '../valle/debug'
 import { dibujarDecoracion, dibujarParcelas, dibujarTerreno, tamanoMundoPx } from '../valle/dibujar'
 import { hornearCapaBase } from '../valle/hornear'
-import { casillasRio, claveCasilla } from '../valle/rio'
 
 export interface DatosEscenaValle {
   readonly semilla: number
@@ -52,17 +50,16 @@ export class EscenaValle extends Phaser.Scene {
     // El dinero inicial llega con la economía (M3); de momento 0.
     this._estado = crearEstadoInicial({ semilla: this.semilla, dineroInicial: 0 })
     const valle = this._estado.valle
-    const rio = casillasRio(valle)
-    const lado = valle.parcelasPorLado * valle.casillasPorParcela
-    const claves = new Set(rio.map((c) => claveCasilla(lado, c.x, c.y)))
+    const rio = casillasRio(valle, this._estado.cauce.ancho)
+    const vados = new Set(this._estado.cauce.vados)
     // Las propias de depuración solo existen en la copia que se dibuja.
     const paraDibujar = marcarPropias(valle, this.propias)
 
     // Terreno y decoración no cambian: se hornean a texturas por trozos (M1-04).
-    const decoracion = decorarValle(valle, this.semilla, claves)
+    const decoracion = this._estado.obstaculos
     this.hornear = () =>
       hornearCapaBase(this, this.mundoPx, (region) => [
-        dibujarTerreno(this, paraDibujar, rio, region),
+        dibujarTerreno(this, paraDibujar, rio, vados, region),
         dibujarDecoracion(this, decoracion, region),
       ])
     this.trozos = this.hornear()

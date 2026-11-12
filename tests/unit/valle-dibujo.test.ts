@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { crearEstadoInicial } from '../../src/core'
+import { casillasRio, claveCasilla, crearEstadoInicial, decorarValle } from '../../src/core'
 import { marcarPropias } from '../../src/game/valle/debug'
-import { decorarValle } from '../../src/game/valle/decoracion'
 import { estiloParcela } from '../../src/game/valle/estilo'
-import { casillasRio, claveCasilla } from '../../src/game/valle/rio'
 import { leerParametros } from '../../src/game/parametros'
 
 const SEMILLAS = [0, 1, 42, 123, 999, 31337, 4294967295, 77, 2024, 8]
