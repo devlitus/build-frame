@@ -90,7 +90,9 @@ function oraculo(
   const hay = ps.some((p) => p.estado === 'propia')
   if (hay && !vecinas.some(([a, b]) => ps[(a as number) * n + (b as number)]?.estado === 'propia'))
     return { comprable: false, motivo: 'no-adyacente' }
-  if (!(e.dinero >= precio)) return { comprable: false, motivo: 'fondos-insuficientes' }
+  // Orquestador (M3-02 ronda 2): un dinero que no es entero seguro ≥ 0 no compra (S3 corregido).
+  if (!Number.isSafeInteger(e.dinero) || !(e.dinero >= precio))
+    return { comprable: false, motivo: 'fondos-insuficientes' }
   return { comprable: true }
 }
 
