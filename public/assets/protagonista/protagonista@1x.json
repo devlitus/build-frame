@@ -1,0 +1,733 @@
+{
+  "frames": {
+    "caminar-abajo-0": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-abajo-1": {
+      "frame": {
+        "x": 48,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-abajo-2": {
+      "frame": {
+        "x": 96,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-abajo-3": {
+      "frame": {
+        "x": 144,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-abajo-4": {
+      "frame": {
+        "x": 192,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-abajo-5": {
+      "frame": {
+        "x": 240,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-abajo-6": {
+      "frame": {
+        "x": 288,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-abajo-7": {
+      "frame": {
+        "x": 336,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-arriba-0": {
+      "frame": {
+        "x": 0,
+        "y": 64,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-arriba-1": {
+      "frame": {
+        "x": 48,
+        "y": 64,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-arriba-2": {
+      "frame": {
+        "x": 96,
+        "y": 64,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-arriba-3": {
+      "frame": {
+        "x": 144,
+        "y": 64,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-arriba-4": {
+      "frame": {
+        "x": 192,
+        "y": 64,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-arriba-5": {
+      "frame": {
+        "x": 240,
+        "y": 64,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-arriba-6": {
+      "frame": {
+        "x": 288,
+        "y": 64,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-arriba-7": {
+      "frame": {
+        "x": 336,
+        "y": 64,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-derecha-0": {
+      "frame": {
+        "x": 0,
+        "y": 128,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-derecha-1": {
+      "frame": {
+        "x": 48,
+        "y": 128,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-derecha-2": {
+      "frame": {
+        "x": 96,
+        "y": 128,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-derecha-3": {
+      "frame": {
+        "x": 144,
+        "y": 128,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-derecha-4": {
+      "frame": {
+        "x": 192,
+        "y": 128,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-derecha-5": {
+      "frame": {
+        "x": 240,
+        "y": 128,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-derecha-6": {
+      "frame": {
+        "x": 288,
+        "y": 128,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "caminar-derecha-7": {
+      "frame": {
+        "x": 336,
+        "y": 128,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "reposo-abajo-0": {
+      "frame": {
+        "x": 0,
+        "y": 192,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "reposo-abajo-1": {
+      "frame": {
+        "x": 48,
+        "y": 192,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "reposo-abajo-2": {
+      "frame": {
+        "x": 96,
+        "y": 192,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "reposo-abajo-3": {
+      "frame": {
+        "x": 144,
+        "y": 192,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "reposo-arriba-0": {
+      "frame": {
+        "x": 0,
+        "y": 256,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "reposo-arriba-1": {
+      "frame": {
+        "x": 48,
+        "y": 256,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "reposo-arriba-2": {
+      "frame": {
+        "x": 96,
+        "y": 256,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "reposo-arriba-3": {
+      "frame": {
+        "x": 144,
+        "y": 256,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "reposo-derecha-0": {
+      "frame": {
+        "x": 0,
+        "y": 320,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "reposo-derecha-1": {
+      "frame": {
+        "x": 48,
+        "y": 320,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "reposo-derecha-2": {
+      "frame": {
+        "x": 96,
+        "y": 320,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    },
+    "reposo-derecha-3": {
+      "frame": {
+        "x": 144,
+        "y": 320,
+        "w": 48,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 64
+      }
+    }
+  },
+  "meta": {
+    "app": "scripts/montar-hojas.mjs",
+    "image": "protagonista@1x.webp",
+    "size": {
+      "w": 384,
+      "h": 384
+    },
+    "scale": "1"
+  }
+}

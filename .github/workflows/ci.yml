@@ -39,7 +39,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run e2e
+      # Solo la tanda de humo: la completa corre en local antes de cada hito (PROCESO §5).
+      - run: npm run e2e:humo
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
