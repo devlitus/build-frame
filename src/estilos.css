@@ -148,3 +148,118 @@ body {
     0 0 0 2px var(--tinta),
     0 4px 12px var(--sombra);
 }
+
+/* === M2-06 · Reloj, controles de tiempo y aviso === */
+.hud-arriba {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.hud-superior {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hud-arriba-debug {
+  top: 40px;
+}
+
+.reloj {
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: rgb(246 236 214 / 88%);
+  color: var(--tinta);
+  box-shadow: 0 2px 8px var(--sombra);
+  line-height: 1.2;
+}
+
+.reloj-hora {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.reloj-fecha {
+  font-size: 1rem;
+}
+
+.controles-tiempo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.tiempo-detenido {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--tierra);
+  color: var(--crema);
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: 0 2px 8px var(--sombra);
+}
+
+.boton-tiempo {
+  pointer-events: auto;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 0.5rem;
+  border: 0;
+  border-radius: 12px;
+  background: var(--crema);
+  color: var(--tierra);
+  box-shadow: 0 2px 8px var(--sombra);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.boton-tiempo[aria-pressed='true'] {
+  background: var(--tierra);
+  color: var(--crema);
+}
+
+.boton-tiempo:focus-visible {
+  outline: 3px solid var(--crema);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px var(--tinta),
+    0 2px 8px var(--sombra);
+}
+
+.tiempo-detenido:empty {
+  display: none;
+}
+
+.aviso-zona {
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.aviso {
+  margin: 0;
+  max-width: 28rem;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--tinta);
+  color: var(--crema);
+  font-size: 1rem;
+  text-align: center;
+  box-shadow: 0 4px 12px var(--sombra);
+}

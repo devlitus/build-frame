@@ -27,6 +27,8 @@ interface Window {
     personaje(): { x: number; y: number; orientacion: string } | undefined
     /** Reloj de la partida; undefined si no hay valle. */
     reloj(): { dia: number; minutoDelDia: number; pausado: boolean; velocidad: number } | undefined
+    /** Tinte del ciclo día/noche (opacidad 0..1); undefined si no hay valle. */
+    luz(): { alfa: number } | undefined
     /** Claves de casilla de los vados (`y * lado + x`) y lado del valle en casillas. */
     vados(): { lado: number; claves: number[] } | undefined
     /** Cámara del valle; scrollX/Y es la esquina superior izquierda de la vista sin zoom. */

@@ -23,7 +23,14 @@ function datosPartida(): DatosEscenaValle {
     propias: p.propias,
     ...(p.modo === undefined ? {} : { modo: p.modo }),
     ...(p.en === undefined ? {} : { en: p.en }),
+    ...(p.acelerar === undefined ? {} : { acelerar: p.acelerar }),
+    ...(p.hora === undefined ? {} : { hora: p.hora }),
   }
+}
+
+/** `?debug` activo en la URL (la interfaz lo recibe por prop). */
+export function depuracionActiva(): boolean {
+  return leerParametros(window.location.search).debug
 }
 
 /** La partida en curso (la interfaz se suscribe a ella); undefined hasta que se juega. */
@@ -135,6 +142,11 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
           velocidad: s.velocidad,
         }
       )
+    },
+    luz: () => {
+      const e = g.scene.getScene('valle')
+      const alfa = e instanceof EscenaValle ? e.alfaLuz : undefined
+      return alfa === undefined ? undefined : { alfa }
     },
     vados: () => {
       const e = g.scene.getScene('valle')

@@ -62,19 +62,32 @@ export interface OpcionesNuevaPartida {
   readonly dineroInicial: number
   /** Configuración del valle; por defecto `CONFIG_VALLE` (data/valle.json). */
   readonly configValle?: ConfigValle
+  /**
+   * Minuto del día con el que empieza (solo pruebas y depuración); debe estar en la jornada
+   * `horaInicio..horaFin`. Por defecto `horaInicio` (06:00).
+   */
+  readonly minutoInicial?: number
 }
 
 export function crearEstadoInicial(opciones: OpcionesNuevaPartida): EstadoJuego {
   const semilla = opciones.semilla >>> 0
   const config = opciones.configValle ?? CONFIG_VALLE
   const { valle, estadoRng } = generarValle(config, semilla)
+  const minuto = opciones.minutoInicial ?? CONFIG_TIEMPO.horaInicio
+  if (
+    !Number.isInteger(minuto) ||
+    minuto < CONFIG_TIEMPO.horaInicio ||
+    minuto > CONFIG_TIEMPO.horaFin
+  ) {
+    throw new RangeError(`minutoInicial fuera de la jornada: ${minuto}`)
+  }
   const mundo = generarMundo(valle, semilla, config, CONFIG_PERSONAJE)
   return {
     versionFormato: VERSION_FORMATO,
     semilla,
     rng: estadoRng,
     dia: 1,
-    minutoDelDia: CONFIG_TIEMPO.horaInicio,
+    minutoDelDia: minuto,
     pausado: false,
     modo: 'vida',
     velocidad: VELOCIDAD_INICIAL,

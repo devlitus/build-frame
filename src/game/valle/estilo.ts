@@ -48,3 +48,32 @@ export const ESTILO_PERSONAJE = {
   distanciaIndicador: 7,
   radioIndicador: 3,
 } as const
+
+/**
+ * Ciclo día/noche (M2-06): puntos de control (minuto del día, color del tinte, opacidad). Entre
+ * dos puntos se interpola de forma lineal; el último enlaza con el primero a medianoche.
+ */
+export interface PuntoLuz {
+  readonly minuto: number
+  readonly color: number
+  readonly alfa: number
+}
+
+export const PUNTOS_LUZ: readonly PuntoLuz[] = [
+  { minuto: 0, color: 0x0b1233, alfa: 0.55 },
+  { minuto: 5 * 60, color: 0x0b1233, alfa: 0.55 },
+  { minuto: 6 * 60, color: 0xf0905a, alfa: 0 },
+  { minuto: 6 * 60 + 45, color: 0xf0905a, alfa: 0.14 },
+  { minuto: 7 * 60 + 30, color: 0xffffff, alfa: 0 },
+  { minuto: 18 * 60, color: 0xffffff, alfa: 0 },
+  { minuto: 19 * 60, color: 0xf07a3c, alfa: 0.24 },
+  { minuto: 20 * 60, color: 0x0b1233, alfa: 0.55 },
+  { minuto: 24 * 60, color: 0x0b1233, alfa: 0.55 },
+]
+
+/**
+ * Profundidad del tinte día/noche: por encima de todo el mundo dibujado (el personaje usa
+ * `depth` = y en píxeles, hasta el tamaño del mundo). Las marcas que deban verse sin tinte
+ * pueden ir por encima a propósito.
+ */
+export const PROFUNDIDAD_TINTE = 1_000_000

@@ -1,6 +1,12 @@
 import { render } from 'preact'
 import { useState } from 'preact/hooks'
-import { arrancaDirecto, crearJuego, iniciarPartida, partidaActual } from './game/juego'
+import {
+  arrancaDirecto,
+  crearJuego,
+  depuracionActiva,
+  iniciarPartida,
+  partidaActual,
+} from './game/juego'
 import { t } from './ui/textos'
 import { Hud } from './ui/Hud'
 import { Portada } from './ui/Portada'
@@ -18,7 +24,7 @@ crearJuego(juego)
 function App() {
   const [jugando, setJugando] = useState(arrancaDirecto())
   const partida = partidaActual()
-  if (jugando && partida) return <Hud partida={partida} />
+  if (jugando && partida) return <Hud partida={partida} debug={depuracionActiva()} />
   return (
     <Portada
       version={__VERSION__}

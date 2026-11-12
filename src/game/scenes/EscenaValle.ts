@@ -19,6 +19,7 @@ import { EntradaMovimiento } from '../entrada'
 import { Partida } from '../partida'
 import { TAM_CASILLA } from '../valle/estilo'
 import { VistaPersonaje } from '../valle/personaje'
+import { VistaLuz } from '../valle/vistaLuz'
 
 /** El arrastre de la cámara solo existe en el Modo Plano; en Vida la cámara sigue al personaje. */
 const ARRASTRE_EN_MODO_VIDA = false
@@ -33,6 +34,10 @@ export interface DatosEscenaValle {
   readonly propias?: readonly number[]
   /** Solo depuración: empezar con el personaje en el primer vado. */
   readonly en?: 'vado'
+  /** Solo depuración: multiplicador del tiempo de juego. */
+  readonly acelerar?: number
+  /** Solo depuración: minuto del día inicial (1320 = 22:00). */
+  readonly hora?: number
 }
 
 /**
@@ -49,6 +54,9 @@ export class EscenaValle extends Phaser.Scene {
   private control: ControlCamara | undefined = undefined
   private entrada: EntradaMovimiento | undefined = undefined
   private vista: VistaPersonaje | undefined = undefined
+  private luz: VistaLuz | undefined = undefined
+  private acelerar = 1
+  private hora: number | undefined = undefined
   private tiempo = new AcumuladorTiempo()
   private propias: readonly number[] = []
   private semilla = 0
@@ -60,6 +68,8 @@ export class EscenaValle extends Phaser.Scene {
       propias: this.propias,
       ...(this.modoInicial === 'plano' ? { modo: this.modoInicial } : {}),
       ...(this.en === undefined ? {} : { en: this.en }),
+      ...(this.acelerar > 1 ? { acelerar: this.acelerar } : {}),
+      ...(this.hora === undefined ? {} : { hora: this.hora }),
     }
   }
   private partidaCompartida(): Partida {
@@ -80,7 +90,14 @@ export class EscenaValle extends Phaser.Scene {
     this._partida = datos.partida
     this.propias = datos.propias ?? []
     this.en = datos.en
+    this.acelerar = datos.acelerar ?? 1
+    this.hora = datos.hora
     this.modoInicial = datos.modo ?? 'vida'
+  }
+
+  /** Opacidad del tinte día/noche (ganchos de prueba). */
+  get alfaLuz(): number | undefined {
+    return this.luz?.alfa
   }
 
   /** Solo lectura desde fuera; lo escribe únicamente `create()`. */
@@ -100,7 +117,11 @@ export class EscenaValle extends Phaser.Scene {
 
   create(): void {
     // El dinero inicial llega con la economía (M3); de momento 0.
-    let inicial = crearEstadoInicial({ semilla: this.semilla, dineroInicial: 0 })
+    let inicial = crearEstadoInicial({
+      semilla: this.semilla,
+      dineroInicial: 0,
+      ...(this.hora === undefined ? {} : { minutoInicial: this.hora }),
+    })
     const primerVado = inicial.cauce.vados[0]
     if (this.en === 'vado' && primerVado !== undefined) {
       const lado = ladoValle(inicial.valle)
@@ -144,6 +165,8 @@ export class EscenaValle extends Phaser.Scene {
     // Accesibilidad: el foco pasa al contenedor del lienzo al entrar en el valle.
     this.game.canvas.parentElement?.focus({ preventScroll: true })
     this.vista = new VistaPersonaje(this)
+    this.luz = new VistaLuz(this)
+    this.luz.actualizar(inicial.minutoDelDia)
     this.vista.colocar(inicial.personaje)
     this.entrada = new EntradaMovimiento(this)
     const posicion = {
@@ -197,8 +220,13 @@ export class EscenaValle extends Phaser.Scene {
       )
     }
     const { velocidad } = partida.estado
-    const minutos = this.tiempo.acumular(ms, velocidad, tiempoDetenido(partida.estado))
+    const minutos = this.tiempo.acumular(
+      ms * this.acelerar,
+      velocidad,
+      tiempoDetenido(partida.estado),
+    )
     if (minutos > 0) emitir({ tipo: 'AvanzarTiempo', minutos })
+    this.luz?.actualizar(partida.estado.minutoDelDia)
     const p = partida.estado.personaje
     this.vista?.colocar(p)
     const punto = { x: p.x * TAM_CASILLA, y: p.y * TAM_CASILLA }
@@ -239,6 +267,8 @@ export class EscenaValle extends Phaser.Scene {
     this.parcelas = undefined
     this.vista?.destruir()
     this.vista = undefined
+    this.luz?.destruir()
+    this.luz = undefined
     this.entrada = undefined
     this.control = undefined
   }

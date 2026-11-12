@@ -1,5 +1,8 @@
 import type { ModoJuego } from '../core'
 import type { Partida } from '../game/partida'
+import { Aviso } from './Aviso'
+import { ControlesTiempo } from './ControlesTiempo'
+import { Reloj } from './Reloj'
 import { t } from './textos'
 import { ContextoPartida, useEstado, usePartida } from './useEstado'
 
@@ -31,11 +34,22 @@ export function BotonModo() {
   )
 }
 
-/** Interfaz de partida. M2-06 añade aquí la hora, la fecha y los botones de tiempo (arriba). */
-export function Hud({ partida }: { partida: Partida }) {
+/**
+ * Interfaz de partida: arriba hora, fecha, controles de tiempo y aviso (en columna, sin
+ * solaparse); abajo a la derecha el modo. Con `debug` el contador de fps ocupa la esquina
+ * superior izquierda y la columna baja debajo.
+ */
+export function Hud({ partida, debug = false }: { partida: Partida; debug?: boolean }) {
   return (
     <ContextoPartida.Provider value={partida}>
       <div class="hud">
+        <div class={debug ? 'hud-arriba hud-arriba-debug' : 'hud-arriba'}>
+          <div class="hud-superior">
+            <Reloj />
+            <ControlesTiempo />
+          </div>
+          <Aviso />
+        </div>
         <BotonModo />
       </div>
     </ContextoPartida.Provider>
