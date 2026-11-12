@@ -1,0 +1,8 @@
+{
+  "horaInicio": 360,
+  "horaFin": 1560,
+  "diasPorEstacion": 21,
+  "estaciones": ["primavera", "verano", "otono", "invierno"],
+  "minutosRealesPorDia": 15,
+  "velocidades": [1, 2, 3]
+}

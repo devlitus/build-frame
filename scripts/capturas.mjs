@@ -1,5 +1,8 @@
 // Capturas de verificación visual en escritorio, móvil horizontal y móvil vertical.
 // Uso: npm run capturas -- [ruta ...]   (p. ej. "/" "/?semilla=42")
+// En Windows npm ejecuta el script con cmd.exe, que corta la orden en cada `&` aunque vaya entre
+// comillas (se perdía todo lo que seguía al primer parámetro). Dentro de una ruta se puede
+// escribir `;` en lugar de `&`: "/?semilla=42;modo=plano".
 // Requiere un build previo (el script npm lo hace). Deja los PNG en capturas/.
 import { chromium, devices } from '@playwright/test'
 import { spawn } from 'node:child_process'
@@ -8,7 +11,8 @@ import { dirname, join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 
 const PUERTO = 4175
-const rutas = process.argv.slice(2).length ? process.argv.slice(2) : ['/']
+const args = process.argv.slice(2).map((r) => r.replaceAll(';', '&'))
+const rutas = args.length ? args : ['/']
 const vistas = [
   ['escritorio', { viewport: { width: 1280, height: 720 } }],
   ['movil-horizontal', { ...devices['Pixel 7'], viewport: { width: 915, height: 412 } }],

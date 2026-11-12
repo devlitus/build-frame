@@ -51,7 +51,7 @@ test('sin costuras ni huecos de fondo con zooms fraccionarios y medio píxel', a
   page,
 }, info) => {
   test.skip(info.project.name !== 'escritorio')
-  await abrir(page, './?semilla=42')
+  await abrir(page, './?semilla=42&modo=plano')
   const v = page.viewportSize() ?? { width: 1280, height: 720 }
   await page.mouse.move(v.width / 2, v.height / 2)
   for (const delta of [-300, 200, -150, -250, 700, -900]) {
@@ -70,7 +70,7 @@ test('el contador no captura gestos: arrastrar desde él mueve la cámara', asyn
   page,
 }, info) => {
   test.skip(info.project.name !== 'escritorio')
-  await abrir(page, './?semilla=42&debug')
+  await abrir(page, './?semilla=42&debug&modo=plano')
   await page.mouse.move(600, 400)
   await page.mouse.wheel(0, -600)
   await page.waitForTimeout(200)
@@ -103,7 +103,7 @@ test('tras perder y recuperar el contexto WebGL el terreno sigue dibujado', asyn
   page,
 }, info) => {
   test.skip(info.project.name !== 'escritorio')
-  await abrir(page, './?semilla=42')
+  await abrir(page, './?semilla=42&modo=plano')
   expect(await pixelesDeFondo(page, 'fraccion')).toBeLessThan(0.05) // antes: terreno visible
   const res = await page.evaluate(async () => {
     const cv = document.querySelector('canvas') as HTMLCanvasElement

@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { AGUAS_SIN_RIO, FERTILIDADES, TERRENOS } from './claves.ts'
+import { AGUAS_SIN_RIO, FERTILIDADES, LADOS, TERRENOS } from './claves.ts'
 
 /** Tope de 64: 64×64 parcelas de 64×64 casillas ya son ~16 M casillas; más es inabarcable. */
 const LIMITE_TAMANO = 64
@@ -18,6 +18,12 @@ function pesos<const K extends string>(claves: readonly K[]) {
   )
 }
 
+const probabilidad = v.pipe(v.number(), v.minValue(0), v.maxValue(1))
+const densidad = v.pipe(
+  v.strictObject({ arbol: probabilidad, roca: probabilidad }),
+  v.check((d) => d.arbol + d.roca <= 1, 'arbol + roca no puede superar 1'),
+)
+
 export const EsquemaConfigValle = v.strictObject({
   parcelasPorLado: entero,
   casillasPorParcela: entero,
@@ -28,7 +34,58 @@ export const EsquemaConfigValle = v.strictObject({
     rocoso: pesos(FERTILIDADES),
   }),
   pesosAguaSinRio: pesos(AGUAS_SIN_RIO),
-  probabilidadDesvioRio: v.pipe(v.number(), v.minValue(0), v.maxValue(1)),
+  probabilidadDesvioRio: probabilidad,
+  /** Ancho del cauce del río, en casillas. */
+  anchoRio: entero,
+  /** Probabilidad por casilla de llevar un árbol o una roca, según el terreno. */
+  densidadDecoracion: v.strictObject({ prado: densidad, bosque: densidad, rocoso: densidad }),
+  /** Vados del río: cuántos (entre `min` y `max`) y cuántas casillas de grosor a lo largo del cauce. */
+  vados: v.pipe(
+    v.strictObject({ min: entero, max: entero, grosor: entero }),
+    v.check((c) => c.max >= c.min, 'vados.max debe ser >= vados.min'),
+  ),
 })
 
 export type ConfigValle = v.InferOutput<typeof EsquemaConfigValle>
+
+const MINUTOS_POR_DIA = 1440
+const VELOCIDAD_MAXIMA = 10
+const enteroPositivo = v.pipe(v.number(), v.integer(), v.minValue(1))
+
+export const EsquemaConfigTiempo = v.pipe(
+  v.strictObject({
+    /** Minutos desde 00:00 a los que empieza la jornada (06:00 = 360). */
+    horaInicio: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(MINUTOS_POR_DIA - 1)),
+    /** Minutos desde 00:00 a los que acaba la jornada; puede pasar de 1440 (02:00 = 1560). */
+    horaFin: enteroPositivo,
+    diasPorEstacion: enteroPositivo,
+    estaciones: v.pipe(v.array(v.pipe(v.string(), v.minLength(1))), v.minLength(1)),
+    minutosRealesPorDia: v.pipe(v.number(), v.finite(), v.minValue(1)),
+    velocidades: v.pipe(
+      v.array(v.pipe(enteroPositivo, v.maxValue(VELOCIDAD_MAXIMA))),
+      v.minLength(1),
+    ),
+  }),
+  v.check((c) => c.horaFin > c.horaInicio, 'horaFin debe ser mayor que horaInicio'),
+  v.check((c) => c.horaFin - c.horaInicio <= MINUTOS_POR_DIA, 'La jornada no dura más de 24 h'),
+  v.check((c) => new Set(c.estaciones).size === c.estaciones.length, 'Estaciones repetidas'),
+  v.check((c) => new Set(c.velocidades).size === c.velocidades.length, 'Velocidades repetidas'),
+  v.check((c) => c.velocidades.includes(1), 'La velocidad 1 debe existir'),
+)
+
+export type ConfigTiempo = v.InferOutput<typeof EsquemaConfigTiempo>
+
+export const EsquemaConfigPersonaje = v.strictObject({
+  /** Velocidad al andar en recto, en casillas por segundo. */
+  velocidadCasillasPorSegundo: v.pipe(v.number(), v.finite(), v.minValue(0.1), v.maxValue(30)),
+  /** Lado de la caja de colisión (cuadrada), en casillas; < 1 para caber por pasillos de una casilla. */
+  tamanoCaja: v.pipe(v.number(), v.minValue(0.1), v.maxValue(0.95)),
+  /** Lado del valle donde está el pueblo: allí aparece el personaje (la entrada del valle). */
+  ladoPueblo: v.picklist(LADOS),
+  /** Casillas hacia dentro del valle, desde el borde del pueblo, a las que aparece el personaje. */
+  margenAparicion: v.pipe(v.number(), v.finite(), v.minValue(0), v.maxValue(16)),
+  /** Tope de ms que procesa un solo comando `MoverPersonaje` (evita efecto túnel y bucles largos). */
+  maxMsPorComando: v.pipe(v.number(), v.finite(), v.minValue(1), v.maxValue(1000)),
+})
+
+export type ConfigPersonaje = v.InferOutput<typeof EsquemaConfigPersonaje>

@@ -10,7 +10,7 @@ interface Camara {
 }
 
 async function abrir(page: Page): Promise<void> {
-  await page.goto('./?semilla=42')
+  await page.goto('./?semilla=42&modo=plano')
   await expect.poll(() => page.evaluate(() => window.__raices?.escenaActiva())).toBe('valle')
   await expect.poll(() => page.evaluate(() => window.__raices?.camara()?.zoom)).toBeGreaterThan(0)
 }

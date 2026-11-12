@@ -87,6 +87,10 @@ const configArb: fc.Arbitrary<ConfigValle> = fc.record({
     fc.constantFrom(0, 1),
     fc.double({ min: 0, max: 1, noNaN: true }),
   ),
+  // M2-02: campos nuevos del esquema (río, decoración, vados); no afectan a `generarValle`.
+  anchoRio: fc.constant(CONFIG_VALLE.anchoRio),
+  densidadDecoracion: fc.constant(CONFIG_VALLE.densidadDecoracion),
+  vados: fc.constant(CONFIG_VALLE.vados),
 }) as fc.Arbitrary<ConfigValle>
 
 const semillaArb = fc.oneof(
@@ -168,8 +172,8 @@ describe('rompedor · crearEstadoInicial', () => {
 
   it.each(extremas)('semilla extrema %s: no rompe y deja un valle válido', (s) => {
     const e = crearEstadoInicial({ semilla: s, dineroInicial: 0 })
-    expect(e.versionFormato).toBe(2)
-    expect(VERSION_FORMATO).toBe(2)
+    expect(e.versionFormato).toBe(5)
+    expect(VERSION_FORMATO).toBe(5)
     expect(Number.isInteger(e.semilla)).toBe(true)
     expect(e.semilla).toBeGreaterThanOrEqual(0)
     expect(e.semilla).toBeLessThan(2 ** 32)

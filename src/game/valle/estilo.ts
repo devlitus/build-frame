@@ -2,14 +2,10 @@ import type { EstadoParcela, Terreno } from '../../core'
 
 /**
  * Valores VISUALES provisionales (arte definitivo en M9): colores, tamaños y estilos.
- * TODO M5: árboles y rocas serán recursos del juego; su posición pasará a `EstadoJuego`
- * (con el RNG del núcleo) y su densidad por terreno, que sí es de balance, a `data/`.
- * Hoy `DENSIDAD_DECORACION` y la decoración son solo visuales y se derivan de la semilla.
+ * La posición de árboles y rocas y su densidad son del núcleo (`EstadoJuego.obstaculos`,
+ * `data/valle.json`) desde M2-02; aquí solo queda cómo se ven.
  */
 export const TAM_CASILLA = 32
-
-/** Ancho del cauce del río, en casillas. */
-export const ANCHO_RIO = 4
 
 export const COLOR_TERRENO: Readonly<Record<Terreno, { base: number; alterno: number }>> = {
   prado: { base: 0x7cb55a, alterno: 0x73ab52 },
@@ -18,6 +14,9 @@ export const COLOR_TERRENO: Readonly<Record<Terreno, { base: number; alterno: nu
 }
 
 export const COLOR_RIO = { base: 0x4a90c8, alterno: 0x5aa0d6 } as const
+
+/** Vado: agua más clara y piedras de paso, para ver por dónde se cruza. */
+export const COLOR_VADO = { agua: 0x9fd3ee, piedra: 0xb9b2a3, piedraBorde: 0x7a7468 } as const
 
 export interface EstiloParcela {
   readonly tinte: number
@@ -35,14 +34,46 @@ export function estiloParcela(estado: EstadoParcela): EstiloParcela {
   return ESTILO_PARCELA[estado]
 }
 
-/** Probabilidad por casilla de llevar un árbol o una roca, según el terreno. */
-export const DENSIDAD_DECORACION: Readonly<
-  Record<Terreno, { readonly arbol: number; readonly roca: number }>
-> = {
-  prado: { arbol: 0.015, roca: 0.006 },
-  bosque: { arbol: 0.16, roca: 0.01 },
-  rocoso: { arbol: 0.012, roca: 0.1 },
-}
-
 export const COLOR_ARBOL = { copa: 0x2f6b2f, copaClara: 0x3f8a3a, tronco: 0x6b4a2b } as const
 export const COLOR_ROCA = { relleno: 0x8a8a8a, borde: 0x5e5e5e } as const
+
+/** Personaje provisional (arte en M9): cuerpo, borde e indicador de orientación. */
+export const ESTILO_PERSONAJE = {
+  /** Radio del cuerpo, en píxeles. */
+  radio: 10,
+  cuerpo: 0xd9583b,
+  borde: 0x5a1f12,
+  indicador: 0xfff3c4,
+  /** Distancia del indicador al centro, en píxeles. */
+  distanciaIndicador: 7,
+  radioIndicador: 3,
+} as const
+
+/**
+ * Ciclo día/noche (M2-06): puntos de control (minuto del día, color del tinte, opacidad). Entre
+ * dos puntos se interpola de forma lineal; el último enlaza con el primero a medianoche.
+ */
+export interface PuntoLuz {
+  readonly minuto: number
+  readonly color: number
+  readonly alfa: number
+}
+
+export const PUNTOS_LUZ: readonly PuntoLuz[] = [
+  { minuto: 0, color: 0x0b1233, alfa: 0.55 },
+  { minuto: 5 * 60, color: 0x0b1233, alfa: 0.55 },
+  { minuto: 6 * 60, color: 0xf0905a, alfa: 0 },
+  { minuto: 6 * 60 + 45, color: 0xf0905a, alfa: 0.14 },
+  { minuto: 7 * 60 + 30, color: 0xffffff, alfa: 0 },
+  { minuto: 18 * 60, color: 0xffffff, alfa: 0 },
+  { minuto: 19 * 60, color: 0xf07a3c, alfa: 0.24 },
+  { minuto: 20 * 60, color: 0x0b1233, alfa: 0.55 },
+  { minuto: 24 * 60, color: 0x0b1233, alfa: 0.55 },
+]
+
+/**
+ * Profundidad del tinte día/noche: por encima de todo el mundo dibujado (el personaje usa
+ * `depth` = y en píxeles, hasta el tamaño del mundo). Las marcas que deban verse sin tinte
+ * pueden ir por encima a propósito.
+ */
+export const PROFUNDIDAD_TINTE = 1_000_000

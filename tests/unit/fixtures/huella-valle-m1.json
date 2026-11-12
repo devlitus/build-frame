@@ -1,0 +1,20 @@
+{
+  "1": {
+    "rio": 448,
+    "rioHash": "4607497d82ebac10368a57063002a714b46c86aab3262f919c7b43a64ec8a08e",
+    "deco": 557,
+    "decoHash": "94392d5ef960948f00604db8c92df6eaba906768f82aa8d68186d81e7c3b2ed6"
+  },
+  "42": {
+    "rio": 512,
+    "rioHash": "200cb5f4dd3fc7b85fd2911546d60aa241be197f9ba66b7933daf408453d5fd6",
+    "deco": 660,
+    "decoHash": "6564c0b8da268178e8a45cba308dd6e359f2afe2a35936acff6fb44232b1b5d0"
+  },
+  "12345": {
+    "rio": 448,
+    "rioHash": "84a8d4f498a17d579b39b36e4f35c3bf284bf579de01b0768db9323905ba5427",
+    "deco": 683,
+    "decoHash": "ef1e2581c9a9d4f145f7868ce03f2794ea64cb4bc79551e7a1390a4406ab93f6"
+  }
+}
