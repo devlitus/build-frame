@@ -32,3 +32,30 @@ export const EsquemaConfigValle = v.strictObject({
 })
 
 export type ConfigValle = v.InferOutput<typeof EsquemaConfigValle>
+
+const MINUTOS_POR_DIA = 1440
+const VELOCIDAD_MAXIMA = 10
+const enteroPositivo = v.pipe(v.number(), v.integer(), v.minValue(1))
+
+export const EsquemaConfigTiempo = v.pipe(
+  v.strictObject({
+    /** Minutos desde 00:00 a los que empieza la jornada (06:00 = 360). */
+    horaInicio: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(MINUTOS_POR_DIA - 1)),
+    /** Minutos desde 00:00 a los que acaba la jornada; puede pasar de 1440 (02:00 = 1560). */
+    horaFin: enteroPositivo,
+    diasPorEstacion: enteroPositivo,
+    estaciones: v.pipe(v.array(v.pipe(v.string(), v.minLength(1))), v.minLength(1)),
+    minutosRealesPorDia: v.pipe(v.number(), v.finite(), v.minValue(1)),
+    velocidades: v.pipe(
+      v.array(v.pipe(enteroPositivo, v.maxValue(VELOCIDAD_MAXIMA))),
+      v.minLength(1),
+    ),
+  }),
+  v.check((c) => c.horaFin > c.horaInicio, 'horaFin debe ser mayor que horaInicio'),
+  v.check((c) => c.horaFin - c.horaInicio <= MINUTOS_POR_DIA, 'La jornada no dura más de 24 h'),
+  v.check((c) => new Set(c.estaciones).size === c.estaciones.length, 'Estaciones repetidas'),
+  v.check((c) => new Set(c.velocidades).size === c.velocidades.length, 'Velocidades repetidas'),
+  v.check((c) => c.velocidades.includes(1), 'La velocidad 1 debe existir'),
+)
+
+export type ConfigTiempo = v.InferOutput<typeof EsquemaConfigTiempo>
