@@ -132,3 +132,18 @@ export function pasoPellizco(
     mundo,
   )
 }
+
+/**
+ * Seguimiento suave: acerca el centro de la vista a `objetivo` con una exponencial de
+ * constante de tiempo `constanteMs` (independiente de los fps). Converge sin pasarse; con
+ * `delta` ≤ 0 o no finito no cambia la vista.
+ */
+export function acercar(vista: Vista, objetivo: Punto, delta: number, constanteMs: number): Vista {
+  if (!Number.isFinite(delta) || delta <= 0) return vista
+  const k = constanteMs > 0 ? 1 - Math.exp(-delta / constanteMs) : 1
+  return {
+    ...vista,
+    cx: vista.cx + (objetivo.x - vista.cx) * k,
+    cy: vista.cy + (objetivo.y - vista.cy) * k,
+  }
+}

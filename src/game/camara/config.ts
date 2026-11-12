@@ -7,6 +7,10 @@ export const CONFIG_CAMARA = {
   zoomInicialMin: 0.6,
   /** Zoom por unidad de `deltaY` de la rueda (exponencial). */
   sensibilidadRueda: 0.0015,
+  /** Constante de tiempo del seguimiento suave (ms): menor = más pegada al personaje. */
+  suavizadoSeguimientoMs: 120,
+  /** Por debajo de esta distancia (px del mundo) el seguimiento da el alcance por logrado. */
+  umbralSeguimientoPx: 0.25,
 } as const
 
 export function limitesZoom(pantalla: Pantalla, mundo: number): LimitesZoom {

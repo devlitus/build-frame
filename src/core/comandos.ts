@@ -73,6 +73,15 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
         return { ok: true, estado, eventos: SIN_EVENTOS }
       }
       const personaje = moverPersonaje(estado, estado.personaje, dx, dy, ms)
+      const antes = estado.personaje
+      // Contra un muro no cambia nada: se devuelve el mismo estado (sin avisos por fotograma).
+      if (
+        personaje.x === antes.x &&
+        personaje.y === antes.y &&
+        personaje.orientacion === antes.orientacion
+      ) {
+        return { ok: true, estado, eventos: SIN_EVENTOS }
+      }
       return { ok: true, eventos: SIN_EVENTOS, estado: { ...estado, personaje } }
     }
     case 'Pausar':

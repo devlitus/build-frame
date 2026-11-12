@@ -4,6 +4,8 @@ export interface ParametrosUrl {
   readonly debug: boolean
   /** Índices de parcela a marcar como propias; solo con `debug`. */
   readonly propias: readonly number[]
+  /** Solo con `debug`: dónde empieza el personaje (`?debug&en=vado`). */
+  readonly en?: 'vado'
 }
 
 function entero(texto: string | null): number | undefined {
@@ -35,7 +37,13 @@ export function leerParametros(busqueda: string): ParametrosUrl {
         ),
       ]
     : []
-  return semilla === undefined ? { debug, propias } : { semilla, debug, propias }
+  const en = debug && q.get('en')?.trim().toLowerCase() === 'vado' ? ('vado' as const) : undefined
+  return {
+    ...(semilla === undefined ? {} : { semilla }),
+    debug,
+    propias,
+    ...(en === undefined ? {} : { en }),
+  }
 }
 
 /** Semilla nueva; vive en la capa de juego, nunca en `core/` (ADR 0004). */

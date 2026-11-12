@@ -19,6 +19,12 @@ interface Window {
     objetosValle(): number | undefined
     /** Tamaño (en órdenes de dibujo) de cada `Graphics` vivo en la escena del valle. */
     graficosValle(): number[]
+    /** Personaje en casillas (centro de su caja); undefined si no hay valle. */
+    personaje(): { x: number; y: number; orientacion: string } | undefined
+    /** Reloj de la partida; undefined si no hay valle. */
+    reloj(): { dia: number; minutoDelDia: number; pausado: boolean; velocidad: number } | undefined
+    /** Claves de casilla de los vados (`y * lado + x`) y lado del valle en casillas. */
+    vados(): { lado: number; claves: number[] } | undefined
     /** Cámara del valle; scrollX/Y es la esquina superior izquierda de la vista sin zoom. */
     camara():
       { zoom: number; scrollX: number; scrollY: number; ancho: number; alto: number } | undefined

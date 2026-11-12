@@ -2,15 +2,27 @@ import Phaser from 'phaser'
 import { EscenaPortada } from './scenes/EscenaPortada'
 import { EscenaDepuracion } from './scenes/EscenaDepuracion'
 import { EscenaValle, type DatosEscenaValle } from './scenes/EscenaValle'
+import { crearEstadoInicial, ladoValle } from '../core'
+import { Partida } from './partida'
 import { leerParametros, semillaNueva } from './parametros'
 
 let juego: Phaser.Game | undefined
 let semillaActual: number | undefined
 
 /** Datos de la partida según la URL (sin efectos); sin `?semilla` se genera una nueva con `crypto`. */
+let partida: Partida | undefined
+
+/** Una sola `Partida` para todo el juego (el HUD se suscribe a ella); la escena la rellena al crearse. */
 function datosPartida(): DatosEscenaValle {
   const p = leerParametros(window.location.search)
-  return { semilla: p.semilla ?? semillaNueva(), propias: p.propias }
+  const semilla = p.semilla ?? semillaNueva()
+  partida ??= new Partida(crearEstadoInicial({ semilla, dineroInicial: 0 }))
+  return {
+    semilla,
+    partida,
+    propias: p.propias,
+    ...(p.en === undefined ? {} : { en: p.en }),
+  }
 }
 
 /** Con `?semilla=N` en la URL se salta la portada y se abre el valle directamente. */
@@ -91,6 +103,28 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
       return e.children.list
         .filter((o): o is Phaser.GameObjects.Graphics => o instanceof Phaser.GameObjects.Graphics)
         .map((o) => o.commandBuffer.length)
+    },
+    personaje: () => {
+      const e = g.scene.getScene('valle')
+      const p = e instanceof EscenaValle ? e.estado?.personaje : undefined
+      return p && { x: p.x, y: p.y, orientacion: p.orientacion }
+    },
+    reloj: () => {
+      const e = g.scene.getScene('valle')
+      const s = e instanceof EscenaValle ? e.estado : undefined
+      return (
+        s && {
+          dia: s.dia,
+          minutoDelDia: s.minutoDelDia,
+          pausado: s.pausado,
+          velocidad: s.velocidad,
+        }
+      )
+    },
+    vados: () => {
+      const e = g.scene.getScene('valle')
+      const s = e instanceof EscenaValle ? e.estado : undefined
+      return s && { lado: ladoValle(s.valle), claves: [...s.cauce.vados] }
     },
     camara: () => {
       const e = g.scene.getScene('valle')

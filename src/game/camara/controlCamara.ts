@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { CONFIG_CAMARA, limitesZoom, zoomInicial } from './config'
 import {
+  acercar,
   factorPellizco,
   limitarVista,
   limitarZoom,
@@ -17,32 +18,86 @@ interface Medida {
   readonly distancia: number
 }
 
+/** Qué hace la cámara; se puede cambiar en caliente (Modo Vida sigue, Modo Plano arrastra). */
+export interface OpcionesCamara {
+  /** La cámara persigue al objetivo que se le indica con `seguir()`. */
+  seguir: boolean
+  /** Un puntero (ratón o un dedo) desplaza la cámara; el pellizco y la rueda siempre hacen zoom. */
+  arrastre: boolean
+}
+
 /**
- * Cámara del valle: arrastre con un puntero, pellizco con dos y rueda del ratón.
- * Todo el cálculo está en `matematica.ts`; aquí solo se leen los punteros y se aplica.
+ * Cámara del valle: seguimiento del personaje, arrastre con un puntero, pellizco con dos y
+ * rueda del ratón. Todo el cálculo está en `matematica.ts`; aquí solo se leen los punteros y se aplica.
  */
 export class ControlCamara {
+  private readonly opciones: OpcionesCamara
   private previa: Medida | undefined = undefined
+  private objetivo: Punto | undefined = undefined
+  private persiguiendo = false
   /** Última vista aplicada: al redimensionar se conserva su centro. */
   private actual: Vista = { zoom: 1, cx: 0, cy: 0 }
 
   constructor(
     private readonly escena: Phaser.Scene,
     private readonly mundoPx: number,
+    opciones: OpcionesCamara = { seguir: false, arrastre: true },
+    inicio: Punto = { x: mundoPx / 2, y: mundoPx / 2 },
+    objetivoInicial?: Punto,
   ) {
+    this.opciones = { ...opciones }
     const input = escena.input
     input.on('pointerdown', this.alCambiar, this)
     input.on('pointermove', this.alCambiar, this)
     input.on('pointerup', this.alCambiar, this)
     input.on('pointerupoutside', this.alCambiar, this)
     input.on('wheel', this.alRueda, this)
+    // Sin objetivo inicial no se persigue: el seguimiento arranca cuando el objetivo se mueve.
+    this.objetivo = objetivoInicial
     escena.scale.on('resize', this.alRedimensionar, this)
     escena.events.once('shutdown', this.destruir, this)
     this.aplicar({
       zoom: zoomInicial(this.pantalla, this.mundoPx),
-      cx: this.mundoPx / 2,
-      cy: this.mundoPx / 2,
+      cx: inicio.x,
+      cy: inicio.y,
     })
+  }
+
+  set seguirActivo(v: boolean) {
+    this.opciones.seguir = v
+    if (v) this.persiguiendo = true
+  }
+
+  set arrastreActivo(v: boolean) {
+    this.opciones.arrastre = v
+    if (!v) this.previa = undefined
+  }
+
+  /**
+   * Seguimiento suave hacia `objetivo` (px del mundo); se llama cada fotograma. Persigue solo
+   * mientras el objetivo se mueve y hasta alcanzarlo, para no deshacer un desplazamiento
+   * manual con el personaje quieto. `delta` en ms.
+   */
+  seguir(objetivo: Punto, delta: number): void {
+    const o = this.objetivo
+    if (!o || o.x !== objetivo.x || o.y !== objetivo.y) {
+      this.objetivo = { ...objetivo }
+      this.persiguiendo = true
+    }
+    if (!this.opciones.seguir || !this.persiguiendo) return
+    const v = this.actual
+    if (Math.hypot(objetivo.x - v.cx, objetivo.y - v.cy) < CONFIG_CAMARA.umbralSeguimientoPx) {
+      this.persiguiendo = false
+      return
+    }
+    this.aplicar(acercar(v, objetivo, delta, CONFIG_CAMARA.suavizadoSeguimientoMs))
+  }
+
+  /** Coloca la vista sobre `punto` de golpe, sin barrido (p. ej. tras un desmayo). */
+  centrarEn(punto: Punto): void {
+    this.objetivo = { ...punto }
+    this.persiguiendo = false
+    this.aplicar({ ...this.actual, cx: punto.x, cy: punto.y })
   }
 
   private get pantalla(): Pantalla {
@@ -79,6 +134,12 @@ export class ControlCamara {
     if (ahora.ids.length !== antes.ids.length || ahora.ids.some((id, i) => id !== antes.ids[i]))
       return
     const factor = ahora.ids.length === 2 ? factorPellizco(antes, ahora) : 1
+    if (!this.opciones.arrastre) {
+      // Sin arrastre solo hay zoom, anclado en el punto medio de los dedos.
+      if (factor !== 1) this.mover(ahora.medio, ahora.medio, factor)
+      return
+    }
+    this.persiguiendo = false
     this.mover(antes.medio, ahora.medio, factor)
   }
 

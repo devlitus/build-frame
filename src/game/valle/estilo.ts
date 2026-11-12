@@ -36,3 +36,15 @@ export function estiloParcela(estado: EstadoParcela): EstiloParcela {
 
 export const COLOR_ARBOL = { copa: 0x2f6b2f, copaClara: 0x3f8a3a, tronco: 0x6b4a2b } as const
 export const COLOR_ROCA = { relleno: 0x8a8a8a, borde: 0x5e5e5e } as const
+
+/** Personaje provisional (arte en M9): cuerpo, borde e indicador de orientación. */
+export const ESTILO_PERSONAJE = {
+  /** Radio del cuerpo, en píxeles. */
+  radio: 10,
+  cuerpo: 0xd9583b,
+  borde: 0x5a1f12,
+  indicador: 0xfff3c4,
+  /** Distancia del indicador al centro, en píxeles. */
+  distanciaIndicador: 7,
+  radioIndicador: 3,
+} as const
