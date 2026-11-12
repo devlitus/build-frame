@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useState } from 'preact/hooks'
 import { nombreParcela, textoPrecio } from './parcelaTextos'
 import { t, tp } from './textos'
 import { usePartida } from './useEstado'
@@ -46,6 +46,10 @@ export function Aviso() {
       clearTimeout(ocultar)
     }
   }, [partida])
+  // El aviso ocupa sitio en el HUD: la guía de cámara vuelve a medir cuando aparece o se quita.
+  useLayoutEffect(() => {
+    partida.seleccion.reservasCambiadas()
+  }, [partida, texto])
   return (
     <div class="aviso-zona" role="status">
       {texto !== undefined && <p class="aviso">{texto}</p>}
