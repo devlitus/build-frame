@@ -35,6 +35,14 @@ body {
   inset: 0;
 }
 
+/* Foco visible del lienzo en Plano (se llega con Tab): anillo doble, visible sobre claro y oscuro. */
+#juego canvas:focus-visible,
+#juego[data-modo='plano']:focus-visible {
+  outline: 4px solid var(--crema);
+  outline-offset: -8px;
+  box-shadow: inset 0 0 0 4px var(--tinta);
+}
+
 #ui {
   pointer-events: none;
   display: grid;

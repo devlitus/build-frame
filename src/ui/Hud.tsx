@@ -36,6 +36,16 @@ export function BotonModo() {
   )
 }
 
+/** Ayuda de teclado del Modo Plano para lectores de pantalla (la enlaza el lienzo con `aria-describedby`). */
+function AyudaPlano() {
+  const plano = useEstado((e) => e.modo === 'plano')
+  return plano ? (
+    <p id="ayuda-plano" class="solo-lector">
+      {t('ayudaPlano')}
+    </p>
+  ) : null
+}
+
 /**
  * Interfaz de partida: arriba hora, fecha, controles de tiempo y aviso (en columna, sin
  * solaparse); abajo a la derecha el modo. Con `debug` el contador de fps ocupa la esquina
@@ -55,6 +65,7 @@ export function Hud({ partida, debug = false }: { partida: Partida; debug?: bool
           </div>
           <Aviso />
         </div>
+        <AyudaPlano />
         <PanelParcela />
         <BotonModo />
       </div>

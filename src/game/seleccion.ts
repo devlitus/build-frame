@@ -85,6 +85,14 @@ export class Seleccion {
     this.avisar()
   }
 
+  /**
+   * Algo de la interfaz que tapa el valle (p. ej. el aviso de compra) ha aparecido o desaparecido:
+   * avisa a los suscriptores para que la guía de cámara vuelva a medir las reservas del HUD.
+   */
+  reservasCambiadas(): void {
+    this.avisar()
+  }
+
   suscribir(f: AvisoSeleccion): () => void {
     this.suscriptores.add(f)
     return () => {
