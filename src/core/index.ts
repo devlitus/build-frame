@@ -1,3 +1,6 @@
 export * from './estado'
 export * from './comandos'
 export * from './rng'
+export * from './valle'
+export * from './datos/esquemas'
+export { CONFIG_VALLE } from './datos/valle'
