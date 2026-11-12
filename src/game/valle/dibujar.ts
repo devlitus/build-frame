@@ -7,9 +7,12 @@ import {
   COLOR_VADO,
   COLOR_TERRENO,
   TAM_CASILLA,
+  ESTILO_PLANO,
   ESTILO_RESALTE,
   estiloParcela,
 } from './estilo'
+import type { EstadoVisualParcela } from './estadoVisual'
+import { rayasDiagonales, segmentosDiscontinuos } from './trazos'
 
 /*
  * Tres capas independientes (terreno, decoración, parcelas) para poder volcar
@@ -120,24 +123,80 @@ export function dibujarDecoracion(
   return g
 }
 
-export function dibujarParcelas(escena: Phaser.Scene, valle: Valle): Phaser.GameObjects.Graphics {
+/** Parcelas (tinte y borde) en un `Graphics` propio, que se redibuja al comprar; ver `redibujarParcelas`. */
+export function dibujarParcelas(
+  escena: Phaser.Scene,
+  valle: Valle,
+  visuales?: readonly EstadoVisualParcela[],
+): Phaser.GameObjects.Graphics {
   const g = escena.add.graphics().setDepth(2)
+  redibujarParcelas(g, valle, visuales)
+  return g
+}
+
+/**
+ * Borra y vuelve a pintar las 36 parcelas (sin tocar el valle horneado). Con `visuales` (Modo
+ * Plano) usa los tres estados de `ESTILO_PLANO`; sin él (Modo Vida) el estilo de siempre:
+ * propias doradas y el resto en venta.
+ */
+export function redibujarParcelas(
+  g: Phaser.GameObjects.Graphics,
+  valle: Valle,
+  visuales?: readonly EstadoVisualParcela[],
+): void {
+  g.clear()
   const lado = valle.casillasPorParcela * TAM_CASILLA
   // Las propias van al final para que su borde grueso no quede recortado por las vecinas.
-  const orden = [...valle.parcelas].sort(
-    (a, b) => Number(a.estado === 'propia') - Number(b.estado === 'propia'),
-  )
-  for (const p of orden) {
-    const e = estiloParcela(p.estado)
+  const orden = valle.parcelas
+    .map((p, i) => ({ p, i }))
+    .sort((a, b) => Number(a.p.estado === 'propia') - Number(b.p.estado === 'propia'))
+  for (const { p, i } of orden) {
     const x = p.columna * lado
     const y = p.fila * lado
+    if (visuales === undefined) {
+      const e = estiloParcela(p.estado)
+      g.fillStyle(e.tinte, e.alfaTinte)
+      g.fillRect(x, y, lado, lado)
+      g.lineStyle(e.grosorBorde, e.borde, 1)
+      const m = e.grosorBorde / 2
+      g.strokeRect(x + m, y + m, lado - e.grosorBorde, lado - e.grosorBorde)
+      continue
+    }
+    const e = ESTILO_PLANO[visuales[i] ?? 'no-comprable']
     g.fillStyle(e.tinte, e.alfaTinte)
     g.fillRect(x, y, lado, lado)
+    if (e.rayado) {
+      g.lineStyle(e.rayado.grosor, e.rayado.color, e.rayado.alfa)
+      for (const [x1, y1, x2, y2] of rayasDiagonales(x, y, lado, e.rayado.paso))
+        g.lineBetween(x1, y1, x2, y2)
+    }
     g.lineStyle(e.grosorBorde, e.borde, 1)
     const m = e.grosorBorde / 2
-    g.strokeRect(x + m, y + m, lado - e.grosorBorde, lado - e.grosorBorde)
+    const ancho = lado - e.grosorBorde
+    if (e.discontinuo) {
+      for (const [x1, y1, x2, y2] of segmentosDiscontinuos(
+        x + m,
+        y + m,
+        ancho,
+        ancho,
+        e.discontinuo.trazo,
+        e.discontinuo.hueco,
+      ))
+        g.lineBetween(x1, y1, x2, y2)
+    } else g.strokeRect(x + m, y + m, ancho, ancho)
+    if (e.moneda) {
+      const c = e.moneda
+      const margen = e.grosorBorde + 24 + c.radio
+      const cx = x + margen
+      const cy = y + margen
+      g.fillStyle(c.relleno, 1)
+      g.fillCircle(cx, cy, c.radio)
+      g.lineStyle(8, c.borde, 1)
+      g.strokeCircle(cx, cy, c.radio)
+      g.lineStyle(6, c.borde, 1)
+      g.strokeCircle(cx, cy, c.radio * 0.5)
+    }
   }
-  return g
 }
 
 /** Redibuja el contorno de la parcela seleccionada (o lo borra si `indice` es undefined). */

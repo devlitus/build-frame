@@ -8,13 +8,16 @@ import {
   type Comando,
   type EstadoJuego,
   type ModoJuego,
+  type Valle,
 } from '../../core'
 import { CONFIG_CAMARA } from '../camara/config'
 import { ControlCamara } from '../camara/controlCamara'
 import { conPropiasDeDepuracion } from '../valle/debug'
+import { crearClasificador, type EstadoVisualParcela } from '../valle/estadoVisual'
 import {
   dibujarDecoracion,
   dibujarParcelas,
+  redibujarParcelas,
   dibujarResalte,
   dibujarTerreno,
   tamanoMundoPx,
@@ -47,6 +50,8 @@ export interface DatosEscenaValle {
   readonly en?: 'vado'
   /** Solo depuración: parcela seleccionada al empezar (si el modo es Plano). */
   readonly seleccion?: number
+  /** Solo depuración: dinero con el que empieza la partida. */
+  readonly dinero?: number
   /** Solo depuración: multiplicador del tiempo de juego. */
   readonly acelerar?: number
   /** Solo depuración: minuto del día inicial (1320 = 22:00). */
@@ -70,6 +75,7 @@ export class EscenaValle extends Phaser.Scene {
   private luz: VistaLuz | undefined = undefined
   private acelerar = 1
   private seleccionInicial: number | undefined = undefined
+  private dineroDepuracion: number | undefined = undefined
   private hora: number | undefined = undefined
   private tactil: ControlTactil | undefined = undefined
   private desmayoVisto = false
@@ -89,6 +95,7 @@ export class EscenaValle extends Phaser.Scene {
       ...(this.en === undefined ? {} : { en: this.en }),
       ...(this.acelerar > 1 ? { acelerar: this.acelerar } : {}),
       ...(this.hora === undefined ? {} : { hora: this.hora }),
+      ...(this.dineroDepuracion === undefined ? {} : { dinero: this.dineroDepuracion }),
     }
   }
   private partidaCompartida(): Partida {
@@ -100,6 +107,18 @@ export class EscenaValle extends Phaser.Scene {
   private trozos: Phaser.GameObjects.RenderTexture[] = []
   private parcelas: Phaser.GameObjects.Graphics | undefined = undefined
   private resalte: Phaser.GameObjects.Graphics | undefined = undefined
+  /** Clasificación de parcelas con memoria: solo se recalcula al cambiar valle, dinero o comprasHechas. */
+  private clasificar = crearClasificador()
+  /** Lo que muestra ahora el Graphics de parcelas (para no redibujarlo sin cambios). */
+  private pintado:
+    | {
+        valle: Valle
+        dinero: number
+        modo: ModoJuego
+      }
+    | undefined = undefined
+  private visualPintado: readonly EstadoVisualParcela[] = []
+  private _repintados = 0
   private selector: SelectorParcela | undefined = undefined
   private desuscribirSeleccion: (() => void) | undefined = undefined
   /** Clave de la última guía de cámara (parcela y panel), para no repetirla. */
@@ -119,6 +138,7 @@ export class EscenaValle extends Phaser.Scene {
     this.en = datos.en
     this.acelerar = datos.acelerar ?? 1
     this.seleccionInicial = datos.seleccion
+    this.dineroDepuracion = datos.dinero
     this.hora = datos.hora
     this.modoInicial = datos.modo ?? 'vida'
   }
@@ -170,6 +190,8 @@ export class EscenaValle extends Phaser.Scene {
         },
       }
     }
+    // Solo depuración (`?debug&dinero=N`): se sustituyen los ahorros del estado inicial.
+    if (this.dineroDepuracion !== undefined) inicial = { ...inicial, dinero: this.dineroDepuracion }
     // Solo depuración: las propias entran en el estado (panel, precio) antes de cambiar de modo.
     if (this.propias.length > 0) inicial = conPropiasDeDepuracion(inicial, this.propias)
     inicial = aplicarComando(inicial, { tipo: 'CambiarModo', modo: this.modoInicial }).estado
@@ -194,8 +216,13 @@ export class EscenaValle extends Phaser.Scene {
     if (this.renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer) {
       this.renderer.on(Phaser.Renderer.Events.RESTORE_WEBGL, this.rehornear, this)
     }
-    // Las parcelas (36 bordes y tintes) cambiarán al comprar (M3): siguen en un Graphics pequeño.
+    // Las parcelas (36 bordes y tintes) cambian al comprar: viven en un Graphics pequeño que se
+    // redibuja (sin rehornear el valle) cuando cambian valle, dinero o modo.
+    this.clasificar = crearClasificador()
+    this.pintado = undefined
+    this._repintados = 0
     this.parcelas = dibujarParcelas(this, valle)
+    this.repintarParcelas()
     // Contorno de la parcela seleccionada (estado de interfaz): por encima del personaje y del
     // tinte, para que se vea igual de noche.
     this.resalte = this.add.graphics().setDepth(PROFUNDIDAD_TINTE + 1)
@@ -265,6 +292,32 @@ export class EscenaValle extends Phaser.Scene {
     }
   }
 
+  /** Veces que se ha redibujado el Graphics de parcelas (ganchos de prueba). */
+  get repintadosParcelas(): number {
+    return this._repintados
+  }
+
+  /** Estado visual con el que se pintó la parcela `i` la última vez. */
+  estadoVisual(i: number): EstadoVisualParcela | undefined {
+    return this.visualPintado[i]
+  }
+
+  /**
+   * Redibuja las parcelas si cambió el valle, el dinero o el modo. Se llama en cada fotograma:
+   * el tiempo cambia el estado a cada rato, pero estas tres cosas casi nunca.
+   */
+  private repintarParcelas(): void {
+    const e = this._partida?.estado
+    const g = this.parcelas
+    if (!e || !g) return
+    const p = this.pintado
+    if (p && p.valle === e.valle && p.dinero === e.dinero && p.modo === e.modo) return
+    this.visualPintado = this.clasificar(e)
+    redibujarParcelas(g, e.valle, e.modo === 'plano' ? this.visualPintado : undefined)
+    this.pintado = { valle: e.valle, dinero: e.dinero, modo: e.modo }
+    this._repintados++
+  }
+
   /** Lado de una parcela y del valle en px del mundo, para el picking. */
   private geometria(): { parcelasPorLado: number; ladoParcelaPx: number } | undefined {
     const v = this._partida?.estado.valle
@@ -307,6 +360,15 @@ export class EscenaValle extends Phaser.Scene {
       this.control?.soltarExtension()
       return
     }
+    // Al girar, el panel avisa antes de que el lienzo cambie de tamaño: guiar con medidas a medias
+    // mandaría la cámara a un sitio absurdo. Se espera al evento `resize` (que repite la guía).
+    const padre = this.game.canvas.parentElement
+    if (
+      padre &&
+      (Math.abs(padre.clientWidth - this.scale.width) > 1 ||
+        Math.abs(padre.clientHeight - this.scale.height) > 1)
+    )
+      return
     const o = partida.seleccion.ocupado
     const clave = `${i}|${o ? `${o.x},${o.y},${o.ancho},${o.alto}` : ''}`
     if (clave === this.claveGuia || !this.control) return
@@ -375,6 +437,7 @@ export class EscenaValle extends Phaser.Scene {
     )
     if (minutos > 0) emitir({ tipo: 'AvanzarTiempo', minutos })
     this.luz?.actualizar(partida.estado.minutoDelDia)
+    this.repintarParcelas()
     const destino = this.seguidor.destino
     if (destino) this.marca?.mostrar(destino.x * TAM_CASILLA, destino.y * TAM_CASILLA)
     else this.marca?.ocultar()
@@ -427,6 +490,7 @@ export class EscenaValle extends Phaser.Scene {
     this.trozos = []
     this.parcelas?.destroy()
     this.parcelas = undefined
+    this.pintado = undefined
     this.resalte?.destroy()
     this.resalte = undefined
     this.desuscribirSeleccion?.()

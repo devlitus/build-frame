@@ -1,4 +1,5 @@
 import type { EstadoParcela, Terreno } from '../../core'
+import type { EstadoVisualParcela } from './estadoVisual'
 
 /**
  * Valores VISUALES provisionales (arte definitivo en M9): colores, tamaños y estilos.
@@ -32,6 +33,51 @@ const ESTILO_PARCELA: Readonly<Record<EstadoParcela, EstiloParcela>> = {
 
 export function estiloParcela(estado: EstadoParcela): EstiloParcela {
   return ESTILO_PARCELA[estado]
+}
+
+/**
+ * Parcelas en el Modo Plano: tres estados que se distinguen sin depender del color.
+ * - propia: tinte y borde dorados gruesos y continuos;
+ * - comprable: borde crema DISCONTINUO y una moneda de «se vende» en la esquina;
+ * - no-comprable: velo oscuro, rayado diagonal y borde fino apagado.
+ * En el Modo Vida se mantiene `estiloParcela` (la información de compra no hace falta mientras
+ * se juega y así el valle se ve limpio).
+ */
+export interface EstiloParcelaPlano {
+  readonly tinte: number
+  readonly alfaTinte: number
+  readonly borde: number
+  readonly grosorBorde: number
+  /** Trazo y hueco (px) del borde discontinuo; sin él, el borde es continuo. */
+  readonly discontinuo?: { readonly trazo: number; readonly hueco: number }
+  /** Rayado diagonal sobre la parcela. */
+  readonly rayado?: {
+    readonly color: number
+    readonly alfa: number
+    readonly paso: number
+    readonly grosor: number
+  }
+  /** Moneda de «se vende» en la esquina superior izquierda. */
+  readonly moneda?: { readonly radio: number; readonly relleno: number; readonly borde: number }
+}
+
+export const ESTILO_PLANO: Readonly<Record<EstadoVisualParcela, EstiloParcelaPlano>> = {
+  propia: { tinte: 0xffe27a, alfaTinte: 0.22, borde: 0xffc93c, grosorBorde: 5 },
+  comprable: {
+    tinte: 0xffffff,
+    alfaTinte: 0.1,
+    borde: 0xfff3c4,
+    grosorBorde: 8,
+    discontinuo: { trazo: 56, hueco: 32 },
+    moneda: { radio: 38, relleno: 0xffd34d, borde: 0x6b4a00 },
+  },
+  'no-comprable': {
+    tinte: 0x14141c,
+    alfaTinte: 0.45,
+    borde: 0x2a2a33,
+    grosorBorde: 3,
+    rayado: { color: 0x000000, alfa: 0.3, paso: 64, grosor: 6 },
+  },
 }
 
 /**

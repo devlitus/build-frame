@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { parcelaComprable, precioParcela } from '../core'
 import {
   SIMBOLO_AGUA,
@@ -11,6 +11,8 @@ import {
   textoPrecio,
   textoTerreno,
 } from './parcelaTextos'
+import { intentarCompra } from './compra'
+import { formatearDinero } from './formatoDinero'
 import { t, tp } from './textos'
 import { useEstado, usePartida, useSeleccion } from './useEstado'
 
@@ -69,7 +71,55 @@ function Contenido({ indice }: { indice: number }) {
     }
   }, [partida])
 
+  // Confirmación de compra dentro del panel. Vive aquí (no en el botón) para que Esc la cancele
+  // desde cualquier punto del panel antes de cerrarlo. Cambiar de parcela desmonta `Contenido`
+  // (clave = índice) y cambiar de modo desmonta el panel: ambas la descartan.
+  const [confirmando, setConfirmando] = useState(false)
+  const [errorCompra, setErrorCompra] = useState<string | undefined>(undefined)
+  const refComprar = useRef<HTMLButtonElement>(null)
+  const refCancelar = useRef<HTMLButtonElement>(null)
+  const pedirFoco = useRef<'comprar' | 'cancelar' | 'panel' | undefined>(undefined)
+  const puedeConfirmar = confirmando && compra.comprable
+  // Si la parcela deja de ser comprable con la confirmación abierta (p. ej. falta dinero), se cierra.
+  useEffect(() => {
+    if (!confirmando || compra.comprable) return
+    setConfirmando(false)
+    const a = document.activeElement
+    if (!a || a === document.body || raiz.current?.contains(a)) pedirFoco.current = 'panel'
+  }, [confirmando, compra.comprable])
+  // El foco se mueve tras pintar, cuando el botón de destino ya existe.
+  useEffect(() => {
+    const f = pedirFoco.current
+    if (!f) return
+    pedirFoco.current = undefined
+    const destino =
+      f === 'comprar' ? refComprar.current : f === 'cancelar' ? refCancelar.current : undefined
+    ;(destino ?? raiz.current)?.focus({ preventScroll: true })
+  })
+
   if (!parcela) return null
+  const pedirConfirmacion = () => {
+    if (!compra.comprable) return
+    setErrorCompra(undefined)
+    setConfirmando(true)
+    pedirFoco.current = 'cancelar'
+  }
+  const cancelarConfirmacion = () => {
+    setConfirmando(false)
+    pedirFoco.current = 'comprar'
+  }
+  const confirmarCompra = () => {
+    const r = intentarCompra(partida, indice)
+    setConfirmando(false)
+    if (r.ok) {
+      setErrorCompra(undefined)
+      // El botón desaparece al pasar a «Tuya»: el foco se queda en el propio panel.
+      pedirFoco.current = 'panel'
+    } else {
+      setErrorCompra(r.texto)
+      pedirFoco.current = 'comprar'
+    }
+  }
   const cerrar = () => {
     partida.seleccion.deseleccionar()
     devolverFoco()
@@ -81,14 +131,17 @@ function Contenido({ indice }: { indice: number }) {
   return (
     <section
       ref={raiz}
-      class="panel-parcela"
+      class={puedeConfirmar ? 'panel-parcela panel-confirmando' : 'panel-parcela'}
       role="region"
       aria-labelledby="panel-parcela-titulo"
       data-parcela={indice}
+      tabIndex={-1}
       onKeyDown={(ev) => {
         if (ev.key === 'Escape') {
           ev.stopPropagation()
-          cerrar()
+          // Primero se cancela la confirmación; el siguiente Esc cierra el panel.
+          if (puedeConfirmar) cancelarConfirmacion()
+          else cerrar()
         }
       }}
     >
@@ -135,14 +188,62 @@ function Contenido({ indice }: { indice: number }) {
           }
         />
       </dl>
-      <p class={`parcela-compra parcela-compra-${tono}`} role="status">
+      <p id="parcela-compra-estado" class={`parcela-compra parcela-compra-${tono}`} role="status">
         <span class="parcela-simbolo" aria-hidden="true">
           {SIMBOLO_TONO[tono]}
         </span>
         <span>{texto}</span>
       </p>
-      {/* Hueco reservado para «Comprar» y su confirmación (M3-04). */}
-      <div class="panel-parcela-acciones" data-hueco="comprar" />
+      <div class="panel-parcela-acciones" data-hueco="comprar">
+        {!propia &&
+          (puedeConfirmar ? (
+            <div class="compra-confirmacion" role="group" aria-labelledby="compra-confirmar-texto">
+              <p id="compra-confirmar-texto" class="compra-confirmar-texto">
+                {tp('compraConfirmar', {
+                  n: textoPrecio(compra.precio),
+                  m: textoPrecio(dinero - compra.precio),
+                })}
+              </p>
+              <div class="compra-botones">
+                <button
+                  ref={refCancelar}
+                  type="button"
+                  class="boton-compra boton-compra-cancelar"
+                  onClick={cancelarConfirmacion}
+                >
+                  {t('compraCancelar')}
+                </button>
+                <button
+                  type="button"
+                  class="boton-compra boton-compra-confirmar"
+                  onClick={confirmarCompra}
+                >
+                  {t('compraConfirmarSi')}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              ref={refComprar}
+              type="button"
+              class="boton-compra boton-compra-pedir"
+              aria-disabled={!compra.comprable}
+              aria-describedby="parcela-compra-estado"
+              onClick={pedirConfirmacion}
+            >
+              {precio === undefined
+                ? t('comprarSinPrecio')
+                : tp(precio === 1 ? 'comprarPorMoneda' : 'comprarPorMonedas', {
+                    n: formatearDinero(precio),
+                  })}
+            </button>
+          ))}
+        {errorCompra !== undefined && (
+          <p class="parcela-error" role="alert">
+            {errorCompra}
+          </p>
+        )}
+      </div>
     </section>
   )
 }

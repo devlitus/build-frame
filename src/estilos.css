@@ -263,6 +263,50 @@ body {
   text-align: center;
   box-shadow: 0 4px 12px var(--sombra);
 }
+/* === M3-04 · Dinero en el HUD === */
+.hud-izquierda {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.dinero {
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: var(--tierra);
+  color: var(--crema);
+  box-shadow: 0 2px 8px var(--sombra);
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.solo-lector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Horizontal: el aviso se alinea a la izquierda para no pisar el panel de parcela de la derecha. */
+@media (orientation: landscape) {
+  .aviso-zona {
+    justify-content: flex-start;
+  }
+
+  .aviso {
+    max-width: min(28rem, calc(100vw - 360px));
+  }
+}
+/* === Fin dinero === */
+
 /* === Controles táctiles (M2-04): joystick virtual === */
 .joystick-base {
   position: absolute;
@@ -418,6 +462,124 @@ body {
 /* Hueco para el botón Comprar y su confirmación (M3-04). */
 .panel-parcela-acciones:empty {
   display: none;
+}
+
+.panel-parcela:focus {
+  outline: none;
+}
+
+.panel-parcela-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.compra-confirmacion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgb(255 201 60 / 30%);
+  border: 2px solid #b8860b;
+}
+
+.compra-confirmar-texto {
+  margin: 0;
+  font-weight: 700;
+}
+
+.compra-botones {
+  display: flex;
+  gap: 8px;
+}
+
+.boton-compra {
+  flex: 1;
+  font: inherit;
+  font-weight: 700;
+  min-height: 48px;
+  padding: 0 0.9rem;
+  border: 2px solid var(--tinta);
+  border-radius: 12px;
+  background: var(--tinta);
+  color: var(--crema);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.boton-compra-cancelar {
+  background: var(--crema);
+  color: var(--tinta);
+}
+
+.boton-compra:focus-visible {
+  outline: 3px solid var(--tinta);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--crema);
+}
+
+/* Desactivado: se queda enfocable (el motivo está justo encima) pero no se activa. */
+.boton-compra[aria-disabled='true'] {
+  background: transparent;
+  color: rgb(59 42 26 / 70%);
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.parcela-error {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  background: #8a2b1c;
+  color: var(--crema);
+}
+
+/* Móvil horizontal (poca altura): panel compacto para que «Comprar» quepa sin desplazarse. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .panel-parcela {
+    width: min(400px, 52%);
+    gap: 4px;
+    padding: 6px 10px 8px;
+    max-height: calc(100% - 140px);
+  }
+
+  .hud-debug .panel-parcela {
+    max-height: calc(100% - 172px);
+  }
+
+  .panel-parcela h2 {
+    font-size: 1.15rem;
+  }
+
+  .parcela-atributos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 14px;
+  }
+
+  .parcela-atributo {
+    min-height: 24px;
+    flex-wrap: wrap;
+    gap: 0 6px;
+    font-size: 0.9rem;
+  }
+
+  .parcela-compra {
+    padding: 3px 8px;
+    font-size: 0.9rem;
+  }
+
+  .boton-compra {
+    min-height: 44px;
+  }
+
+  /* Con la confirmación abierta lo único que importa es la pregunta y sus dos botones. */
+  .panel-confirmando .parcela-atributos,
+  .panel-confirmando .parcela-compra {
+    display: none;
+  }
 }
 
 /* Móvil vertical: hoja inferior, por encima del botón de modo. */

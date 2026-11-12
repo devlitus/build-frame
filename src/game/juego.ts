@@ -34,6 +34,7 @@ function datosPartida(): DatosEscenaValle {
     ...(p.acelerar === undefined ? {} : { acelerar: p.acelerar }),
     ...(p.hora === undefined ? {} : { hora: p.hora }),
     ...(p.seleccion === undefined ? {} : { seleccion: p.seleccion }),
+    ...(p.dinero === undefined ? {} : { dinero: p.dinero }),
   }
 }
 
@@ -174,6 +175,15 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
       const e = g.scene.getScene('valle')
       const s = e instanceof EscenaValle ? e.estado : undefined
       return s && { lado: ladoValle(s.valle), claves: [...s.cauce.vados] }
+    },
+    dinero: () => partida?.estado.dinero,
+    estadoVisual: (indice) => {
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.estadoVisual(indice) : undefined
+    },
+    repintadosParcelas: () => {
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.repintadosParcelas : undefined
     },
     seleccionada: () => partida?.seleccion.indice,
     seleccionar: (indice) => {

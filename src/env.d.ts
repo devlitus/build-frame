@@ -37,6 +37,12 @@ interface Window {
     luz(): { alfa: number } | undefined
     /** Claves de casilla de los vados (`y * lado + x`) y lado del valle en casillas. */
     vados(): { lado: number; claves: number[] } | undefined
+    /** Dinero de la partida; undefined si no hay partida. */
+    dinero(): number | undefined
+    /** Estado visual con el que se dibujó la parcela por última vez; undefined si no hay valle. */
+    estadoVisual(indice: number): 'propia' | 'comprable' | 'no-comprable' | undefined
+    /** Veces que se ha redibujado el Graphics de parcelas (no el valle horneado). */
+    repintadosParcelas(): number | undefined
     /** Índice de la parcela seleccionada (Modo Plano); undefined si no hay. */
     seleccionada(): number | undefined
     /** Selecciona una parcela por índice; solo con `?debug` y en Plano. */
