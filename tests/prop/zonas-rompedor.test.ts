@@ -63,7 +63,7 @@ describe('rectángulos extremos', () => {
     if (r.ok) {
       expect(r.estado.zonas.length).toBe(LADO * LADO)
       const esperado = LADO * LADO - aguaDe(todo).size
-      expect(r.eventos).toEqual([{ tipo: 'zona-pintada', casillas: esperado }])
+      expect(r.eventos).toEqual([{ tipo: 'zonas-cambiadas', casillas: esperado }])
     }
   })
 

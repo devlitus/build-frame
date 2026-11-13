@@ -1,5 +1,6 @@
 import { CONFIG_VALLE } from './datos/valle'
 import { CONFIG_ECONOMIA } from './datos/economia'
+import { CONFIG_EDIFICIOS } from './datos/edificios'
 import { CONFIG_TIEMPO } from './datos/tiempo'
 import type { ConfigValle } from './datos/esquemas'
 import { generarValle, type Valle } from './valle'
@@ -7,6 +8,7 @@ import { CONFIG_PERSONAJE } from './datos/personaje'
 import type { Obstaculo } from './decoracion'
 import { generarMundo, ladoValle, type Cauce } from './mapa'
 import { zonasVacias } from './zonas'
+import type { Edificio, Materiales } from './edificios'
 import { personajeEnAparicion, type Personaje } from './personaje'
 
 /**
@@ -22,8 +24,10 @@ import { personajeEnAparicion, type Personaje } from './personaje'
  * sigue sin haber partidas guardadas.
  * v7 (M4-01): se añade `zonas` (cadena de `lado*lado` caracteres, una zona por casilla).
  * Sin migración: sigue sin haber partidas guardadas.
+ * v8 (M4-02): se añaden `materiales` (madera y piedra), `edificios` (obras y edificios
+ * colocados) y `siguienteIdEdificio`. Sin migración: sigue sin haber partidas guardadas.
  */
-export const VERSION_FORMATO = 7
+export const VERSION_FORMATO = 8
 
 /** Velocidad del tiempo al empezar una partida. */
 export const VELOCIDAD_INICIAL = 1
@@ -47,11 +51,17 @@ export interface EstadoJuego {
   /** Velocidad del tiempo (una de `CONFIG_TIEMPO.velocidades`). */
   readonly velocidad: number
   readonly dinero: number
+  /** Materiales de construcción (enteros ≥ 0); el lote de bienvenida está en `data/edificios.json`. */
+  readonly materiales: Materiales
   /** Parcelas compradas hasta ahora; cada una encarece las siguientes (`precioParcela`). */
   readonly comprasHechas: number
   readonly valle: Valle
   /** Zona pintada por casilla (índice y*lado+x): `.` ninguna, `c` cultivo, `h` huerto, `v` vivienda, `a` almacén. */
   readonly zonas: string
+  /** Obras y edificios; bloquean el paso. `obra` es `null` cuando el edificio está terminado. */
+  readonly edificios: readonly Edificio[]
+  /** Id que tendrá el próximo edificio (crece siempre; los ids no se reutilizan). */
+  readonly siguienteIdEdificio: number
   /** Ancho del río y vados (casillas de río transitables). */
   readonly cauce: Cauce
   /** Árboles y rocas: bloquean el paso. Se talarán en M5. */
@@ -71,6 +81,8 @@ export interface OpcionesNuevaPartida {
   readonly semilla: number
   /** Ahorros iniciales; por defecto `CONFIG_ECONOMIA.dineroInicial` (data/economia.json). */
   readonly dineroInicial?: number
+  /** Materiales iniciales; por defecto `CONFIG_EDIFICIOS.materialesIniciales` (data/edificios.json). */
+  readonly materialesIniciales?: Materiales
   /** Configuración del valle; por defecto `CONFIG_VALLE` (data/valle.json). */
   readonly configValle?: ConfigValle
   /**
@@ -96,6 +108,15 @@ export function crearEstadoInicial(opciones: OpcionesNuevaPartida): EstadoJuego 
   if (!Number.isSafeInteger(dinero) || dinero < 0) {
     throw new RangeError(`dineroInicial inválido: ${dinero}`)
   }
+  const materiales = opciones.materialesIniciales ?? CONFIG_EDIFICIOS.materialesIniciales
+  if (
+    !Number.isSafeInteger(materiales.madera) ||
+    materiales.madera < 0 ||
+    !Number.isSafeInteger(materiales.piedra) ||
+    materiales.piedra < 0
+  ) {
+    throw new RangeError('materialesIniciales inválidos')
+  }
   const mundo = generarMundo(valle, semilla, config, CONFIG_PERSONAJE)
   return {
     versionFormato: VERSION_FORMATO,
@@ -107,9 +128,12 @@ export function crearEstadoInicial(opciones: OpcionesNuevaPartida): EstadoJuego 
     modo: 'vida',
     velocidad: VELOCIDAD_INICIAL,
     dinero,
+    materiales: { madera: materiales.madera, piedra: materiales.piedra },
     comprasHechas: 0,
     valle,
     zonas: zonasVacias(ladoValle(valle)),
+    edificios: [],
+    siguienteIdEdificio: 1,
     ...mundo,
     personaje: personajeEnAparicion(mundo.aparicion),
   }
