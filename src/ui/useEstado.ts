@@ -1,6 +1,7 @@
 import { createContext } from 'preact'
 import { useContext, useEffect, useRef, useState } from 'preact/hooks'
-import type { EstadoJuego } from '../core'
+import type { EstadoJuego, TipoEdificio } from '../core'
+import type { OrigenConfirmacion, Silueta } from '../game/construir'
 import type { HerramientaPincel } from '../game/pincel'
 import type { Partida } from '../game/partida'
 
@@ -74,4 +75,54 @@ export function useEstado<T>(selector: (estado: EstadoJuego) => T): T {
     return partida.suscribir(actualizar)
   }, [partida])
   return valor
+}
+
+/** Estado del modo Construir (abierto, edificio elegido y confirmación); repinta al cambiar. */
+export function useConstruccion(): {
+  abierto: boolean
+  tipo: TipoEdificio | undefined
+  confirmando: OrigenConfirmacion | undefined
+} {
+  const { construccion } = usePartida()
+  const [, repintar] = useState(0)
+  const visto = useRef({
+    abierto: construccion.abierto,
+    tipo: construccion.tipo,
+    confirmando: construccion.confirmando,
+  })
+  useEffect(() => {
+    const actualizar = () => {
+      const { abierto, tipo, confirmando } = construccion
+      const v = visto.current
+      if (v.abierto === abierto && v.tipo === tipo && v.confirmando === confirmando) return
+      visto.current = { abierto, tipo, confirmando }
+      repintar((n) => n + 1)
+    }
+    actualizar() // por si cambió entre el render y la suscripción
+    return construccion.suscribir(actualizar)
+  }, [construccion])
+  return {
+    abierto: construccion.abierto,
+    tipo: construccion.tipo,
+    confirmando: construccion.confirmando,
+  }
+}
+
+/**
+ * Silueta del edificio elegido (con el veredicto del núcleo); repinta cuando se mueve o cambia el
+ * estado. Solo se usa con el modo Construir abierto (el estado del Modo Plano está parado).
+ */
+export function useSilueta(): Silueta | undefined {
+  const partida = usePartida()
+  const [, repintar] = useState(0)
+  useEffect(() => {
+    const avisar = () => repintar((n) => n + 1)
+    const a = partida.suscribir(avisar)
+    const b = partida.construccion.suscribir(avisar)
+    return () => {
+      a()
+      b()
+    }
+  }, [partida])
+  return partida.silueta()
 }

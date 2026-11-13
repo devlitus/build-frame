@@ -15,9 +15,15 @@ import { conPropiasDeDepuracion } from '../valle/debug'
 import type { EstadoVisualParcela } from '../valle/estadoVisual'
 import { VistaParcelas } from '../valle/vistaParcelas'
 import { VistaPincel } from '../valle/vistaPincel'
+import { VistaEdificios, type EdificioVisible } from '../valle/vistaEdificios'
+import { VistaSilueta } from '../valle/vistaSilueta'
+import { ColocadorEdificio } from '../colocador'
+import type { Construccion } from '../construir'
 import { VistaZonas } from '../valle/vistaZonas'
 import {
   casillaEnCentroDeVista,
+  casillaMasCercana,
+  type Casilla,
   type DireccionCasilla,
   type Pincel,
   type RectCasillas,
@@ -112,10 +118,15 @@ export class EscenaValle extends Phaser.Scene {
   private resalte: Phaser.GameObjects.Graphics | undefined = undefined
   private selector: SelectorParcela | undefined = undefined
   private zonas: VistaZonas | undefined = undefined
-  private pincelAbierto: boolean | undefined = undefined
   private vistaPincel: VistaPincel | undefined = undefined
   private pintor: PintorZonas | undefined = undefined
   private desuscribirPincel: (() => void) | undefined = undefined
+  private edificios: VistaEdificios | undefined = undefined
+  private vistaSilueta: VistaSilueta | undefined = undefined
+  private colocador: ColocadorEdificio | undefined = undefined
+  private desuscribirConstruccion: (() => void) | undefined = undefined
+  /** Ayuda del lienzo vigente (qué barra o panel está abierto), para no repetirla. */
+  private ayudaClave: string | undefined = undefined
   private desuscribirSeleccion: (() => void) | undefined = undefined
   /** Clave de la última guía de cámara (parcela y panel), para no repetirla. */
   private claveGuia = ''
@@ -224,6 +235,12 @@ export class EscenaValle extends Phaser.Scene {
     this.zonas.actualizar(inicial)
     this.vistaPincel?.destruir()
     this.vistaPincel = new VistaPincel(this)
+    // Edificios y obras (M4-05): un Graphics por edificio, ordenados por Y como el personaje.
+    this.edificios?.destruir()
+    this.edificios = new VistaEdificios(this)
+    this.edificios.actualizar(inicial)
+    this.vistaSilueta?.destruir()
+    this.vistaSilueta = new VistaSilueta(this)
     // Contorno de la parcela seleccionada (estado de interfaz): por encima del personaje y del
     // tinte, para que se vea igual de noche.
     this.resalte = this.add.graphics().setDepth(PROFUNDIDAD_TINTE + 1)
@@ -258,12 +275,26 @@ export class EscenaValle extends Phaser.Scene {
     })
     this.selector.activo = inicial.modo === 'plano'
     partida.pincel.cerrar()
+    partida.construccion.cerrar()
     this.pintor?.reiniciar()
     this.pintor = new PintorZonas(this, partida.pincel, ladoValle(valle), TAM_CASILLA, (rect) =>
       this.aplicarPincel(rect),
     )
+    this.colocador?.reiniciar()
+    this.colocador = new ColocadorEdificio(
+      this,
+      partida.construccion,
+      ladoValle(valle),
+      TAM_CASILLA,
+      () => this.alClicRatonConstruir(),
+    )
     this.desuscribirPincel?.()
-    this.desuscribirPincel = partida.pincel.suscribir(() => this.alCambiarPincel())
+    this.desuscribirPincel = partida.pincel.suscribir(() => this.alCambiarHerramienta())
+    this.desuscribirConstruccion?.()
+    this.desuscribirConstruccion = partida.construccion.suscribir(() => {
+      this.alCambiarHerramienta()
+      this.situarSilueta()
+    })
     this.desuscribirSeleccion?.()
     this.claveGuia = ''
     this.desuscribirSeleccion = partida.seleccion.suscribir(() => this.alCambiarSeleccion())
@@ -273,6 +304,13 @@ export class EscenaValle extends Phaser.Scene {
     this.scale.on('resize', this.alRedimensionar, this)
     this.quitarEsc?.()
     const alEsc = (): void => {
+      // Modo Construir: Esc cancela la confirmación y, si no hay, sale del modo.
+      if (partida.construccion.abierto) {
+        if (partida.construccion.cancelarConfirmacion()) return
+        document.getElementById('juego')?.focus({ preventScroll: true })
+        partida.construccion.cerrar()
+        return
+      }
       // Con el pincel de zonas, Esc suelta primero la esquina marcada y luego el cursor.
       if (partida.pincel.cancelarTeclado()) return
       // Sin nada marcado, Esc cierra la barra (como «Listo») y el foco vuelve al lienzo.
@@ -313,7 +351,7 @@ export class EscenaValle extends Phaser.Scene {
       enVida ? posicion : undefined,
       posicion,
     )
-    this.alCambiarPincel()
+    this.alCambiarHerramienta()
     const sel = this.seleccionInicial
     if (sel !== undefined && !enVida && sel < valle.parcelas.length) {
       partida.seleccion.seleccionar(sel)
@@ -381,6 +419,11 @@ export class EscenaValle extends Phaser.Scene {
     if (ev.target !== this.game.canvas && ev.target !== this.game.canvas.parentElement) return
     const seleccion = partida.seleccion
     const pincel = partida.pincel
+    // Con el modo Construir abierto el teclado es de la silueta (y del panel, si tiene el foco).
+    if (partida.construccion.abierto) {
+      this.teclaConstruir(ev, partida.construccion)
+      return
+    }
     // Con la barra de zonas abierta el teclado es del pincel: ni se elige parcela ni se mueve la selección.
     if (pincel.abierto) {
       this.teclaPincel(ev, pincel)
@@ -433,6 +476,69 @@ export class EscenaValle extends Phaser.Scene {
     this.verCursor()
   }
 
+  /** Teclado de la silueta: las flechas la mueven y Enter o Espacio piden la confirmación si se puede colocar. */
+  private teclaConstruir(ev: KeyboardEvent, construccion: Construccion): void {
+    const partida = this._partida
+    // Sin edificio elegido (catálogo) o confirmando, el teclado es del panel.
+    if (!partida || !construccion.activo) return
+    if (ev.code === 'Enter' || ev.code === 'NumpadEnter' || ev.code === 'Space') {
+      ev.preventDefault()
+      if (ev.repeat) return
+      if (partida.silueta()?.resultado.valida) construccion.pedirConfirmacion('teclado')
+      return
+    }
+    const direccion: Record<string, DireccionCasilla | undefined> = {
+      ArrowUp: 'arriba',
+      ArrowDown: 'abajo',
+      ArrowLeft: 'izquierda',
+      ArrowRight: 'derecha',
+    }
+    const d = direccion[ev.code]
+    if (!d || !construccion.mover(ladoValle(partida.estado.valle), d)) return
+    ev.preventDefault()
+    this.verSilueta()
+  }
+
+  /** Clic con el ratón sobre el valle: si la silueta se puede colocar, pide la confirmación. */
+  private alClicRatonConstruir(): void {
+    const partida = this._partida
+    if (partida?.silueta()?.resultado.valida) partida.construccion.pedirConfirmacion('puntero')
+  }
+
+  /** Casilla en el centro de la zona libre (sin HUD ni panel), donde aparece la silueta al elegir un edificio. */
+  private casillaCentroLibre(): Casilla {
+    const partida = this._partida
+    if (!partida || !this.control) return { x: 0, y: 0 }
+    const lado = ladoValle(partida.estado.valle)
+    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const libre = areaLibre(pantalla, partida.seleccion.ocupado, medirReservasHud())
+    const m = this.cameras.main.getWorldPoint(libre.x + libre.ancho / 2, libre.y + libre.alto / 2)
+    return casillaMasCercana(lado, TAM_CASILLA, m.x, m.y) ?? { x: 0, y: 0 }
+  }
+
+  /** Al elegir un edificio la silueta aparece en el centro de la zona libre. */
+  private situarSilueta(): void {
+    const c = this._partida?.construccion
+    if (c?.activo && !c.centro) c.colocar(this.casillaCentroLibre())
+  }
+
+  /** Si la silueta queda fuera de la zona libre (o bajo el panel), la cámara la busca. */
+  private verSilueta(): void {
+    const partida = this._partida
+    const s = partida?.silueta()
+    if (!partida || !s || !this.control) return
+    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const libre = areaLibre(pantalla, partida.seleccion.ocupado, medirReservasHud())
+    const rect = {
+      x: s.x * TAM_CASILLA,
+      y: s.y * TAM_CASILLA,
+      ancho: s.ancho * TAM_CASILLA,
+      alto: s.alto * TAM_CASILLA,
+    }
+    const centro = centroParaVer(this.control.vista, pantalla, libre, rect)
+    if (centro) this.control.guiarA(centro, false)
+  }
+
   /** Si el cursor de casilla queda fuera de la zona libre (o bajo la barra), la cámara lo busca. */
   private verCursor(): void {
     const partida = this._partida
@@ -461,17 +567,26 @@ export class EscenaValle extends Phaser.Scene {
     if (!r.ok && r.error === 'sin-casillas-validas') partida.avisarInterfaz('zona-sin-casillas')
   }
 
-  /** Cambios del pincel: la cámara solo arrastra con dos dedos mientras pinta, y se elige parcela solo con la barra cerrada. */
-  private alCambiarPincel(): void {
+  /**
+   * Cambios del pincel o del modo Construir: la cámara solo arrastra con dos dedos mientras se pinta
+   * o se coloca, y se elige parcela solo con ambos cerrados.
+   */
+  private alCambiarHerramienta(): void {
     const partida = this._partida
     if (!partida) return
-    const pincel = partida.pincel
-    if (this.control) this.control.dedosParaArrastrar = pincel.activo ? 2 : 1
-    if (this.selector) this.selector.activo = this.modoAplicado === 'plano' && !pincel.abierto
-    if (pincel.abierto) partida.seleccion.deseleccionar()
-    // La ayuda del lienzo solo depende de la barra abierta: no se recalcula al arrastrar.
-    if (pincel.abierto !== this.pincelAbierto) {
-      this.pincelAbierto = pincel.abierto
+    const { pincel, construccion } = partida
+    if (this.control) {
+      this.control.dedosParaArrastrar = pincel.activo || construccion.activo ? 2 : 1
+    }
+    if (this.selector) {
+      this.selector.activo =
+        this.modoAplicado === 'plano' && !pincel.abierto && !construccion.abierto
+    }
+    if (pincel.abierto || construccion.abierto) partida.seleccion.deseleccionar()
+    // La ayuda del lienzo solo depende de qué está abierto: no se recalcula al arrastrar ni al mover la silueta.
+    const clave = pincel.abierto ? 'zonas' : construccion.abierto ? 'construir' : ''
+    if (clave !== this.ayudaClave) {
+      this.ayudaClave = clave
       this.ajustarLienzoAccesible(this.modoAplicado)
     }
   }
@@ -493,7 +608,11 @@ export class EscenaValle extends Phaser.Scene {
       lienzo.setAttribute('aria-labelledby', 'juego')
       lienzo.setAttribute(
         'aria-describedby',
-        this._partida?.pincel.abierto ? 'ayuda-plano ayuda-zonas' : 'ayuda-plano',
+        this._partida?.pincel.abierto
+          ? 'ayuda-plano ayuda-zonas'
+          : this._partida?.construccion.abierto
+            ? 'ayuda-plano ayuda-construir'
+            : 'ayuda-plano',
       )
       if (contenedor) contenedor.dataset['modo'] = 'plano'
     } else {
@@ -573,7 +692,9 @@ export class EscenaValle extends Phaser.Scene {
     const modo = this.modoAplicado
     const teclado = this.entrada.leer(
       modo === 'plano' &&
-        (partida.seleccion.indice !== undefined || partida.pincel.cursor !== undefined) &&
+        (partida.seleccion.indice !== undefined ||
+          partida.pincel.cursor !== undefined ||
+          partida.construccion.activo) &&
         this.focoEnLienzo(),
     )
     const joystick = this.tactil?.leer() ?? { dx: 0, dy: 0 }
@@ -615,6 +736,8 @@ export class EscenaValle extends Phaser.Scene {
     this.parcelas?.repintar(partida.estado)
     this.zonas?.actualizar(partida.estado)
     this.vistaPincel?.actualizar(partida.pincel)
+    this.edificios?.actualizar(partida.estado)
+    this.vistaSilueta?.actualizar(partida.silueta())
     const destino = this.seguidor.destino
     if (destino) this.marca?.mostrar(destino.x * TAM_CASILLA, destino.y * TAM_CASILLA)
     else this.marca?.ocultar()
@@ -644,7 +767,11 @@ export class EscenaValle extends Phaser.Scene {
     if (this.tactil) this.tactil.activo = modo === 'vida'
     this.selector?.reiniciar()
     this.pintor?.reiniciar()
-    if (this.selector) this.selector.activo = modo === 'plano' && !this._partida?.pincel.abierto
+    this.colocador?.reiniciar()
+    if (this.selector) {
+      this.selector.activo =
+        modo === 'plano' && !this._partida?.pincel.abierto && !this._partida?.construccion.abierto
+    }
     this.ajustarLienzoAccesible(modo)
     if (!this.control) return
     const enVida = modo === 'vida'
@@ -656,6 +783,12 @@ export class EscenaValle extends Phaser.Scene {
     for (const t of this.trozos) t.destroy()
     this.trozos = this.hornear()
     this.zonas?.invalidar()
+    this.edificios?.invalidar()
+  }
+
+  /** Edificios que se ven ahora (ganchos de prueba). */
+  edificiosVisibles(): readonly EdificioVisible[] {
+    return this.edificios?.visibles ?? []
   }
 
   /**
@@ -674,10 +807,18 @@ export class EscenaValle extends Phaser.Scene {
     this.zonas = undefined
     this.vistaPincel?.destruir()
     this.vistaPincel = undefined
+    this.edificios?.destruir()
+    this.edificios = undefined
+    this.vistaSilueta?.destruir()
+    this.vistaSilueta = undefined
     this.desuscribirPincel?.()
     this.desuscribirPincel = undefined
+    this.desuscribirConstruccion?.()
+    this.desuscribirConstruccion = undefined
     this.pintor?.reiniciar()
     this.pintor = undefined
+    this.colocador?.reiniciar()
+    this.colocador = undefined
     this.resalte?.destroy()
     this.resalte = undefined
     this.desuscribirSeleccion?.()

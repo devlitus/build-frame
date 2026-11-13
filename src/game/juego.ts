@@ -4,6 +4,7 @@ import { EscenaDepuracion } from './scenes/EscenaDepuracion'
 import { EscenaValle, type DatosEscenaValle } from './scenes/EscenaValle'
 import {
   casillaBloqueada,
+  colocacionValida,
   crearEstadoInicial,
   ladoValle,
   mapaTransitabilidad,
@@ -251,6 +252,37 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
           rectangulo: p.rectanguloPrevio,
         }
       )
+    },
+    materiales: () => partida && { ...partida.estado.materiales },
+    construccion: () => {
+      const c = partida?.construccion
+      if (!partida || !c) return undefined
+      const s = partida.silueta()
+      return {
+        abierto: c.abierto,
+        tipo: c.tipo,
+        confirmando: c.confirmando !== undefined,
+        centro: c.centro,
+        silueta: s && {
+          tipo: s.tipo,
+          x: s.x,
+          y: s.y,
+          ancho: s.ancho,
+          alto: s.alto,
+          valida: s.resultado.valida,
+          motivo: s.resultado.valida ? undefined : s.resultado.motivo,
+        },
+      }
+    },
+    edificios: () => {
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.edificiosVisibles().map((v) => ({ ...v })) : []
+    },
+    colocacion: (tipo, x, y) => {
+      // Solo con `?debug`: veredicto de `colocacionValida` para el estado actual.
+      if (!leerParametros(window.location.search).debug || !partida) return undefined
+      const r = colocacionValida(partida.estado, tipo, x, y)
+      return { valida: r.valida, motivo: r.valida ? undefined : r.motivo }
     },
     camara: () => {
       const e = g.scene.getScene('valle')

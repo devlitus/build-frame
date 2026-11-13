@@ -198,3 +198,69 @@ test('pintar una zona con el pincel y borrarla', HUMO, async ({ page, isMobile }
   await barra.getByRole('button', { name: 'Listo' }).click()
   await expect(barra).toHaveCount(0)
 })
+
+test(
+  'pintar una zona y construir en ella: obra visible y edificio al pasar el día',
+  HUMO,
+  async ({ page, isMobile }) => {
+    await abrirValle(page, '?semilla=42&debug&modo=plano&propias=14,15,20,21')
+    /** Casilla visible, la más cercana al centro del valle, donde `caja-envio` da ese veredicto. */
+    const buscar = (motivo: string | undefined) =>
+      page.evaluate((m) => {
+        const r = window.__raices
+        const c: { x: number; y: number; px: number; py: number }[] = []
+        for (let y = 40; y < 56; y++) {
+          for (let x = 40; x < 56; x++) {
+            const v = r?.colocacion('caja-envio', x, y)
+            if (!v || v.motivo !== m) continue
+            const p = r?.puntoClicCasilla(x, y)
+            if (p) c.push({ x, y, px: p.x, py: p.y })
+          }
+        }
+        c.sort((a, b) => Math.hypot(a.x - 48, a.y - 48) - Math.hypot(b.x - 48, b.y - 48))
+        return c[0]
+      }, motivo)
+    const pulsar = async (x: number, y: number) => {
+      if (isMobile) await page.touchscreen.tap(x, y)
+      else await page.mouse.click(x, y)
+    }
+    // 1. Pintar Vivienda en una casilla libre de sus parcelas.
+    await page.getByRole('button', { name: 'Zonas', exact: true }).click(LENTO)
+    const barra = page.getByRole('group', { name: 'Pincel de zonas' })
+    await barra.getByRole('button', { name: 'Vivienda' }).click()
+    await expect.poll(() => buscar('zona-incompatible'), LENTO).toBeDefined()
+    const sitio = await buscar('zona-incompatible')
+    if (!sitio) throw new Error('sin casilla libre')
+    await pulsar(sitio.px, sitio.py)
+    await expect
+      .poll(() => page.evaluate((s) => window.__raices?.zonaDe(s.x, s.y), sitio), LENTO)
+      .toBe('vivienda')
+    await barra.getByRole('button', { name: 'Listo' }).click()
+    // 2. Construir una caja de envío encima.
+    await page.getByRole('button', { name: 'Construir', exact: true }).click(LENTO)
+    const panel = page.getByRole('region', { name: 'Construir' })
+    await panel.getByRole('button', { name: /^Caja de envío/ }).click(LENTO)
+    await expect.poll(() => buscar(undefined), LENTO).toBeDefined()
+    const valido = await buscar(undefined)
+    if (!valido) throw new Error('sin sitio válido')
+    if (isMobile) {
+      await page.touchscreen.tap(valido.px, valido.py)
+      await panel.getByRole('button', { name: 'Construir aquí' }).click(LENTO)
+    } else await page.mouse.click(valido.px, valido.py)
+    await expect(panel.getByText('¿Construir Caja de envío?')).toBeVisible(LENTO)
+    await panel.getByRole('button', { name: 'Construir', exact: true }).click()
+    // 3. La obra se ve con su cartel y cuesta dinero y madera.
+    await expect
+      .poll(() => page.evaluate(() => window.__raices?.edificios()[0]?.enObra), LENTO)
+      .toBe(true)
+    expect(await page.evaluate(() => window.__raices?.dinero())).toBe(1050)
+    // 4. Un día después el edificio está terminado.
+    await page.evaluate(() => {
+      window.__raices?.emitir({ tipo: 'CambiarModo', modo: 'vida' })
+      window.__raices?.emitir({ tipo: 'AvanzarTiempo', minutos: 2000 })
+    })
+    await expect
+      .poll(() => page.evaluate(() => window.__raices?.edificios()[0]?.enObra), LENTO)
+      .toBe(false)
+  },
+)
