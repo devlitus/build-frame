@@ -98,6 +98,42 @@ export type ErrorComando =
   | 'solo-en-plano'
   | MotivoColocacion
 
+/**
+ * Todas las comprobaciones de `Construir`, en su orden, sin aplicar nada: `undefined` si se
+ * puede construir, o el error que daría el comando. La silueta del Modo Plano usa esta misma
+ * función para no mentir (por ejemplo, con el día en el límite).
+ */
+export function comprobarConstruir(
+  estado: EstadoJuego,
+  tipoEdificio: unknown,
+  x: number,
+  y: number,
+): ErrorComando | undefined {
+  if (typeof tipoEdificio !== 'string' || !Number.isSafeInteger(x) || !Number.isSafeInteger(y)) {
+    return 'parametro-invalido'
+  }
+  if (estado.modo !== 'plano') return 'solo-en-plano'
+  if (
+    !edificiosValidos(estado.edificios) ||
+    typeof estado.zonas !== 'string' ||
+    typeof estado.materiales !== 'object' ||
+    estado.materiales === null ||
+    !Number.isSafeInteger(estado.materiales.madera) ||
+    !Number.isSafeInteger(estado.materiales.piedra) ||
+    estado.materiales.madera < 0 ||
+    estado.materiales.piedra < 0 ||
+    !Number.isSafeInteger(estado.siguienteIdEdificio)
+  ) {
+    return 'estado-invalido'
+  }
+  const r = colocacionValida(estado, tipoEdificio, x, y)
+  if (!r.valida) return r.motivo
+  const def = defEdificio(tipoEdificio)
+  if (!def) return 'tipo-desconocido'
+  if (!Number.isSafeInteger(estado.dia + def.dias)) return 'limite-de-dia'
+  return undefined
+}
+
 const SIN_EVENTOS: readonly EventoJuego[] = Object.freeze([])
 
 /** Función pura: mismo estado + mismo comando ⇒ mismo resultado. Nunca muta `estado`. */
@@ -203,33 +239,13 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
     }
     case 'Construir': {
       const { tipoEdificio, x, y } = comando
-      if (
-        typeof tipoEdificio !== 'string' ||
-        !Number.isSafeInteger(x) ||
-        !Number.isSafeInteger(y)
-      ) {
-        return { ok: false, estado, error: 'parametro-invalido' }
-      }
-      if (estado.modo !== 'plano') return { ok: false, estado, error: 'solo-en-plano' }
-      if (
-        !edificiosValidos(estado.edificios) ||
-        typeof estado.zonas !== 'string' ||
-        typeof estado.materiales !== 'object' ||
-        estado.materiales === null ||
-        !Number.isSafeInteger(estado.materiales.madera) ||
-        !Number.isSafeInteger(estado.materiales.piedra) ||
-        estado.materiales.madera < 0 ||
-        estado.materiales.piedra < 0 ||
-        !Number.isSafeInteger(estado.siguienteIdEdificio)
-      ) {
-        return { ok: false, estado, error: 'estado-invalido' }
-      }
-      const r = colocacionValida(estado, tipoEdificio, x, y)
-      if (!r.valida) return { ok: false, estado, error: r.motivo }
+      const error = comprobarConstruir(estado, tipoEdificio, x, y)
+      if (error) return { ok: false, estado, error }
       const def = defEdificio(tipoEdificio)
+      // Aserto: `comprobarConstruir` ya devuelve 'tipo-desconocido' si no hay definición; esta rama no se alcanza
+      // y solo sirve para estrechar el tipo.
       if (!def) return { ok: false, estado, error: 'tipo-desconocido' }
       const diaFin = estado.dia + def.dias
-      if (!Number.isSafeInteger(diaFin)) return { ok: false, estado, error: 'limite-de-dia' }
       const id = estado.siguienteIdEdificio
       const nx = x + 0 // -0 se normaliza a 0
       const ny = y + 0

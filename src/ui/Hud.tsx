@@ -3,11 +3,13 @@ import type { Partida } from '../game/partida'
 import { Aviso } from './Aviso'
 import { ControlesTiempo } from './ControlesTiempo'
 import { Dinero } from './Dinero'
+import { Materiales } from './Materiales'
+import { BotonConstruir, PanelConstruir } from './PanelConstruir'
 import { BarraZonas, BotonZonas } from './BarraZonas'
 import { PanelParcela } from './PanelParcela'
 import { Reloj } from './Reloj'
 import { t } from './textos'
-import { ContextoPartida, useEstado, usePartida, usePincel } from './useEstado'
+import { ContextoPartida, useConstruccion, useEstado, usePartida, usePincel } from './useEstado'
 
 /**
  * Botón de modo: muestra el modo vigente y cambia al otro. Tras pulsarlo con el puntero el foco
@@ -41,6 +43,7 @@ export function BotonModo() {
 function AyudaPlano() {
   const plano = useEstado((e) => e.modo === 'plano')
   const zonas = usePincel().abierto
+  const construir = useConstruccion().abierto
   return plano ? (
     <>
       <p id="ayuda-plano" class="solo-lector">
@@ -49,6 +52,11 @@ function AyudaPlano() {
       {zonas && (
         <p id="ayuda-zonas" class="solo-lector">
           {t('ayudaZonas')}
+        </p>
+      )}
+      {construir && (
+        <p id="ayuda-construir" class="solo-lector">
+          {t('ayudaConstruir')}
         </p>
       )}
     </>
@@ -69,6 +77,7 @@ export function Hud({ partida, debug = false }: { partida: Partida; debug?: bool
             <div class="hud-izquierda">
               <Reloj />
               <Dinero />
+              <Materiales />
             </div>
             <ControlesTiempo />
           </div>
@@ -77,8 +86,12 @@ export function Hud({ partida, debug = false }: { partida: Partida; debug?: bool
         <AyudaPlano />
         <PanelParcela />
         <BarraZonas />
-        <BotonZonas />
-        <BotonModo />
+        <PanelConstruir />
+        <div class="botones-inferiores">
+          <BotonConstruir />
+          <BotonZonas />
+          <BotonModo />
+        </div>
       </div>
     </ContextoPartida.Provider>
   )

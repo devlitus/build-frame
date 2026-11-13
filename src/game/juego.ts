@@ -1,9 +1,11 @@
+import { CLAVE_TEXTOS_LIENZO, type TextosLienzo } from './textosLienzo'
 import Phaser from 'phaser'
 import { EscenaPortada } from './scenes/EscenaPortada'
 import { EscenaDepuracion } from './scenes/EscenaDepuracion'
 import { EscenaValle, type DatosEscenaValle } from './scenes/EscenaValle'
 import {
   casillaBloqueada,
+  colocacionValida,
   crearEstadoInicial,
   ladoValle,
   mapaTransitabilidad,
@@ -78,7 +80,7 @@ function vigilarTamano(g: Phaser.Game, padre: HTMLElement): void {
   g.events.once(Phaser.Core.Events.DESTROY, () => obs.disconnect())
 }
 
-export function crearJuego(padre: HTMLElement): Phaser.Game {
+export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Game {
   const directo = arrancaDirecto()
   const g = new Phaser.Game({
     type: Phaser.AUTO,
@@ -88,6 +90,7 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
     scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
   })
   juego = g
+  if (textos) g.registry.set(CLAVE_TEXTOS_LIENZO, textos)
   vigilarTamano(g, padre)
   g.scene.add('portada', EscenaPortada, !directo)
   if (directo) {
@@ -251,6 +254,37 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
           rectangulo: p.rectanguloPrevio,
         }
       )
+    },
+    materiales: () => partida && { ...partida.estado.materiales },
+    construccion: () => {
+      const c = partida?.construccion
+      if (!partida || !c) return undefined
+      const s = partida.silueta()
+      return {
+        abierto: c.abierto,
+        tipo: c.tipo,
+        confirmando: c.confirmando !== undefined,
+        centro: c.centro,
+        silueta: s && {
+          tipo: s.tipo,
+          x: s.x,
+          y: s.y,
+          ancho: s.ancho,
+          alto: s.alto,
+          valida: s.resultado.valida,
+          motivo: s.resultado.valida ? undefined : s.resultado.motivo,
+        },
+      }
+    },
+    edificios: () => {
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.edificiosVisibles().map((v) => ({ ...v })) : []
+    },
+    colocacion: (tipo, x, y) => {
+      // Solo con `?debug`: veredicto de `colocacionValida` para el estado actual.
+      if (!leerParametros(window.location.search).debug || !partida) return undefined
+      const r = colocacionValida(partida.estado, tipo, x, y)
+      return { valida: r.valida, motivo: r.valida ? undefined : r.motivo }
     },
     camara: () => {
       const e = g.scene.getScene('valle')

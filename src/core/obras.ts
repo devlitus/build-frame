@@ -1,6 +1,6 @@
 import { CONFIG_PERSONAJE } from './datos/personaje'
 import { CONFIG_TIEMPO } from './datos/tiempo'
-import { defEdificio, huellaDe, type Edificio, type TipoEdificio } from './edificios'
+import { defEdificio, huellaDe, type Edificio, type Obra, type TipoEdificio } from './edificios'
 import type { EstadoJuego } from './estado'
 import { casillaBloqueada, mapaTransitabilidad, type MapaTransitabilidad } from './mapa'
 import { ORIENTACION_INICIAL, personajeEnAparicion, type Personaje } from './personaje'
@@ -10,6 +10,14 @@ export interface ObraTerminada {
   readonly tipo: 'obra-terminada'
   readonly id: number
   readonly tipoEdificio: TipoEdificio
+}
+
+/**
+ * Días que le quedan a una obra el día `dia`: `diaFin - dia`, nunca negativo (una obra vencida
+ * se termina al empezar el día, así que mientras se ve en obra siempre queda al menos 1).
+ */
+export function diasRestantes(obra: Obra, dia: number): number {
+  return Math.max(0, obra.diaFin - dia)
 }
 
 /**

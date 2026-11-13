@@ -80,6 +80,46 @@ interface Window {
           rectangulo: { x0: number; y0: number; x1: number; y1: number } | undefined
         }
       | undefined
+    /** Madera y piedra de la partida; undefined si no hay partida. */
+    materiales(): { madera: number; piedra: number } | undefined
+    /** Estado del modo Construir: catálogo, edificio elegido, cursor y silueta con su veredicto. */
+    construccion():
+      | {
+          abierto: boolean
+          tipo: string | undefined
+          confirmando: boolean
+          centro: { x: number; y: number } | undefined
+          silueta:
+            | {
+                tipo: string
+                x: number
+                y: number
+                ancho: number
+                alto: number
+                valida: boolean
+                motivo: string | undefined
+              }
+            | undefined
+        }
+      | undefined
+    /** Edificios y obras que se ven: huella, si están en obra y los días del cartel. */
+    edificios(): {
+      id: number
+      tipo: string
+      x: number
+      y: number
+      ancho: number
+      alto: number
+      enObra: boolean
+      diasCartel: number | undefined
+      profundidad: number
+    }[]
+    /** Veredicto de `colocacionValida` en (x, y); solo con `?debug`. */
+    colocacion(
+      tipo: string,
+      x: number,
+      y: number,
+    ): { valida: boolean; motivo: string | undefined } | undefined
     /** Cámara del valle; scrollX/Y es la esquina superior izquierda de la vista sin zoom. */
     camara():
       { zoom: number; scrollX: number; scrollY: number; ancho: number; alto: number } | undefined
