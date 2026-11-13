@@ -65,7 +65,10 @@ def componer(pintada: Image.Image, alfa: Image.Image, sombra: Image.Image) -> Im
     # Igual que con el protagonista: erosionar 1 px el alfa quita el filo claro que pinta el modelo.
     a = np.asarray(alfa.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(0.6)), dtype=np.float32) / 255
     s = np.asarray(sombra.filter(ImageFilter.GaussianBlur(6)), dtype=np.float32) / 255 * SOMBRA_OPACIDAD
-    s = s * (1 - a)
+    # La sombra se desvanece al alejarse del edificio (≈ 1 casilla): proyectada entera se leía
+    # como una mancha rectangular sobre la hierba.
+    cerca = np.asarray(alfa.filter(ImageFilter.GaussianBlur(PX_M8 * 0.45)), dtype=np.float32) / 255
+    s = s * np.clip(cerca * 2.2, 0, 1) * (1 - a)
     col = np.asarray(pintada, dtype=np.float32) / 255
     # Píxeles de sombra: color de la sombra con opacidad s (en el juego se dibuja en modo normal;
     # sobre el terreno equivale de sobra al «multiplicar» de la biblia a esta opacidad).
