@@ -632,3 +632,126 @@ body {
   }
 }
 /* === Fin panel de parcela === */
+
+/* === M4-04 · Pincel de zonas === */
+.boton-zonas,
+.boton-listo,
+.herramienta-zona {
+  pointer-events: auto;
+  font: inherit;
+  font-weight: 700;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0.4rem 0.9rem;
+  border: 2px solid var(--tierra);
+  border-radius: 999px;
+  background: var(--crema);
+  color: var(--tierra);
+  box-shadow: 0 2px 8px var(--sombra);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.boton-zonas {
+  position: absolute;
+  right: 124px;
+  bottom: 12px;
+}
+
+.boton-zonas:focus-visible,
+.boton-listo:focus-visible,
+.herramienta-zona:focus-visible {
+  outline: 3px solid var(--crema);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px var(--tinta),
+    0 4px 12px var(--sombra);
+}
+
+/* Ocupa todo el ancho sobre el botón de modo; solo la caja interior recoge los toques. */
+.barra-zonas {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 72px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.barra-zonas-caja {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 16px;
+  background: rgb(246 236 214 / 96%);
+  border: 2px solid var(--tierra);
+  box-shadow: 0 4px 16px var(--sombra);
+  pointer-events: auto;
+}
+
+.herramienta-zona {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.herramienta-zona[aria-pressed='true'] {
+  background: var(--tierra);
+  color: var(--crema);
+}
+
+.boton-listo {
+  background: var(--tinta);
+  color: var(--crema);
+  border-color: var(--tinta);
+}
+
+/* Muestra de la zona: mismo color y mismo patrón que en el valle (colores en `estilo.ts`). */
+.muestra-zona {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border: 2px solid var(--tinta);
+  border-radius: 4px;
+  background-color: var(--zona, var(--crema));
+}
+
+.muestra-cultivo {
+  background-image: repeating-linear-gradient(0deg, transparent 0 4px, rgb(59 42 26 / 70%) 4px 6px);
+}
+
+.muestra-huerto {
+  background-image: radial-gradient(circle, rgb(59 42 26 / 75%) 2px, transparent 2.5px);
+  background-size: 8px 8px;
+}
+
+.muestra-vivienda {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 4px,
+    rgb(255 243 196 / 80%) 4px 6px
+  );
+}
+
+.muestra-almacen {
+  background-image:
+    linear-gradient(rgb(59 42 26 / 70%) 2px, transparent 2px),
+    linear-gradient(90deg, rgb(59 42 26 / 70%) 2px, transparent 2px);
+  background-size: 8px 8px;
+}
+
+.muestra-borrar {
+  background-color: #d55e00;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent 0 3px,
+    rgb(255 243 196 / 80%) 3px 5px
+  );
+  border-style: dashed;
+}
+/* === Fin pincel de zonas === */

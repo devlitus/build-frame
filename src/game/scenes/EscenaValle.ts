@@ -14,6 +14,15 @@ import { ControlCamara } from '../camara/controlCamara'
 import { conPropiasDeDepuracion } from '../valle/debug'
 import type { EstadoVisualParcela } from '../valle/estadoVisual'
 import { VistaParcelas } from '../valle/vistaParcelas'
+import { VistaPincel } from '../valle/vistaPincel'
+import { VistaZonas } from '../valle/vistaZonas'
+import {
+  casillaEnCentroDeVista,
+  type DireccionCasilla,
+  type Pincel,
+  type RectCasillas,
+} from '../pincel'
+import { PintorZonas } from '../pintorZonas'
 import { dibujarDecoracion, dibujarResalte, dibujarTerreno, tamanoMundoPx } from '../valle/dibujar'
 import { medirReservasHud } from '../areaHud'
 import { areaLibre, centroParaVer, parcelaEnPunto, puntoDeToque, rectParcela } from '../picking'
@@ -102,6 +111,10 @@ export class EscenaValle extends Phaser.Scene {
   private parcelas: VistaParcelas | undefined = undefined
   private resalte: Phaser.GameObjects.Graphics | undefined = undefined
   private selector: SelectorParcela | undefined = undefined
+  private zonas: VistaZonas | undefined = undefined
+  private vistaPincel: VistaPincel | undefined = undefined
+  private pintor: PintorZonas | undefined = undefined
+  private desuscribirPincel: (() => void) | undefined = undefined
   private desuscribirSeleccion: (() => void) | undefined = undefined
   /** Clave de la última guía de cámara (parcela y panel), para no repetirla. */
   private claveGuia = ''
@@ -204,6 +217,12 @@ export class EscenaValle extends Phaser.Scene {
     this.parcelas?.destruir()
     this.parcelas = new VistaParcelas(this)
     this.parcelas.repintar(inicial)
+    // Zonas (M4-04): capa horneada por trozos, aparte del terreno; solo se rehornea el trozo que cambia.
+    this.zonas?.destruir()
+    this.zonas = new VistaZonas(this, this.mundoPx, ladoValle(valle))
+    this.zonas.actualizar(inicial)
+    this.vistaPincel?.destruir()
+    this.vistaPincel = new VistaPincel(this)
     // Contorno de la parcela seleccionada (estado de interfaz): por encima del personaje y del
     // tinte, para que se vea igual de noche.
     this.resalte = this.add.graphics().setDepth(PROFUNDIDAD_TINTE + 1)
@@ -237,6 +256,13 @@ export class EscenaValle extends Phaser.Scene {
       else partida.seleccion.seleccionar(i)
     })
     this.selector.activo = inicial.modo === 'plano'
+    partida.pincel.cerrar()
+    this.pintor?.reiniciar()
+    this.pintor = new PintorZonas(this, partida.pincel, ladoValle(valle), TAM_CASILLA, (rect) =>
+      this.aplicarPincel(rect),
+    )
+    this.desuscribirPincel?.()
+    this.desuscribirPincel = partida.pincel.suscribir(() => this.alCambiarPincel())
     this.desuscribirSeleccion?.()
     this.claveGuia = ''
     this.desuscribirSeleccion = partida.seleccion.suscribir(() => this.alCambiarSeleccion())
@@ -246,6 +272,8 @@ export class EscenaValle extends Phaser.Scene {
     this.scale.on('resize', this.alRedimensionar, this)
     this.quitarEsc?.()
     const alEsc = (): void => {
+      // Con el pincel de zonas, Esc suelta primero la esquina marcada y luego el cursor.
+      if (partida.pincel.cancelarTeclado()) return
       // Con una confirmación de compra abierta, el primer Esc solo la cancela.
       if (partida.seleccion.cancelarConfirmacion()) return
       partida.seleccion.deseleccionar()
@@ -278,6 +306,7 @@ export class EscenaValle extends Phaser.Scene {
       enVida ? posicion : undefined,
       posicion,
     )
+    this.alCambiarPincel()
     const sel = this.seleccionInicial
     if (sel !== undefined && !enVida && sel < valle.parcelas.length) {
       partida.seleccion.seleccionar(sel)
@@ -315,6 +344,21 @@ export class EscenaValle extends Phaser.Scene {
     return puntoDeToque(c.vista, pantalla, libre, rectParcela(g, i))
   }
 
+  /** Punto de pantalla (px) del centro de la casilla (cx, cy); undefined si queda fuera de la zona libre. */
+  puntoClicCasilla(cx: number, cy: number): { x: number; y: number } | undefined {
+    const c = this.control
+    if (!c || !this._partida || !Number.isInteger(cx) || !Number.isInteger(cy)) return undefined
+    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const libre = areaLibre(pantalla, this._partida.seleccion.ocupado, medirReservasHud())
+    const celda = {
+      x: cx * TAM_CASILLA,
+      y: cy * TAM_CASILLA,
+      ancho: TAM_CASILLA,
+      alto: TAM_CASILLA,
+    }
+    return puntoDeToque(c.vista, pantalla, libre, celda)
+  }
+
   /** ¿Tiene el foco el lienzo (o su contenedor)? Solo entonces Enter, Espacio y flechas eligen parcela. */
   private focoEnLienzo(): boolean {
     const a = document.activeElement
@@ -329,6 +373,12 @@ export class EscenaValle extends Phaser.Scene {
     // Solo con el foco en el lienzo: en los botones del panel y del HUD Enter y Espacio son suyos.
     if (ev.target !== this.game.canvas && ev.target !== this.game.canvas.parentElement) return
     const seleccion = partida.seleccion
+    const pincel = partida.pincel
+    // Con la barra de zonas abierta el teclado es del pincel: ni se elige parcela ni se mueve la selección.
+    if (pincel.abierto) {
+      this.teclaPincel(ev, pincel)
+      return
+    }
     if (ev.code === 'Enter' || ev.code === 'NumpadEnter' || ev.code === 'Space') {
       ev.preventDefault()
       if (ev.repeat || seleccion.indice !== undefined) return
@@ -349,6 +399,72 @@ export class EscenaValle extends Phaser.Scene {
     seleccion.seleccionar(parcelaVecina(g.parcelasPorLado, actual, d))
   }
 
+  /** Teclado del pincel: Enter o Espacio marcan esquinas y las flechas mueven el cursor de casilla. */
+  private teclaPincel(ev: KeyboardEvent, pincel: Pincel): void {
+    const partida = this._partida
+    if (!partida || !this.control) return
+    const lado = ladoValle(partida.estado.valle)
+    if (ev.code === 'Enter' || ev.code === 'NumpadEnter' || ev.code === 'Space') {
+      ev.preventDefault()
+      if (ev.repeat) return
+      const centro = casillaEnCentroDeVista(lado, TAM_CASILLA, this.control.vista)
+      const rect = pincel.pulsarMarca(centro)
+      if (rect) this.aplicarPincel(rect)
+      else this.verCursor()
+      return
+    }
+    const direccion: Record<string, DireccionCasilla | undefined> = {
+      ArrowUp: 'arriba',
+      ArrowDown: 'abajo',
+      ArrowLeft: 'izquierda',
+      ArrowRight: 'derecha',
+    }
+    const d = direccion[ev.code]
+    // Sin cursor las flechas siguen moviendo la cámara.
+    if (!d || !pincel.moverCursor(lado, d)) return
+    ev.preventDefault()
+    this.verCursor()
+  }
+
+  /** Si el cursor de casilla queda fuera de la zona libre (o bajo la barra), la cámara lo busca. */
+  private verCursor(): void {
+    const partida = this._partida
+    const c = partida?.pincel.cursor
+    if (!partida || !c || !this.control) return
+    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const libre = areaLibre(pantalla, partida.seleccion.ocupado, medirReservasHud())
+    const celda = {
+      x: c.x * TAM_CASILLA,
+      y: c.y * TAM_CASILLA,
+      ancho: TAM_CASILLA,
+      alto: TAM_CASILLA,
+    }
+    const centro = centroParaVer(this.control.vista, pantalla, libre, celda)
+    if (centro) this.control.guiarA(centro, false)
+  }
+
+  /** Aplica el rectángulo del pincel con los comandos del núcleo; si no cambia nada, avisa con amabilidad. */
+  private aplicarPincel(rect: RectCasillas): void {
+    const partida = this._partida
+    const h = partida?.pincel.herramienta
+    if (!partida || !h) return
+    const r = partida.emitir(
+      h === 'borrar' ? { tipo: 'BorrarZona', ...rect } : { tipo: 'PintarZona', ...rect, zona: h },
+    )
+    if (!r.ok && r.error === 'sin-casillas-validas') partida.avisarInterfaz('zona-sin-casillas')
+  }
+
+  /** Cambios del pincel: la cámara solo arrastra con dos dedos mientras pinta, y se elige parcela solo con la barra cerrada. */
+  private alCambiarPincel(): void {
+    const partida = this._partida
+    if (!partida) return
+    const pincel = partida.pincel
+    if (this.control) this.control.dedosParaArrastrar = pincel.activo ? 2 : 1
+    if (this.selector) this.selector.activo = this.modoAplicado === 'plano' && !pincel.abierto
+    if (pincel.abierto) partida.seleccion.deseleccionar()
+    this.ajustarLienzoAccesible(this.modoAplicado)
+  }
+
   /**
    * En Plano el lienzo entra en el orden de tabulación, con su ayuda para lectores de pantalla;
    * en Vida no (el teclado del juego funciona con el foco en cualquier sitio).
@@ -359,7 +475,10 @@ export class EscenaValle extends Phaser.Scene {
     if (modo === 'plano') {
       lienzo.tabIndex = 0
       lienzo.setAttribute('aria-labelledby', 'juego')
-      lienzo.setAttribute('aria-describedby', 'ayuda-plano')
+      lienzo.setAttribute(
+        'aria-describedby',
+        this._partida?.pincel.abierto ? 'ayuda-plano ayuda-zonas' : 'ayuda-plano',
+      )
       if (contenedor) contenedor.dataset['modo'] = 'plano'
     } else {
       if (document.activeElement === lienzo) contenedor?.focus({ preventScroll: true })
@@ -437,7 +556,9 @@ export class EscenaValle extends Phaser.Scene {
     if (partida.estado.modo !== this.modoAplicado) this.aplicarModo(partida.estado.modo)
     const modo = this.modoAplicado
     const teclado = this.entrada.leer(
-      modo === 'plano' && partida.seleccion.indice !== undefined && this.focoEnLienzo(),
+      modo === 'plano' &&
+        (partida.seleccion.indice !== undefined || partida.pincel.cursor !== undefined) &&
+        this.focoEnLienzo(),
     )
     const joystick = this.tactil?.leer() ?? { dx: 0, dy: 0 }
     // El teclado tiene prioridad sobre el joystick; cualquiera de los dos cancela el destino.
@@ -476,6 +597,8 @@ export class EscenaValle extends Phaser.Scene {
     if (minutos > 0) emitir({ tipo: 'AvanzarTiempo', minutos })
     this.luz?.actualizar(partida.estado.minutoDelDia)
     this.parcelas?.repintar(partida.estado)
+    this.zonas?.actualizar(partida.estado)
+    this.vistaPincel?.actualizar(partida.pincel)
     const destino = this.seguidor.destino
     if (destino) this.marca?.mostrar(destino.x * TAM_CASILLA, destino.y * TAM_CASILLA)
     else this.marca?.ocultar()
@@ -504,7 +627,8 @@ export class EscenaValle extends Phaser.Scene {
     this.tactil?.reiniciar()
     if (this.tactil) this.tactil.activo = modo === 'vida'
     this.selector?.reiniciar()
-    if (this.selector) this.selector.activo = modo === 'plano'
+    this.pintor?.reiniciar()
+    if (this.selector) this.selector.activo = modo === 'plano' && !this._partida?.pincel.abierto
     this.ajustarLienzoAccesible(modo)
     if (!this.control) return
     const enVida = modo === 'vida'
@@ -515,6 +639,7 @@ export class EscenaValle extends Phaser.Scene {
   private rehornear(): void {
     for (const t of this.trozos) t.destroy()
     this.trozos = this.hornear()
+    this.zonas?.invalidar()
   }
 
   /**
@@ -529,6 +654,14 @@ export class EscenaValle extends Phaser.Scene {
     this.trozos = []
     this.parcelas?.destruir()
     this.parcelas = undefined
+    this.zonas?.destruir()
+    this.zonas = undefined
+    this.vistaPincel?.destruir()
+    this.vistaPincel = undefined
+    this.desuscribirPincel?.()
+    this.desuscribirPincel = undefined
+    this.pintor?.reiniciar()
+    this.pintor = undefined
     this.resalte?.destroy()
     this.resalte = undefined
     this.desuscribirSeleccion?.()

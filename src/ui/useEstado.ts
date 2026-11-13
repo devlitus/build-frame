@@ -1,6 +1,7 @@
 import { createContext } from 'preact'
 import { useContext, useEffect, useRef, useState } from 'preact/hooks'
 import type { EstadoJuego } from '../core'
+import type { HerramientaPincel } from '../game/pincel'
 import type { Partida } from '../game/partida'
 
 /** La partida en curso; la pone `Hud` en la raíz de la interfaz de juego. */
@@ -24,6 +25,19 @@ export function useSeleccion(): number | undefined {
     return seleccion.suscribir(actualizar)
   }, [seleccion])
   return indice
+}
+
+/** Estado del pincel de zonas (barra abierta y herramienta elegida); repinta al cambiar. */
+export function usePincel(): { abierto: boolean; herramienta: HerramientaPincel | undefined } {
+  const { pincel } = usePartida()
+  const [, repintar] = useState(0)
+  useEffect(() => {
+    const actualizar = () => {
+      repintar((n) => n + 1)
+    }
+    return pincel.suscribir(actualizar)
+  }, [pincel])
+  return { abierto: pincel.abierto, herramienta: pincel.herramienta }
 }
 
 /** Fuente externa: la porción del estado que elige `selector`. */

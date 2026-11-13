@@ -135,3 +135,41 @@ export const PUNTOS_LUZ: readonly PuntoLuz[] = [
  * pueden ir por encima a propósito.
  */
 export const PROFUNDIDAD_TINTE = 1_000_000
+
+/**
+ * Zonas (M4-04). Colores de la paleta Okabe-Ito, pensada para daltonismo, y un patrón distinto
+ * por zona (surcos, puntos, diagonales, cuadrícula) para no depender solo del color. Provisional:
+ * el arte final llega en M5-00.
+ */
+export type PatronZona = 'surcos' | 'puntos' | 'diagonal' | 'cuadro'
+
+export interface EstiloZona {
+  readonly color: number
+  /** Opacidad del relleno en el Modo Plano. */
+  readonly alfa: number
+  readonly patron: PatronZona
+  /** Color del patrón: oscuro sobre fondos claros y crema sobre el azul. */
+  readonly colorPatron: number
+}
+
+export const ESTILO_ZONAS: Readonly<
+  Record<'cultivo' | 'huerto' | 'vivienda' | 'almacen', EstiloZona>
+> = {
+  cultivo: { color: 0xe69f00, alfa: 0.55, patron: 'surcos', colorPatron: 0x3b2a1a },
+  huerto: { color: 0xcc79a7, alfa: 0.55, patron: 'puntos', colorPatron: 0x3b2a1a },
+  vivienda: { color: 0x0072b2, alfa: 0.6, patron: 'diagonal', colorPatron: 0xfff3c4 },
+  almacen: { color: 0xf0e442, alfa: 0.6, patron: 'cuadro', colorPatron: 0x3b2a1a },
+}
+
+/** Opacidad de la capa de zonas en el Modo Vida: un tono suave que no tapa el valle. */
+export const ALFA_ZONAS_VIDA = 0.35
+
+/** Vista previa del pincel: borrador en bermellón (Okabe-Ito) y contorno doble tinta/crema. */
+export const ESTILO_PREVIA = {
+  borrar: 0xd55e00,
+  alfaRelleno: 0.4,
+  tinta: 0x3b2a1a,
+  crema: 0xfff3c4,
+  grosorTinta: 8,
+  grosorCrema: 4,
+} as const

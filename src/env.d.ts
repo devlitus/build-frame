@@ -64,6 +64,20 @@ interface Window {
       | undefined
     /** Punto de pantalla (px) donde pulsar para tocar la parcela; solo con `?debug`. */
     puntoClicParcela(indice: number): { x: number; y: number } | undefined
+    /** Zona pintada en la casilla (cx, cy); solo con `?debug`. */
+    zonaDe(cx: number, cy: number): 'cultivo' | 'huerto' | 'vivienda' | 'almacen' | undefined
+    /** Punto de pantalla (px) donde pulsar para tocar la casilla; solo con `?debug`. */
+    puntoClicCasilla(cx: number, cy: number): { x: number; y: number } | undefined
+    /** Estado del pincel de zonas (barra, herramienta, cursor de teclado y vista previa). */
+    pincel():
+      | {
+          abierto: boolean
+          herramienta: string | undefined
+          cursor: { x: number; y: number } | undefined
+          ancla: { x: number; y: number } | undefined
+          rectangulo: { x0: number; y0: number; x1: number; y1: number } | undefined
+        }
+      | undefined
     /** Cámara del valle; scrollX/Y es la esquina superior izquierda de la vista sin zoom. */
     camara():
       { zoom: number; scrollX: number; scrollY: number; ancho: number; alto: number } | undefined
