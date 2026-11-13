@@ -49,19 +49,20 @@ export function rectDecoracion(d: Decoracion): { x0: number; y0: number; x1: num
 }
 
 /**
- * Objetos de la capa por profundidad (`capaObjetos.ts`) para los árboles y rocas: el `id` es el
- * índice en la lista de obstáculos del estado y la profundidad la `y` de la base en px.
+ * Objetos de la capa por profundidad (`capaObjetos.ts`) para los árboles y rocas: el `id` es la
+ * clave de la casilla (`claveCasilla`, estable aunque se talen otros obstáculos) y la profundidad la `y` de la base en px.
  */
 export function objetosDeDecoracion(
   escena: Phaser.Scene,
   decoracion: readonly Decoracion[],
+  lado: number,
 ): ObjetoProfundo[] {
-  return decoracion.map((d, id) => {
+  return decoracion.map((d) => {
     const clave = d.tipo === 'arbol' ? CLAVE_ARBOL : CLAVE_ROCA
     const marco = d.tipo === 'arbol' ? MARCO_ARBOL : MARCO_ROCA
     const base = (d.y + 1) * T
     return {
-      id,
+      id: claveCasilla(lado, d.x, d.y),
       x: d.x * T + T / 2,
       y: base,
       profundidad: base,

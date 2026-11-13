@@ -13,8 +13,15 @@ export interface RectMundo {
  * está más al norte). El sprite tiene el pivote en la base, centrado, y se coloca en `(x, y)`.
  */
 export interface ObjetoProfundo {
-  /** Identificador estable dentro de la capa (M5-06: el obstáculo; M5-03: el cultivo). */
+  /**
+   * Identificador estable dentro de la capa: no puede depender de la posición en una lista que se
+   * corre al quitar elementos (talar, M5-06; cosechar, M5-03). Los árboles y rocas usan la clave de
+   * su casilla (`claveCasilla`); los cultivos usarán la de la suya, en otro espacio de claves o con
+   * una capa propia.
+   */
   readonly id: number
+  /** Marco dentro de la textura, si es un atlas. */
+  readonly marco?: string | number
   readonly x: number
   readonly y: number
   /** Profundidad: la `y` de la base en px (los cultivos de M5-03 usan `32(y+1)`). */
@@ -48,6 +55,8 @@ export class CapaObjetos {
   private cubetas = new Map<number, ObjetoProfundo[]>()
   private extension = { x: 0, y: 0 }
   private readonly activos = new Map<number, Phaser.GameObjects.Image>()
+  /** Lo que muestra ahora cada imagen activa, para saber qué cambió al reemplazar el conjunto. */
+  private readonly aplicados = new Map<number, ObjetoProfundo>()
   private clave = ''
   private _reconstrucciones = 0
 
@@ -56,9 +65,11 @@ export class CapaObjetos {
     private readonly mundoPx: number,
   ) {}
 
-  /** Cambia el conjunto de objetos (se rehace en la siguiente `actualizar`). */
+  /**
+   * Cambia el conjunto de objetos (se rehace en la siguiente `actualizar`). No invalida el *pool*: las
+   * imágenes de los objetos que no cambian se conservan y solo se tocan las de los que cambian.
+   */
   reemplazar(objetos: readonly ObjetoProfundo[]): void {
-    this.invalidar()
     this.objetos = new Map(objetos.map((o) => [o.id, o]))
     this.cubetas = new Map()
     let ex = 0
@@ -150,29 +161,54 @@ export class CapaObjetos {
     const quieren = new Map(this.seleccionar(zona).map((o) => [o.id, o]))
     const libres: Phaser.GameObjects.Image[] = []
     for (const [id, img] of [...this.activos]) {
-      if (quieren.has(id) && !this.cambiado(id, img)) continue
+      const q = quieren.get(id)
+      if (q && !this.cambiado(q, this.aplicados.get(id))) continue
       this.activos.delete(id)
+      this.aplicados.delete(id)
       libres.push(img)
     }
     for (const [id, o] of quieren) {
       if (this.activos.has(id)) continue
-      const img = libres.pop() ?? this.escena.add.image(0, 0, o.textura).setOrigin(0.5, 1)
-      img.setTexture(o.textura).setPosition(o.x, o.y).setScale(o.escala).setDepth(o.profundidad)
+      let img = libres.pop()
+      if (img) {
+        // Reutilizada: fuera lo que un efecto (M5-06, M5-03) haya dejado en ella.
+        this.escena.tweens?.killTweensOf(img)
+        img.setAngle(0).setAlpha(1).clearTint().setVisible(true)
+      } else {
+        img = this.escena.add.image(0, 0, o.textura).setOrigin(0.5, 1)
+      }
+      img.setTexture(o.textura, o.marco).setPosition(o.x, o.y).setScale(o.escala).setDepth(o.profundidad)
       img.setData('objetoId', id)
       this.activos.set(id, img)
+      this.aplicados.set(id, o)
     }
-    for (const img of libres) img.destroy()
+    for (const img of libres) this.destruirImagen(img)
   }
 
-  private cambiado(id: number, img: Phaser.GameObjects.Image): boolean {
-    const o = this.objetos.get(id)
-    return !o || img.texture.key !== o.textura || img.depth !== o.profundidad
+  private cambiado(o: ObjetoProfundo, a: ObjetoProfundo | undefined): boolean {
+    return (
+      !a ||
+      a.textura !== o.textura ||
+      a.marco !== o.marco ||
+      a.x !== o.x ||
+      a.y !== o.y ||
+      a.escala !== o.escala ||
+      a.profundidad !== o.profundidad
+    )
   }
 
-  /** Tras perder el contexto WebGL o cambiar el conjunto: se rehace todo en la siguiente `actualizar`. */
+  /** Mata sus tweens (si la escena aún los tiene) y la destruye. */
+  private destruirImagen(img: Phaser.GameObjects.Image): void {
+    // `escena.tweens` ya no existe si la escena se está destruyendo.
+    this.escena.tweens?.killTweensOf(img)
+    img.destroy()
+  }
+
+  /** Tras perder el contexto WebGL: se rehace todo en la siguiente `actualizar`. */
   invalidar(): void {
-    for (const img of this.activos.values()) img.destroy()
+    for (const img of this.activos.values()) this.destruirImagen(img)
     this.activos.clear()
+    this.aplicados.clear()
     this.clave = ''
   }
 

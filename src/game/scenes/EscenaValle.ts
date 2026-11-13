@@ -237,7 +237,7 @@ export class EscenaValle extends Phaser.Scene {
     // edificios), solo los de la vista de la cámara más un margen (`CapaObjetos`).
     this.capaObjetos?.destruir()
     this.capaObjetos = new CapaObjetos(this, this.mundoPx)
-    this.capaObjetos.reemplazar(objetosDeDecoracion(this, inicial.obstaculos))
+    this.capaObjetos.reemplazar(objetosDeDecoracion(this, inicial.obstaculos, ladoValle(inicial.valle)))
     this.actualizarCapaObjetos()
     // Al perder y recuperar el contexto WebGL las texturas quedan vacías (Phaser no las
     // restaura): se vuelven a hornear con los mismos datos.
