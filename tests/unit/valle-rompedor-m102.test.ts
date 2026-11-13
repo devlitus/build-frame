@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { crearEstadoInicial } from '../../src/core'
 import { leerParametros } from '../../src/game/parametros'
 import { marcarPropias } from '../../src/game/valle/debug'
-import { dibujarDecoracion } from '../../src/game/valle/dibujar'
+import { escalaDecoracion, rectDecoracion } from '../../src/game/valle/terrenoArte'
 import { TAM_CASILLA } from '../../src/game/valle/estilo'
 import { casillasRio, claveCasilla, decorarValle } from '../../src/core'
 
@@ -84,48 +84,32 @@ describe('río y decoración en muchas semillas', () => {
 })
 
 describe('geometría del dibujo', () => {
-  it('[S3] ninguna forma de la decoración se sale de su casilla', () => {
-    const formas: { x: number; y: number }[] = []
-    const g: Record<string, unknown> = {}
-    const chain = () => g
-    Object.assign(g, {
-      fillStyle: chain,
-      lineStyle: chain,
-      strokePoints: chain,
-      setDepth: chain,
-      fillRect: (x: number, y: number, w: number, h: number) => {
-        formas.push({ x, y }, { x: x + w, y: y + h })
-      },
-      fillCircle: (x: number, y: number, r: number) => {
-        formas.push({ x: x - r, y: y - r }, { x: x + r, y: y + r })
-      },
-      fillTriangle: (a: number, b: number, c: number, d: number, e: number, f: number) => {
-        formas.push({ x: a, y: b }, { x: c, y: d }, { x: e, y: f })
-      },
-      fillPoints: (pts: { x: number; y: number }[]) => formas.push(...pts),
-    })
-    const escena = { add: { graphics: () => g } }
-    let fuera = 0
-    const tipos = new Set<string>()
+  // Desde M5-00 el árbol (64x96) y la roca (32x32) son sprites con el pivote en la base: el árbol
+  // sobresale de su casilla por diseño. Lo que se exige es que la BASE caiga en su casilla, que
+  // el sprite quede centrado en ella y que la escala esté en el rango de la variante.
+  it('[S3] la base de cada sprite de decoración cae en su casilla y no se sale del valle por los lados', () => {
+    let n = 0
     for (const sem of [1, 2, 3, 42, 7, 99]) {
       const est = crearEstadoInicial({ semilla: sem, dineroInicial: 0 }).valle
       const lado = est.parcelasPorLado * est.casillasPorParcela
       const claves = new Set(casillasRio(est).map((c) => claveCasilla(lado, c.x, c.y)))
       for (const d of decorarValle(est, sem, claves)) {
-        formas.length = 0
-        dibujarDecoracion(escena as never, [d])
+        const r = rectDecoracion(d)
         const x0 = d.x * TAM_CASILLA
         const y0 = d.y * TAM_CASILLA
-        const sale = formas.some(
-          (p) => p.x < x0 || p.x > x0 + TAM_CASILLA || p.y < y0 || p.y > y0 + TAM_CASILLA,
-        )
-        if (sale) {
-          fuera++
-          tipos.add(d.tipo + (d.variante < 0.5 ? 'A' : 'B'))
+        expect(r.y1).toBe(y0 + TAM_CASILLA)
+        expect((r.x0 + r.x1) / 2).toBeCloseTo(x0 + TAM_CASILLA / 2, 6)
+        const k = escalaDecoracion(d.variante)
+        expect(k).toBeGreaterThanOrEqual(0.9)
+        expect(k).toBeLessThanOrEqual(1.1)
+        // Una roca no sobresale por los lados de su casilla más de lo que mide.
+        if (d.tipo === 'roca') {
+          expect(r.x1 - r.x0).toBeLessThanOrEqual(TAM_CASILLA * 1.1 + 1e-9)
         }
+        n++
       }
     }
-    expect({ fuera, tipos: [...tipos] }).toEqual({ fuera: 0, tipos: [] })
+    expect(n).toBeGreaterThan(100)
   })
 })
 
