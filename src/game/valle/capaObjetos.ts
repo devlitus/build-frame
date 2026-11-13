@@ -122,10 +122,10 @@ export class CapaObjetos {
 
   private seleccionar(zona: RectMundo): ObjetoProfundo[] {
     const n = Math.ceil(this.mundoPx / CUBETA) + 1
-    const bx0 = Math.floor(Math.max(0, zona.x0 - this.extension.x) / CUBETA)
-    const bx1 = Math.floor(Math.max(0, zona.x1 + this.extension.x) / CUBETA)
-    const by0 = Math.floor(Math.max(0, zona.y0 - this.extension.y) / CUBETA)
-    const by1 = Math.floor(Math.max(0, zona.y1 + this.extension.y) / CUBETA)
+    const bx0 = Math.min(n - 1, Math.floor(Math.max(0, zona.x0 - this.extension.x) / CUBETA))
+    const bx1 = Math.min(n - 1, Math.floor(Math.max(0, zona.x1 + this.extension.x) / CUBETA))
+    const by0 = Math.min(n - 1, Math.floor(Math.max(0, zona.y0 - this.extension.y) / CUBETA))
+    const by1 = Math.min(n - 1, Math.floor(Math.max(0, zona.y1 + this.extension.y) / CUBETA))
     const salida: ObjetoProfundo[] = []
     for (let by = by0; by <= by1; by++) {
       for (let bx = bx0; bx <= bx1; bx++) {
