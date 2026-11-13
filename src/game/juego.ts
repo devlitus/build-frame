@@ -16,6 +16,7 @@ import {
   type Comando,
 } from '../core'
 import { Partida } from './partida'
+import { sePuedeColocar } from './construir'
 import { leerParametros, semillaNueva } from './parametros'
 
 let juego: Phaser.Game | undefined
@@ -273,8 +274,12 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
           y: s.y,
           ancho: s.ancho,
           alto: s.alto,
-          valida: s.resultado.valida,
-          motivo: s.resultado.valida ? undefined : s.resultado.motivo,
+          valida: sePuedeColocar(s),
+          motivo: s.resultado.valida
+            ? s.mismoSitio
+              ? 'mismo-sitio'
+              : undefined
+            : s.resultado.motivo,
         },
       }
     },

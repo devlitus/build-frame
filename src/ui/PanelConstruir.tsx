@@ -9,6 +9,7 @@ import {
   textoResto,
   textoZonas,
 } from './construirTextos'
+import { MS_VENTANA_ANTIDOBLE } from './compra'
 import { t, tp } from './textos'
 import {
   useConstruccion,
@@ -248,13 +249,12 @@ function Colocando(props: { tipo: TipoEdificio }) {
 /** Mover un edificio: la misma silueta y reglas que construir, sin coste; un botón confirma. */
 function Moviendo(props: { id: number; tipo: TipoEdificio }) {
   const partida = usePartida()
-  const { id, tipo } = props
+  const { tipo } = props
   const silueta = useSilueta()
   const tactil = useTactil()
   const estado = useEstado((e) => e)
-  const actual = estado.edificios.find((b) => b.id === id)
   const resultado = silueta?.resultado
-  const mismoSitio = !!silueta && !!actual && silueta.x === actual.x && silueta.y === actual.y
+  const mismoSitio = silueta?.mismoSitio === true
   const valida = resultado?.valida === true && !mismoSitio
   const texto = !resultado
     ? ''
@@ -303,6 +303,8 @@ function Moviendo(props: { id: number; tipo: TipoEdificio }) {
           onClick={(ev) => {
             if (!valida) return
             devolverFocoSiPuntero(ev)
+            // Un doble toque: el segundo caería en el lienzo y elegiría la parcela de debajo.
+            if (ev.detail > 0) partida.seleccion.bloquearClics(MS_VENTANA_ANTIDOBLE)
             partida.moverAqui()
           }}
         >

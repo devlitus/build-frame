@@ -22,7 +22,7 @@ import { CLAVE_TEXTOS_LIENZO, type TextosLienzo } from '../textosLienzo'
 import { VistaEdificios, type EdificioVisible } from '../valle/vistaEdificios'
 import { VistaSilueta } from '../valle/vistaSilueta'
 import { ColocadorEdificio } from '../colocador'
-import type { Construccion } from '../construir'
+import { sePuedeColocar, type Construccion } from '../construir'
 import { VistaZonas } from '../valle/vistaZonas'
 import {
   casillaEnCentroDeVista,
@@ -270,6 +270,12 @@ export class EscenaValle extends Phaser.Scene {
     this.desmayoVisto = false
     this.desuscribir?.()
     this.desuscribir = partida.suscribir((cambio) => {
+      // Zonas y edificios se redibujan en cuanto cambian (no esperan al siguiente fotograma): con un
+      // dispositivo lento la vista y el estado no se desfasan.
+      if (cambio.eventos.length > 0) {
+        this.zonas?.actualizar(partida.estado)
+        this.edificios?.actualizar(partida.estado, this.cameras.main.zoom)
+      }
       if (cambio.eventos.some((e) => e.tipo === 'desmayo')) {
         this.seguidor.cancelar()
         this.desmayoVisto = true
@@ -523,7 +529,8 @@ export class EscenaValle extends Phaser.Scene {
     if (ev.code === 'Enter' || ev.code === 'NumpadEnter' || ev.code === 'Space') {
       ev.preventDefault()
       if (ev.repeat) return
-      if (!partida.silueta()?.resultado.valida) return
+      // En su mismo sitio (mover) Enter no hace nada: el modo sigue abierto.
+      if (!sePuedeColocar(partida.silueta())) return
       // Mover es gratis: Enter lo hace; construir pide antes la confirmación.
       if (construccion.origen !== undefined) partida.moverAqui()
       else construccion.pedirConfirmacion('teclado')

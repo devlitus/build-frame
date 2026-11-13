@@ -571,17 +571,26 @@ body {
   color: var(--crema);
 }
 
-/* Móvil horizontal (poca altura): panel compacto para que «Comprar» quepa sin desplazarse. */
+/*
+ * Apaisado y bajo: el panel pasa a una tarjeta a la izquierda, bajo el HUD (el mismo patrón que el
+ * panel de construir), para que ni el panel tape los controles del tiempo ni los botones de abajo
+ * (Construir, Zonas, Modo) tapen sus botones. El resto del valle queda libre.
+ */
 @media (orientation: landscape) and (max-height: 520px) {
   .panel-parcela {
-    width: min(400px, 52%);
+    top: auto;
+    right: auto;
+    left: 8px;
+    bottom: 8px;
+    width: min(400px, 58vw);
     gap: 4px;
     padding: 6px 10px 8px;
-    max-height: calc(100% - 140px);
+    max-height: calc(100vh - 106px);
   }
 
   .hud-debug .panel-parcela {
-    max-height: calc(100% - 172px);
+    top: auto;
+    max-height: calc(100vh - 138px);
   }
 
   .panel-parcela h2 {
@@ -614,18 +623,6 @@ body {
   .panel-confirmando .parcela-atributos,
   .panel-confirmando .parcela-compra {
     display: none;
-  }
-}
-
-/* Móviles bajos (hasta 400 px): el panel se aparta del botón de modo para tener toda la altura. */
-@media (orientation: landscape) and (max-height: 400px) {
-  .panel-parcela {
-    right: 128px;
-    max-height: calc(100% - 84px);
-  }
-
-  .hud-debug .panel-parcela {
-    max-height: calc(100% - 116px);
   }
 }
 
@@ -1097,6 +1094,14 @@ body {
   font-weight: 600;
 }
 
+/* Sin `sticky` (el de `.panel-parcela-acciones`): dejaba un rectángulo transparente bajo el panel. */
+.edificio-acciones {
+  position: static;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  background: none;
+}
+
 @media (orientation: landscape) and (max-height: 520px) {
   /* Mover y Demoler lado a lado: la tarjeta es baja. */
   .edificio-acciones {
@@ -1117,6 +1122,18 @@ body {
   .panel-confirmando .edificio-estado,
   .panel-confirmando .edificio-nota {
     display: none;
+  }
+
+  /* Tarjeta baja: la confirmación, más compacta para que sus dos botones quepan sin desplazar. */
+  .panel-edificio .compra-confirmacion {
+    gap: 4px;
+    padding: 4px 8px 6px;
+  }
+
+  .panel-edificio .compra-confirmar-texto,
+  .panel-edificio .edificio-reembolso {
+    font-size: 0.9rem;
+    line-height: 1.2;
   }
 }
 /* === Fin M4-06 === */

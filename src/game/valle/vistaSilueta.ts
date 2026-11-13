@@ -23,25 +23,31 @@ export class VistaSilueta {
   actualizar(s: Silueta | undefined): void {
     const g = this.g
     if (!g) return
-    const clave = s ? `${s.tipo}|${s.x},${s.y}|${s.resultado.valida ? 'v' : 'x'}` : ''
+    const clave = s
+      ? `${s.tipo}|${s.x},${s.y}|${s.mismoSitio ? 'n' : s.resultado.valida ? 'v' : 'x'}`
+      : ''
     if (clave === this.clave) return
     this.clave = clave
     this._repintados++
     g.clear()
     if (!s) return
+    // En su mismo sitio (mover): ni verde ni roja, solo el contorno, sin relleno ni aspa.
+    const neutra = s.mismoSitio
     const valida = s.resultado.valida
     const x = s.x * T
     const y = s.y * T
     const ancho = s.ancho * T
     const alto = s.alto * T
-    g.fillStyle(valida ? E.valida : E.invalida, E.alfaRelleno)
-    g.fillRect(x, y, ancho, alto)
+    if (!neutra) {
+      g.fillStyle(valida ? E.valida : E.invalida, E.alfaRelleno)
+      g.fillRect(x, y, ancho, alto)
+    }
     // Contorno centrado en el borde de la huella: gana grosor sin comerse el relleno de una casilla.
     g.lineStyle(E.grosorTinta, E.tinta, 1)
     g.strokeRect(x, y, ancho, alto)
     g.lineStyle(E.grosorCrema, E.crema, 1)
     g.strokeRect(x, y, ancho, alto)
-    if (!valida) {
+    if (!valida && !neutra) {
       const a = Math.max(E.grosorTinta / 2 + 2, Math.min(ancho, alto) * 0.22)
       const aspa = (grosor: number, color: number): void => {
         g.lineStyle(grosor, color, 1)

@@ -34,6 +34,34 @@ function preparar(semilla: number): EstadoJuego {
   return { ...e, dinero: DINERO, materiales: { madera: 500, piedra: 200 } }
 }
 
+/**
+ * Parte de un valle con dos edificios ya terminados y una obra en marcha: así moverlos, demolerlos y
+ * cancelar la obra no dependen de que el generador acierte antes con construir y esperar un día.
+ */
+function conEdificios(
+  base: EstadoJuego,
+  sitios: Record<TipoEdificio, { x: number; y: number }[]>,
+): EstadoJuego {
+  let e = base
+  const levantar = (tipo: TipoEdificio, i: number): void => {
+    const l = sitios[tipo]
+    const sitio = l[Math.floor((l.length * i) / 4)]
+    if (!sitio) return
+    const r = aplicarComando(e, { tipo: 'Construir', tipoEdificio: tipo, ...sitio })
+    if (r.ok) e = r.estado
+  }
+  levantar('caja-envio', 0)
+  levantar('cobertizo', 1)
+  const dias = aplicarComando(e, { tipo: 'CambiarModo', modo: 'vida' })
+  if (dias.ok) {
+    const t = aplicarComando(dias.estado, { tipo: 'AvanzarTiempo', minutos: 100_000 })
+    const v = t.ok ? aplicarComando(t.estado, { tipo: 'CambiarModo', modo: 'plano' }) : undefined
+    if (v?.ok) e = v.estado
+  }
+  levantar('caja-envio', 3)
+  return e
+}
+
 const SEMILLAS = [3, 42]
 const ESCENARIOS = SEMILLAS.map((semilla) => {
   const e = preparar(semilla)
@@ -248,7 +276,8 @@ describe('mover y demoler: invariantes con partidas aleatorias', () => {
 
   it('las partidas aleatorias llegan a mover, demoler y cancelar de verdad', () => {
     const vistos = new Set<string>()
-    for (const { e: inicial, sitios } of ESCENARIOS) {
+    for (const { e: base, sitios } of ESCENARIOS) {
+      const inicial = conEdificios(base, sitios)
       fc.assert(
         fc.property(fc.array(arbPaso, { maxLength: 25 }), (pasos) => {
           let e = inicial
@@ -260,7 +289,8 @@ describe('mover y demoler: invariantes con partidas aleatorias', () => {
             }
           }
         }),
-        { numRuns: 60 },
+        // Semilla fija: la cobertura (que alguna partida termine un edificio antes de demolerlo) no depende del azar.
+        { numRuns: 60, seed: 20261113 },
       )
     }
     for (const t of ['edificio-movido', 'edificio-demolido', 'obra-cancelada', 'obra-terminada']) {

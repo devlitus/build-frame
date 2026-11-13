@@ -7,7 +7,7 @@ import {
   type EstadoJuego,
   type EventoJuego,
 } from '../../src/core'
-import { calcularSilueta, centroDeSilueta } from '../../src/game/construir'
+import { calcularSilueta, centroDeSilueta, sePuedeColocar } from '../../src/game/construir'
 import { Partida } from '../../src/game/partida'
 import { textoColocacion, textoReembolso } from '../../src/ui/construirTextos'
 
@@ -87,6 +87,28 @@ describe('silueta de mover', () => {
     const caja = defEdificio('caja-envio')!
     const s = calcularSilueta(pobre, 'caja-envio', centroDeSilueta(caja, { x, y: y + 2 }), 1)
     expect(s?.resultado.valida).toBe(true)
+  })
+})
+
+describe('silueta de mover en su mismo sitio', () => {
+  it('es válida para el núcleo pero no se puede colocar, y moverAqui no hace nada', () => {
+    const { partida, x, y } = conCajas()
+    const caja = defEdificio('caja-envio')!
+    const s = calcularSilueta(partida.estado, 'caja-envio', centroDeSilueta(caja, { x, y }), 1)!
+    expect(s.resultado.valida).toBe(true)
+    expect(s.mismoSitio).toBe(true)
+    expect(sePuedeColocar(s)).toBe(false)
+    const otra = calcularSilueta(
+      partida.estado,
+      'caja-envio',
+      centroDeSilueta(caja, { x, y: y + 2 }),
+      1,
+    )!
+    expect(otra.mismoSitio).toBe(false)
+    expect(sePuedeColocar(otra)).toBe(true)
+    expect(partida.iniciarMover(1)).toBe(true)
+    expect(partida.moverAqui()).toBeUndefined()
+    expect(partida.construccion.origen).toBe(1)
   })
 })
 

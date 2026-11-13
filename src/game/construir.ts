@@ -29,6 +29,17 @@ export interface Silueta {
   readonly ancho: number
   readonly alto: number
   readonly resultado: ResultadoSilueta
+  /**
+   * Solo al mover: la silueta está justo donde el edificio ya está. El núcleo lo acepta (mover a su
+   * sitio no cambia nada), pero para el jugador no es un sitio al que mover: ni se pinta como válida
+   * ni Enter ni «Mover aquí» hacen nada.
+   */
+  readonly mismoSitio: boolean
+}
+
+/** ¿Se puede colocar de verdad? Válida para el núcleo y distinta del sitio actual (al mover). */
+export function sePuedeColocar(s: Silueta | undefined): boolean {
+  return s !== undefined && s.resultado.valida && !s.mismoSitio
 }
 
 /**
@@ -87,6 +98,8 @@ export function calcularSilueta(
   const def = defEdificio(tipo)
   if (!def) return undefined
   const { x, y } = esquinaDeSilueta(def, centro, ladoValle(estado.valle))
+  const actual =
+    origenId === undefined ? undefined : estado.edificios.find((b) => b.id === origenId)
   return {
     tipo,
     x,
@@ -94,6 +107,7 @@ export function calcularSilueta(
     ancho: def.ancho,
     alto: def.alto,
     resultado: veredicto(estado, tipo, x, y, origenId),
+    mismoSitio: actual !== undefined && actual.x === x && actual.y === y,
   }
 }
 

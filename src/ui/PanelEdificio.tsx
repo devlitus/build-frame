@@ -88,6 +88,8 @@ function Contenido({ id }: { id: number }) {
       return
     }
     devolverFoco()
+    // El segundo toque de un doble toque en «Sí» caería en el lienzo y elegiría la parcela de debajo.
+    if (ev.detail > 0) partida.seleccion.bloquearClics(MS_VENTANA_ANTIDOBLE)
     partida.quitarSeleccionado()
   }
   const cerrar = () => {

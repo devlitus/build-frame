@@ -92,6 +92,16 @@ export const ESTILO_RESALTE = {
   alfaRelleno: 0.18,
 } as const
 
+/** Resalte de un edificio u obra: contorno por FUERA de la huella (no tapa el tejado), sin relleno. */
+export const ESTILO_RESALTE_EDIFICIO = {
+  tinta: 0x3b2a1a,
+  crema: 0xfff3c4,
+  acento: 0xffc93c,
+  grosorTinta: 10,
+  grosorAcento: 6,
+  grosorCrema: 2,
+} as const
+
 export const COLOR_ARBOL = { copa: 0x2f6b2f, copaClara: 0x3f8a3a, tronco: 0x6b4a2b } as const
 export const COLOR_ROCA = { relleno: 0x8a8a8a, borde: 0x5e5e5e } as const
 

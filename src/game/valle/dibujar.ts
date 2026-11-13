@@ -9,6 +9,7 @@ import {
   TAM_CASILLA,
   ESTILO_PLANO,
   ESTILO_RESALTE,
+  ESTILO_RESALTE_EDIFICIO,
   estiloParcela,
 } from './estilo'
 import type { EstadoVisualParcela } from './estadoVisual'
@@ -236,11 +237,20 @@ export function dibujarResalteEdificio(
 ): void {
   g.clear()
   if (!huella) return
-  resaltarRect(
-    g,
-    huella.x0 * TAM_CASILLA,
-    huella.y0 * TAM_CASILLA,
-    (huella.x1 - huella.x0 + 1) * TAM_CASILLA,
-    (huella.y1 - huella.y0 + 1) * TAM_CASILLA,
-  )
+  // Contorno por fuera de la huella: el tejado (que sobresale por arriba) y el edificio quedan a la vista,
+  // y una obra de 1×1 se distingue por el aro tinta + amarillo + crema que la rodea.
+  const e = ESTILO_RESALTE_EDIFICIO
+  const x = huella.x0 * TAM_CASILLA
+  const y = huella.y0 * TAM_CASILLA
+  const ancho = (huella.x1 - huella.x0 + 1) * TAM_CASILLA
+  const alto = (huella.y1 - huella.y0 + 1) * TAM_CASILLA
+  const aro = (grosor: number, color: number, desde: number): void => {
+    // Trazo del grosor dado que empieza `desde` px fuera del borde de la huella.
+    const d = desde + grosor / 2
+    g.lineStyle(grosor, color, 1)
+    g.strokeRect(x - d, y - d, ancho + 2 * d, alto + 2 * d)
+  }
+  aro(e.grosorTinta, e.tinta, 0)
+  aro(e.grosorAcento, e.acento, (e.grosorTinta - e.grosorAcento) / 2)
+  aro(e.grosorCrema, e.crema, (e.grosorTinta - e.grosorCrema) / 2)
 }

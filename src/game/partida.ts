@@ -136,7 +136,8 @@ export class Partida {
   moverAqui(): ResultadoComando | undefined {
     const s = this.silueta()
     const id = this.construccion.origen
-    if (!s || id === undefined) return undefined
+    // En su mismo sitio no hay nada que mover: el modo sigue abierto.
+    if (!s || id === undefined || s.mismoSitio) return undefined
     const r = this.emitir({ tipo: 'MoverEdificio', id, x: s.x, y: s.y })
     if (r.ok) this.construccion.cerrar()
     else
