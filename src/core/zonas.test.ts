@@ -32,16 +32,16 @@ const borrar = (e: EstadoJuego, x0: number, y0: number, x1: number, y1: number) 
 const cuenta = (e: EstadoJuego) => [...e.zonas].filter((c) => c !== '.').length
 
 describe('zonas', () => {
-  it('estado inicial vacío, de lado*lado, y formato v7', () => {
+  it('estado inicial vacío, de lado*lado, y formato v8', () => {
     expect(base.zonas).toBe('.'.repeat(LADO * LADO))
-    expect(base.versionFormato).toBe(7)
+    expect(base.versionFormato).toBe(8)
   })
 
   it('pinta en parcela propia, esquinas en cualquier orden', () => {
     const r = pintar(propia, fx + 2, fy + 2, fx, fy)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.eventos).toEqual([{ tipo: 'zona-pintada', casillas: 9 }])
+    expect(r.eventos).toEqual([{ tipo: 'zonas-cambiadas', casillas: 9 }])
     expect(zonaEn(r.estado, fx + 1, fy + 1)).toBe('cultivo')
     expect(zonaEn(r.estado, fx + 3, fy)).toBeUndefined()
     expect(cuenta(r.estado)).toBe(9)
@@ -104,7 +104,7 @@ describe('zonas', () => {
     expect(c).toMatchObject({ ok: true, eventos: [] })
     expect(c.estado).toBe(a.estado)
     const d = pintar(a.estado, fx, fy, fx + 2, fy)
-    expect(d.ok && d.eventos).toEqual([{ tipo: 'zona-pintada', casillas: 1 }])
+    expect(d.ok && d.eventos).toEqual([{ tipo: 'zonas-cambiadas', casillas: 1 }])
   })
 
   it('borra; mismo objeto si no hay nada que borrar', () => {

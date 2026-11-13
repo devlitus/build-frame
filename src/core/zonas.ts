@@ -1,5 +1,6 @@
 import { ZONAS } from './datos/claves'
 import type { EstadoJuego } from './estado'
+import { casillasOcupadas } from './edificios'
 import { ladoValle } from './mapa'
 import { casillasRio } from './rio'
 
@@ -35,27 +36,36 @@ export function zonaEn(
 }
 
 /**
- * Punto único para saber si una casilla está ocupada por un edificio u obra.
- * TODO(M4-02): rellenar cuando existan los edificios; `PintarZona` y `BorrarZona`
- * no cambian casillas ocupadas.
+ * Punto único para saber si una casilla está ocupada por un edificio u obra;
+ * `PintarZona` y `BorrarZona` no cambian casillas ocupadas.
  */
 export function casillaConEdificio(
-  estado: Pick<EstadoJuego, 'valle'>,
+  estado: Pick<EstadoJuego, 'valle' | 'edificios'>,
   x: number,
   y: number,
 ): boolean {
-  void [estado, x, y]
-  return false
+  const lado = ladoValle(estado.valle)
+  if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= lado || y >= lado) {
+    return false
+  }
+  return casillasOcupadas(estado.edificios, lado).has(y * lado + x)
 }
 
 export type ResultadoZonas =
   | { readonly ok: true; readonly zonas: string; readonly cambiadas: number }
-  | { readonly ok: false; readonly error: 'parametro-invalido' | 'sin-casillas-validas' }
+  | {
+      readonly ok: false
+      readonly error: 'parametro-invalido' | 'estado-invalido' | 'sin-casillas-validas'
+    }
 
 const cacheAgua = new WeakMap<object, Map<number, ReadonlySet<number>>>()
 
 /** Índices de casillas de río; memoizado por referencia de valle y ancho de cauce (puro). */
-function aguaDe(valle: EstadoJuego['valle'], ancho: number, lado: number): ReadonlySet<number> {
+export function aguaDe(
+  valle: EstadoJuego['valle'],
+  ancho: number,
+  lado: number,
+): ReadonlySet<number> {
   let porAncho = cacheAgua.get(valle)
   if (!porAncho) cacheAgua.set(valle, (porAncho = new Map()))
   let agua = porAncho.get(ancho)
@@ -72,7 +82,7 @@ function aguaDe(valle: EstadoJuego['valle'], ancho: number, lado: number): Reado
  * edificio. Árboles y rocas no impiden pintar. Pura.
  */
 export function aplicarZonas(
-  estado: Pick<EstadoJuego, 'zonas' | 'valle' | 'cauce'>,
+  estado: Pick<EstadoJuego, 'zonas' | 'valle' | 'cauce' | 'edificios'>,
   rect: { x0: number; y0: number; x1: number; y1: number },
   caracter: string,
 ): ResultadoZonas {
@@ -83,8 +93,12 @@ export function aplicarZonas(
   const { valle } = estado
   const lado = ladoValle(valle)
   // Estado corrupto: `zonas` debe ser una cadena de exactamente lado² caracteres.
-  if (typeof estado.zonas !== 'string' || estado.zonas.length !== lado * lado) {
-    return { ok: false, error: 'parametro-invalido' }
+  if (
+    typeof estado.zonas !== 'string' ||
+    estado.zonas.length !== lado * lado ||
+    !Array.isArray(estado.edificios)
+  ) {
+    return { ok: false, error: 'estado-invalido' }
   }
   const c = valle.casillasPorParcela
   const xa = Math.max(0, Math.min(x0, x1))

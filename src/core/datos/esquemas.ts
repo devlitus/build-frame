@@ -1,5 +1,14 @@
 import * as v from 'valibot'
-import { AGUAS, AGUAS_SIN_RIO, FERTILIDADES, LADOS, TERRENOS } from './claves.ts'
+import {
+  AGUAS,
+  AGUAS_SIN_RIO,
+  FERTILIDADES,
+  LADOS,
+  MATERIALES,
+  TERRENOS,
+  TIPOS_EDIFICIO,
+  ZONAS,
+} from './claves.ts'
 
 /** Tope de 64: 64×64 parcelas de 64×64 casillas ya son ~16 M casillas; más es inabarcable. */
 const LIMITE_TAMANO = 64
@@ -105,6 +114,13 @@ function factores<const K extends string>(claves: readonly K[]) {
   return v.strictObject(forma)
 }
 
+/** Cantidad entera ≥ 0 por clave (dinero, materiales). */
+const cantidad = v.pipe(v.number(), v.safeInteger(), v.minValue(0))
+function cantidades<const K extends string>(claves: readonly K[]) {
+  const forma = Object.fromEntries(claves.map((k) => [k, cantidad])) as Record<K, typeof cantidad>
+  return v.strictObject(forma)
+}
+
 export const EsquemaConfigEconomia = v.strictObject({
   /** Ahorros con los que empieza una partida nueva. */
   dineroInicial: v.pipe(v.number(), v.safeInteger(), v.minValue(0)),
@@ -118,3 +134,43 @@ export const EsquemaConfigEconomia = v.strictObject({
 })
 
 export type ConfigEconomia = v.InferOutput<typeof EsquemaConfigEconomia>
+
+const diasDeObra = v.pipe(v.number(), v.safeInteger(), v.minValue(1))
+
+export const EsquemaEdificio = v.strictObject({
+  /** Huella en casillas (ancho × alto), sin rotación. */
+  ancho: entero,
+  alto: entero,
+  /** Zonas sobre las que se puede colocar: todas las casillas de la huella deben tener una de ellas. */
+  zonas: v.pipe(
+    v.array(v.picklist(ZONAS)),
+    v.minLength(1),
+    v.check((z) => new Set(z).size === z.length, 'Zonas repetidas'),
+  ),
+  /** Coste: dinero y materiales, enteros ≥ 0. */
+  coste: v.strictObject({ dinero: cantidad, madera: cantidad, piedra: cantidad }),
+  /** Días de obra (≥ 1). */
+  dias: diasDeObra,
+  /** Solo puede haber uno en la partida (la casa). */
+  unico: v.boolean(),
+  /** ¿Se puede demoler? (la casa no). */
+  demolible: v.boolean(),
+})
+
+export type DefEdificio = v.InferOutput<typeof EsquemaEdificio>
+
+export const EsquemaConfigEdificios = v.strictObject({
+  /** Lote de materiales de bienvenida con el que empieza una partida nueva (GDD §6.4). */
+  materialesIniciales: cantidades(MATERIALES),
+  /** Fracción del coste que se devuelve al demoler un edificio (0.5 = la mitad); la usa M4-06. */
+  reembolsoDemolicion: v.pipe(v.number(), v.finite(), v.minValue(0), v.maxValue(1)),
+  /** Catálogo: exactamente un registro por cada tipo de `TIPOS_EDIFICIO`. */
+  edificios: v.strictObject(
+    Object.fromEntries(TIPOS_EDIFICIO.map((t) => [t, EsquemaEdificio])) as Record<
+      (typeof TIPOS_EDIFICIO)[number],
+      typeof EsquemaEdificio
+    >,
+  ),
+})
+
+export type ConfigEdificios = v.InferOutput<typeof EsquemaConfigEdificios>

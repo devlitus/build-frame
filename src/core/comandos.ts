@@ -3,6 +3,8 @@ import { CONFIG_TIEMPO } from './datos/tiempo'
 import { parcelaComprable } from './parcelas'
 import { aplicarZonas, CARACTER_SIN_ZONA, CARACTER_ZONA, ZONAS, type Zona } from './zonas'
 import { moverPersonaje, personajeEnAparicion } from './personaje'
+import { colocacionValida, type MotivoColocacion } from './construccion'
+import { defEdificio, type TipoEdificio } from './edificios'
 
 /**
  * Todo cambio de estado del juego ocurre mediante un comando (ADR 0004).
@@ -45,6 +47,16 @@ export type Comando =
       readonly x1: number
       readonly y1: number
     }
+  /**
+   * Empieza la obra de un edificio con la esquina superior izquierda en la casilla (x, y).
+   * Solo en Modo Plano; cobra dinero y materiales (reglas en `colocacionValida`).
+   */
+  | {
+      readonly tipo: 'Construir'
+      readonly tipoEdificio: TipoEdificio
+      readonly x: number
+      readonly y: number
+    }
 
 /**
  * Hechos ocurridos al aplicar un comando, para que la capa de juego reaccione (avisos, efectos).
@@ -55,7 +67,15 @@ export type EventoJuego =
   | { readonly tipo: 'desmayo' }
   | { readonly tipo: 'parcela-comprada'; readonly indice: number; readonly precio: number }
   /** Zona pintada o borrada; `casillas` es el número de casillas que cambiaron. */
-  | { readonly tipo: 'zona-pintada'; readonly casillas: number }
+  | { readonly tipo: 'zonas-cambiadas'; readonly casillas: number }
+  /** Empieza la obra del edificio `id` (de tipo `tipoEdificio`) con la esquina en (x, y). */
+  | {
+      readonly tipo: 'obra-iniciada'
+      readonly id: number
+      readonly tipoEdificio: TipoEdificio
+      readonly x: number
+      readonly y: number
+    }
 
 export type ResultadoComando =
   | { readonly ok: true; readonly estado: EstadoJuego; readonly eventos: readonly EventoJuego[] }
@@ -70,6 +90,9 @@ export type ErrorComando =
   | 'no-adyacente'
   | 'precio-invalido'
   | 'sin-casillas-validas'
+  | 'estado-invalido'
+  | 'solo-en-plano'
+  | MotivoColocacion
 
 const SIN_EVENTOS: readonly EventoJuego[] = Object.freeze([])
 
@@ -172,8 +195,54 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
       if (r.cambiadas === 0) return { ok: true, estado, eventos: SIN_EVENTOS }
       return {
         ok: true,
-        eventos: [{ tipo: 'zona-pintada', casillas: r.cambiadas }],
+        eventos: [{ tipo: 'zonas-cambiadas', casillas: r.cambiadas }],
         estado: { ...estado, zonas: r.zonas },
+      }
+    }
+    case 'Construir': {
+      const { tipoEdificio, x, y } = comando
+      if (
+        typeof tipoEdificio !== 'string' ||
+        !Number.isSafeInteger(x) ||
+        !Number.isSafeInteger(y)
+      ) {
+        return { ok: false, estado, error: 'parametro-invalido' }
+      }
+      if (estado.modo !== 'plano') return { ok: false, estado, error: 'solo-en-plano' }
+      if (
+        !Array.isArray(estado.edificios) ||
+        typeof estado.zonas !== 'string' ||
+        typeof estado.materiales !== 'object' ||
+        estado.materiales === null ||
+        !Number.isSafeInteger(estado.siguienteIdEdificio)
+      ) {
+        return { ok: false, estado, error: 'estado-invalido' }
+      }
+      const r = colocacionValida(estado, tipoEdificio, x, y)
+      if (!r.valida) return { ok: false, estado, error: r.motivo }
+      const def = defEdificio(tipoEdificio)
+      if (!def) return { ok: false, estado, error: 'tipo-desconocido' }
+      const diaFin = estado.dia + def.dias
+      if (!Number.isSafeInteger(diaFin)) return { ok: false, estado, error: 'limite-de-dia' }
+      const id = estado.siguienteIdEdificio
+      const nx = x + 0 // -0 se normaliza a 0
+      const ny = y + 0
+      return {
+        ok: true,
+        eventos: [{ tipo: 'obra-iniciada', id, tipoEdificio, x: nx, y: ny }],
+        estado: {
+          ...estado,
+          dinero: estado.dinero - def.coste.dinero,
+          materiales: {
+            madera: estado.materiales.madera - def.coste.madera,
+            piedra: estado.materiales.piedra - def.coste.piedra,
+          },
+          edificios: [
+            ...estado.edificios,
+            { id, tipo: tipoEdificio, x: nx, y: ny, obra: { diaInicio: estado.dia, diaFin } },
+          ],
+          siguienteIdEdificio: id + 1,
+        },
       }
     }
     default:
