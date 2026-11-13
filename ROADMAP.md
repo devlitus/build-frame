@@ -90,6 +90,8 @@ Transversal              Arte, audio, rendimiento, accesibilidad
 - **Árboles y rocas** en las parcelas según su terreno; talar y picar da **madera y piedra**; replantar árboles.
 - Inventario básico con **capacidad limitada** y ampliable con el cobertizo.
 
+**Historias aprobadas** (2026-11-13; *milestone* M5): M5-00 Integración del arte (#53) · M5-01 Inventario y herramienta activa (#54) · M5-02 Energía y dormir (#55) · M5-03 Arar y plantar (#56) · M5-04 Riego, crecimiento y marchitarse (#57) · M5-05 Cosechar (#58) · M5-06 Talar, picar y replantar (#59). Decisiones de la PO: madera y piedra siguen en `materiales` y no ocupan ranuras; lote de semillas de regalo (sin tienda hasta M6) con 5 cultivos de primavera en `data/cultivos.json`; regadera sin capacidad en M5.
+
 **Aceptación:** se completa el ciclo arar → plantar → regar → cosechar en varios días; se obtiene la madera y la piedra necesarias para construir un cobertizo; el crecimiento y la recolección tienen tests.
 
 ### M6 — Mercado → **el bucle está completo**
