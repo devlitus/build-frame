@@ -252,11 +252,15 @@ test.describe('escritorio', () => {
     await page.keyboard.press('Enter')
     const c0 = (await pincel())?.cursor
     expect(c0).toBeDefined()
-    // Las flechas mueven el cursor y no la cámara.
+    // Las flechas mueven el cursor (dentro de la zona libre) y no la cámara.
     const vista0 = await camara(page)
     await page.keyboard.press('ArrowRight')
     await page.keyboard.press('ArrowDown')
     const c1 = (await pincel())?.cursor
+    const vista1 = await camara(page)
+    expect(vista0).toBeDefined()
+    expect(vista1?.scrollX).toBeCloseTo(vista0?.scrollX ?? 0, 3)
+    expect(vista1?.scrollY).toBeCloseTo(vista0?.scrollY ?? 0, 3)
     expect(c1).toEqual({ x: (c0?.x ?? 0) + 1, y: (c0?.y ?? 0) + 1 })
     await page.keyboard.press('Enter') // primera esquina
     expect((await pincel())?.ancla).toEqual(c1)
@@ -278,7 +282,6 @@ test.describe('escritorio', () => {
     // Esc suelta el cursor.
     await page.keyboard.press('Escape')
     expect((await pincel())?.cursor).toBeUndefined()
-    expect(vista0).toBeDefined()
   })
 
   test('Esc primero suelta la esquina marcada y luego el cursor', async ({ page }) => {
@@ -310,7 +313,7 @@ test.describe('escritorio', () => {
 test.describe('móvil', () => {
   test.skip(() => !esMovil(), 'solo móvil')
 
-  test('con un dedo se pinta y con dos dedos la cámara se mueve', async ({ page }) => {
+  test('con dos dedos la cámara se mueve y no se pinta con el pincel activo', async ({ page }) => {
     await abrir(page)
     await abrirBarra(page)
     await herramienta(page, 'Cultivo').click()
@@ -338,4 +341,25 @@ test.describe('móvil', () => {
     expect(Math.abs((despues?.scrollX ?? 0) - (antes?.scrollX ?? 0))).toBeGreaterThan(10)
     expect(await contar(page, { x0: 0, y0: 0, x1: 95, y1: 95 }, 'cultivo')).toBe(0)
   })
+})
+
+test('en el Modo Vida la capa de zonas es un tono suave (ALFA_ZONAS_VIDA) y en Plano es opaca', async ({
+  page,
+}) => {
+  await abrir(page)
+  await abrirBarra(page)
+  await herramienta(page, 'Cultivo').click()
+  const a = await puntoCasilla(page, RECT.x0, RECT.y0)
+  const b = await puntoCasilla(page, RECT.x1, RECT.y1)
+  await arrastrar(page, a, b)
+  await expect.poll(() => contar(page, RECT, 'cultivo')).toBeGreaterThan(0)
+  const alfa = () => page.evaluate(() => window.__raices?.alfaZonas())
+  expect(await alfa()).toBe(1)
+  await herramienta(page, 'Listo').click()
+  const modoBoton = page.getByRole('button', { name: /Modo de juego/ })
+  await modoBoton.click()
+  await expect.poll(() => page.evaluate(() => window.__raices?.modo())).toBe('vida')
+  await expect.poll(() => alfa()).toBeCloseTo(0.35, 5)
+  await modoBoton.click()
+  await expect.poll(() => alfa()).toBe(1)
 })

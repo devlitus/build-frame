@@ -15,7 +15,7 @@ import { defineConfig, devices, type Project } from '@playwright/test'
  * - La misma selección que la CI: `CI=1 npx playwright test`.
  */
 const SOLO =
-  /el reloj avanza ~1,33|umbral de distancia: 10 px es toque|umbral de tiempo: 600 ms quieto|20 clics en 1 s no bloquean|sin costuras ni huecos de fondo|fps de noche andando|un día acelerado con teclado/
+  /el reloj avanza ~1,33|umbral de distancia: 10 px es toque|umbral de tiempo: 600 ms quieto|20 clics en 1 s no bloquean|sin costuras ni huecos de fondo|fps de noche andando|un día acelerado con teclado|pintar todo el valle repetidamente no hunde los fps|teclado: el cursor se queda en el borde del valle/
 
 const PROYECTOS_SOLO: Project[] = [
   {

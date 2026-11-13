@@ -112,6 +112,7 @@ export class EscenaValle extends Phaser.Scene {
   private resalte: Phaser.GameObjects.Graphics | undefined = undefined
   private selector: SelectorParcela | undefined = undefined
   private zonas: VistaZonas | undefined = undefined
+  private pincelAbierto: boolean | undefined = undefined
   private vistaPincel: VistaPincel | undefined = undefined
   private pintor: PintorZonas | undefined = undefined
   private desuscribirPincel: (() => void) | undefined = undefined
@@ -468,7 +469,16 @@ export class EscenaValle extends Phaser.Scene {
     if (this.control) this.control.dedosParaArrastrar = pincel.activo ? 2 : 1
     if (this.selector) this.selector.activo = this.modoAplicado === 'plano' && !pincel.abierto
     if (pincel.abierto) partida.seleccion.deseleccionar()
-    this.ajustarLienzoAccesible(this.modoAplicado)
+    // La ayuda del lienzo solo depende de la barra abierta: no se recalcula al arrastrar.
+    if (pincel.abierto !== this.pincelAbierto) {
+      this.pincelAbierto = pincel.abierto
+      this.ajustarLienzoAccesible(this.modoAplicado)
+    }
+  }
+
+  /** Alfa de la capa de zonas (gancho de prueba); undefined sin capa. */
+  alfaZonas(): number | undefined {
+    return this.zonas?.alfaVisible
   }
 
   /**

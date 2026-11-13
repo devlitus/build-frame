@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'preact/hooks'
 import { ZONAS, type Zona } from '../core'
 import type { HerramientaPincel } from '../game/pincel'
-import { ESTILO_ZONAS } from '../game/valle/estilo'
+import { ESTILO_PREVIA, ESTILO_ZONAS } from '../game/valle/estilo'
 import { t, type ClaveTexto } from './textos'
 import { useEstado, usePartida, usePincel } from './useEstado'
 
@@ -51,7 +51,9 @@ function Herramienta(props: { id: HerramientaPincel; actual: HerramientaPincel |
       <span
         class={`muestra-zona muestra-${id}`}
         aria-hidden="true"
-        style={id === 'borrar' ? undefined : { '--zona': hex(ESTILO_ZONAS[id as Zona].color) }}
+        style={{
+          '--zona': hex(id === 'borrar' ? ESTILO_PREVIA.borrar : ESTILO_ZONAS[id as Zona].color),
+        }}
       />
       <span>{t(clave)}</span>
     </button>

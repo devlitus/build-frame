@@ -92,6 +92,11 @@ export class VistaZonas {
     return this._horneados
   }
 
+  /** Opacidad con que se ve la capa ahora (gancho de prueba del tono suave del Modo Vida). */
+  get alfaVisible(): number {
+    return this.trozos.find((tr) => tr.rt)?.rt?.alpha ?? this.alfa
+  }
+
   /** Pone al día la capa si cambiaron las zonas o el modo; casi siempre no hace nada. */
   actualizar(e: Pick<EstadoJuego, 'zonas' | 'modo' | 'valle'>): void {
     if (ladoValle(e.valle) !== this.lado) return

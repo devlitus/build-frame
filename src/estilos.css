@@ -746,7 +746,7 @@ body {
 }
 
 .muestra-borrar {
-  background-color: #d55e00;
+  background-color: var(--zona, var(--crema));
   background-image: repeating-linear-gradient(
     45deg,
     transparent 0 3px,

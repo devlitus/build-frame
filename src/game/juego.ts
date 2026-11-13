@@ -234,6 +234,12 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
       const e = g.scene.getScene('valle')
       return e instanceof EscenaValle ? e.puntoClicCasilla(cx, cy) : undefined
     },
+    alfaZonas: () => {
+      // Solo con `?debug`: opacidad de la capa de zonas.
+      if (!leerParametros(window.location.search).debug) return undefined
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.alfaZonas() : undefined
+    },
     pincel: () => {
       const p = partida?.pincel
       return (

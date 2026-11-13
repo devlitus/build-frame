@@ -68,6 +68,8 @@ interface Window {
     zonaDe(cx: number, cy: number): 'cultivo' | 'huerto' | 'vivienda' | 'almacen' | undefined
     /** Punto de pantalla (px) donde pulsar para tocar la casilla; solo con `?debug`. */
     puntoClicCasilla(cx: number, cy: number): { x: number; y: number } | undefined
+    /** Opacidad de la capa de zonas; solo con `?debug`. */
+    alfaZonas(): number | undefined
     /** Estado del pincel de zonas (barra, herramienta, cursor de teclado y vista previa). */
     pincel():
       | {

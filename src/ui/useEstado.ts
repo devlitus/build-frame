@@ -31,10 +31,16 @@ export function useSeleccion(): number | undefined {
 export function usePincel(): { abierto: boolean; herramienta: HerramientaPincel | undefined } {
   const { pincel } = usePartida()
   const [, repintar] = useState(0)
+  // Lo último que se pintó: solo se fuerza el render si cambia alguno de los dos campos.
+  const visto = useRef({ abierto: pincel.abierto, herramienta: pincel.herramienta })
   useEffect(() => {
     const actualizar = () => {
+      const { abierto, herramienta } = pincel
+      if (visto.current.abierto === abierto && visto.current.herramienta === herramienta) return
+      visto.current = { abierto, herramienta }
       repintar((n) => n + 1)
     }
+    actualizar() // por si cambió entre el render y la suscripción
     return pincel.suscribir(actualizar)
   }, [pincel])
   return { abierto: pincel.abierto, herramienta: pincel.herramienta }
