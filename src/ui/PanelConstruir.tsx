@@ -9,9 +9,11 @@ import {
   textoResto,
   textoZonas,
 } from './construirTextos'
+import { MS_VENTANA_ANTIDOBLE } from './compra'
 import { t, tp } from './textos'
 import {
   useConstruccion,
+  useEdificioSeleccionado,
   useEstado,
   usePartida,
   usePincel,
@@ -74,7 +76,8 @@ export function BotonConstruir() {
   const zonas = usePincel().abierto
   // Con el panel de una parcela abierto el botón quedaría bajo él en pantallas bajas: se pide cerrarlo antes.
   const parcela = useSeleccion()
-  if (!plano || abierto || zonas || parcela !== undefined) return null
+  const edificio = useEdificioSeleccionado().id
+  if (!plano || abierto || zonas || parcela !== undefined || edificio !== undefined) return null
   return (
     <button
       type="button"
@@ -243,6 +246,75 @@ function Colocando(props: { tipo: TipoEdificio }) {
   )
 }
 
+/** Mover un edificio: la misma silueta y reglas que construir, sin coste; un botón confirma. */
+function Moviendo(props: { tipo: TipoEdificio }) {
+  const partida = usePartida()
+  const { tipo } = props
+  const silueta = useSilueta()
+  const tactil = useTactil()
+  const estado = useEstado((e) => e)
+  const resultado = silueta?.resultado
+  const mismoSitio = silueta?.mismoSitio === true
+  const valida = resultado?.valida === true && !mismoSitio
+  const texto = !resultado
+    ? ''
+    : mismoSitio
+      ? t('moverMismoSitio')
+      : resultado.valida
+        ? t('moverOk')
+        : textoColocacion(resultado.motivo, tipo, estado)
+  return (
+    <>
+      <div class="construir-cabecera">
+        <h2 class="construir-titulo">
+          {tp('moverTitulo', { edificio: nombreEdificio(tipo) })}
+          <span class="construir-coste"> · {t('edificioMoverGratis')}</span>
+        </h2>
+      </div>
+      <p
+        class={`construir-estado ${valida ? 'construir-estado-ok' : 'construir-estado-no'}`}
+        role="status"
+        data-valida={valida}
+      >
+        <span aria-hidden="true">{valida ? '✓ ' : '✕ '}</span>
+        {texto}
+      </p>
+      <p class="construir-ayuda">
+        <span class="ayuda-larga">{t(tactil ? 'moverAyudaTactil' : 'moverAyudaTeclado')}</span>
+        <span class="ayuda-corta">
+          {t(tactil ? 'moverAyudaTactilCorta' : 'moverAyudaTecladoCorta')}
+        </span>
+      </p>
+      <div class="construir-acciones">
+        <button
+          type="button"
+          class="boton-compra boton-compra-cancelar"
+          onClick={() => {
+            devolverFoco()
+            partida.construccion.cerrar()
+          }}
+        >
+          {t('moverCancelar')}
+        </button>
+        <button
+          type="button"
+          class="boton-compra"
+          aria-disabled={!valida}
+          onClick={(ev) => {
+            if (!valida) return
+            devolverFocoSiPuntero(ev)
+            // Un doble toque: el segundo caería en el lienzo y elegiría la parcela de debajo.
+            if (ev.detail > 0) partida.seleccion.bloquearClics(MS_VENTANA_ANTIDOBLE)
+            partida.moverAqui()
+          }}
+        >
+          {t('moverAqui')}
+        </button>
+      </div>
+    </>
+  )
+}
+
 function PanelConfirmacion(props: {
   tipo: TipoEdificio
   origen: 'puntero' | 'teclado'
@@ -331,7 +403,7 @@ function PanelConfirmacion(props: {
  */
 export function PanelConstruir() {
   const partida = usePartida()
-  const { abierto, tipo, confirmando } = useConstruccion()
+  const { abierto, tipo, origen, confirmando } = useConstruccion()
   const raiz = useRef<HTMLDivElement>(null)
   const guarda = useRef(SIN_CONFIRMAR)
 
@@ -366,9 +438,11 @@ export function PanelConstruir() {
     <div class="panel-construir" ref={raiz}>
       <section
         class={`panel-construir-caja${confirmando ? ' panel-construir-confirmando' : ''}`}
-        aria-label={t('construirPanel')}
+        aria-label={t(origen === undefined ? 'construirPanel' : 'moverPanel')}
       >
-        {tipo === undefined ? (
+        {origen !== undefined && tipo !== undefined ? (
+          <Moviendo tipo={tipo} />
+        ) : tipo === undefined ? (
           <Catalogo guarda={guarda} />
         ) : confirmando ? (
           <PanelConfirmacion tipo={tipo} origen={confirmando} guarda={guarda} />

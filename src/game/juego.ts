@@ -7,6 +7,7 @@ import {
   casillaBloqueada,
   colocacionValida,
   crearEstadoInicial,
+  defEdificio,
   ladoValle,
   mapaTransitabilidad,
   parcelaComprable,
@@ -15,6 +16,7 @@ import {
   type Comando,
 } from '../core'
 import { Partida } from './partida'
+import { sePuedeColocar } from './construir'
 import { leerParametros, semillaNueva } from './parametros'
 
 let juego: Phaser.Game | undefined
@@ -263,6 +265,7 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
       return {
         abierto: c.abierto,
         tipo: c.tipo,
+        origen: c.origen,
         confirmando: c.confirmando !== undefined,
         centro: c.centro,
         silueta: s && {
@@ -271,14 +274,47 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
           y: s.y,
           ancho: s.ancho,
           alto: s.alto,
-          valida: s.resultado.valida,
-          motivo: s.resultado.valida ? undefined : s.resultado.motivo,
+          valida: sePuedeColocar(s),
+          motivo: s.resultado.valida
+            ? s.mismoSitio
+              ? 'mismo-sitio'
+              : undefined
+            : s.resultado.motivo,
         },
       }
     },
     edificios: () => {
       const e = g.scene.getScene('valle')
       return e instanceof EscenaValle ? e.edificiosVisibles().map((v) => ({ ...v })) : []
+    },
+    edificioSeleccionado: () => {
+      const s = partida?.edificioSeleccionado
+      return s && { id: s.id, confirmando: s.confirmando?.accion }
+    },
+    seleccionarEdificio: (id) => {
+      // Solo con `?debug`: selecciona un edificio u obra por id (Modo Plano).
+      if (!leerParametros(window.location.search).debug) return
+      if (partida?.estado.modo !== 'plano') return
+      if (!partida.estado.edificios.some((e) => e.id === id)) return
+      partida.edificioSeleccionado.seleccionar(id)
+    },
+    puntoClicEdificio: (id) => {
+      // Solo con `?debug`: dónde pulsar (px de pantalla) para tocar el edificio de verdad.
+      if (!leerParametros(window.location.search).debug) return undefined
+      const e = g.scene.getScene('valle')
+      const ed = partida?.estado.edificios.find((b) => b.id === id)
+      const def = ed && defEdificio(ed.tipo)
+      if (!(e instanceof EscenaValle) || !ed || !def) return undefined
+      return e.puntoClicCasilla(
+        ed.x + Math.floor((def.ancho - 1) / 2),
+        ed.y + Math.floor((def.alto - 1) / 2),
+      )
+    },
+    centrarCamara: (cx, cy) => {
+      // Solo con `?debug`: centra la cámara del Plano en la casilla (cx, cy), sin barrido.
+      if (!leerParametros(window.location.search).debug) return
+      const e = g.scene.getScene('valle')
+      if (e instanceof EscenaValle) e.centrarCamaraEn(cx, cy)
     },
     colocacion: (tipo, x, y) => {
       // Solo con `?debug`: veredicto de `colocacionValida` para el estado actual.
@@ -296,6 +332,7 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
         scrollY: c.scrollY,
         ancho: c.width,
         alto: c.height,
+        guiando: e.guiando(),
       }
     },
   }

@@ -2,6 +2,7 @@ import { createContext } from 'preact'
 import { useContext, useEffect, useRef, useState } from 'preact/hooks'
 import type { EstadoJuego, TipoEdificio } from '../core'
 import type { OrigenConfirmacion, Silueta } from '../game/construir'
+import type { AccionConfirmable, OrigenConfirmacionEdificio } from '../game/edificioSeleccion'
 import type { HerramientaPincel } from '../game/pincel'
 import type { Partida } from '../game/partida'
 
@@ -81,6 +82,8 @@ export function useEstado<T>(selector: (estado: EstadoJuego) => T): T {
 export function useConstruccion(): {
   abierto: boolean
   tipo: TipoEdificio | undefined
+  /** `id` del edificio que se está moviendo (modo mover), o undefined al construir. */
+  origen: number | undefined
   confirmando: OrigenConfirmacion | undefined
 } {
   const { construccion } = usePartida()
@@ -88,14 +91,22 @@ export function useConstruccion(): {
   const visto = useRef({
     abierto: construccion.abierto,
     tipo: construccion.tipo,
+    origen: construccion.origen,
     confirmando: construccion.confirmando,
   })
   useEffect(() => {
     const actualizar = () => {
-      const { abierto, tipo, confirmando } = construccion
+      const { abierto, tipo, origen, confirmando } = construccion
       const v = visto.current
-      if (v.abierto === abierto && v.tipo === tipo && v.confirmando === confirmando) return
-      visto.current = { abierto, tipo, confirmando }
+      if (
+        v.abierto === abierto &&
+        v.tipo === tipo &&
+        v.origen === origen &&
+        v.confirmando === confirmando
+      ) {
+        return
+      }
+      visto.current = { abierto, tipo, origen, confirmando }
       repintar((n) => n + 1)
     }
     actualizar() // por si cambió entre el render y la suscripción
@@ -104,8 +115,33 @@ export function useConstruccion(): {
   return {
     abierto: construccion.abierto,
     tipo: construccion.tipo,
+    origen: construccion.origen,
     confirmando: construccion.confirmando,
   }
+}
+
+/** Edificio u obra seleccionado y confirmación abierta (demoler o cancelar la obra); repinta al cambiar. */
+export function useEdificioSeleccionado(): {
+  id: number | undefined
+  confirmando: { accion: AccionConfirmable; origen: OrigenConfirmacionEdificio } | undefined
+} {
+  const { edificioSeleccionado } = usePartida()
+  const [, repintar] = useState(0)
+  const visto = useRef({
+    id: edificioSeleccionado.id,
+    confirmando: edificioSeleccionado.confirmando,
+  })
+  useEffect(() => {
+    const actualizar = () => {
+      const { id, confirmando } = edificioSeleccionado
+      if (visto.current.id === id && visto.current.confirmando === confirmando) return
+      visto.current = { id, confirmando }
+      repintar((n) => n + 1)
+    }
+    actualizar() // por si cambió entre el render y la suscripción
+    return edificioSeleccionado.suscribir(actualizar)
+  }, [edificioSeleccionado])
+  return { id: edificioSeleccionado.id, confirmando: edificioSeleccionado.confirmando }
 }
 
 /**

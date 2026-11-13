@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from 'preact/hooks'
-import { nombreEdificio, textoColocacion } from './construirTextos'
+import { nombreEdificio, textoColocacion, textoReembolso } from './construirTextos'
 import { nombreParcela, textoPrecio } from './parcelaTextos'
 import { t, tp } from './textos'
 import { usePartida } from './useEstado'
@@ -53,13 +53,29 @@ export function Aviso() {
           )
         } else if (ev.tipo === 'obra-terminada') {
           partes.push(tp('avisoObraTerminada', { edificio: nombreEdificio(ev.tipoEdificio) }))
+        } else if (ev.tipo === 'edificio-movido') {
+          partes.push(tp('avisoEdificioMovido', { edificio: nombreEdificio(ev.tipoEdificio) }))
+        } else if (ev.tipo === 'edificio-demolido' || ev.tipo === 'obra-cancelada') {
+          partes.push(
+            tp(ev.tipo === 'edificio-demolido' ? 'avisoEdificioDemolido' : 'avisoObraCancelada', {
+              edificio: nombreEdificio(ev.tipoEdificio),
+              coste: textoReembolso(ev.reembolso),
+            }),
+          )
         }
       }
       if (partes.length > 0) mostrarAviso(partes.join(' '))
     })
     const bajaUi = partida.suscribirAvisos((aviso) => {
       if (aviso === 'zona-sin-casillas') mostrarAviso(t('avisoZonaSinCasillas'))
-      else if (aviso.tipo === 'construir-rechazado') {
+      else if (aviso.tipo === 'edificio-rechazado') {
+        mostrarAviso(
+          tp('avisoEdificioRechazado', {
+            accion: t(`accion_${aviso.accion}`),
+            motivo: textoColocacion(aviso.error, aviso.edificio, partida.estado),
+          }),
+        )
+      } else if (aviso.tipo === 'construir-rechazado') {
         const e = partida.estado
         mostrarAviso(
           tp('avisoConstruirRechazado', {

@@ -5,7 +5,8 @@ import { aplicarZonas, CARACTER_SIN_ZONA, CARACTER_ZONA, ZONAS, type Zona } from
 import { moverPersonaje } from './personaje'
 import { empezarDiaSiguiente, type ObraTerminada } from './obras'
 import { colocacionValida, type MotivoColocacion } from './construccion'
-import { defEdificio, edificiosValidos, type TipoEdificio } from './edificios'
+import { defEdificio, edificiosValidos, type Coste, type TipoEdificio } from './edificios'
+import { reembolso } from './reembolso'
 
 /**
  * Todo cambio de estado del juego ocurre mediante un comando (ADR 0004).
@@ -58,6 +59,21 @@ export type Comando =
       readonly x: number
       readonly y: number
     }
+  /**
+   * Mueve un edificio terminado para que su esquina superior izquierda quede en (x, y). Gratis e
+   * instantáneo; mismas reglas de colocación que `Construir` (sin costes y sin chocar consigo
+   * mismo). Una obra no se puede mover. Solo en Modo Plano.
+   */
+  | {
+      readonly tipo: 'MoverEdificio'
+      readonly id: number
+      readonly x: number
+      readonly y: number
+    }
+  /** Demuele un edificio terminado y devuelve parte de lo pagado (`reembolso`). La casa no se puede. Solo en Modo Plano. */
+  | { readonly tipo: 'DemolerEdificio'; readonly id: number }
+  /** Cancela una obra en curso y devuelve todo lo pagado (`reembolso`). Solo en Modo Plano. */
+  | { readonly tipo: 'CancelarObra'; readonly id: number }
 
 /**
  * Hechos ocurridos al aplicar un comando, para que la capa de juego reaccione (avisos, efectos).
@@ -80,6 +96,28 @@ export type EventoJuego =
       readonly x: number
       readonly y: number
     }
+  /** El edificio `id` se movió y su esquina está ahora en (x, y). */
+  | {
+      readonly tipo: 'edificio-movido'
+      readonly id: number
+      readonly tipoEdificio: TipoEdificio
+      readonly x: number
+      readonly y: number
+    }
+  /** El edificio terminado `id` se demolió; `reembolso` es lo que se devolvió. */
+  | {
+      readonly tipo: 'edificio-demolido'
+      readonly id: number
+      readonly tipoEdificio: TipoEdificio
+      readonly reembolso: Coste
+    }
+  /** La obra `id` se canceló; `reembolso` es lo que se devolvió (todo lo pagado). */
+  | {
+      readonly tipo: 'obra-cancelada'
+      readonly id: number
+      readonly tipoEdificio: TipoEdificio
+      readonly reembolso: Coste
+    }
 
 export type ResultadoComando =
   | { readonly ok: true; readonly estado: EstadoJuego; readonly eventos: readonly EventoJuego[] }
@@ -96,7 +134,32 @@ export type ErrorComando =
   | 'sin-casillas-validas'
   | 'estado-invalido'
   | 'solo-en-plano'
+  /** No hay ningún edificio con ese `id`. */
+  | 'edificio-inexistente'
+  /** El edificio es una obra: no se mueve ni se demuele (se cancela). */
+  | 'en-obra'
+  /** `CancelarObra` sobre un edificio terminado (se demuele). */
+  | 'no-es-obra'
+  /** El edificio no se puede demoler (la casa). */
+  | 'no-demolible'
+  /** El reembolso desbordaría el dinero o los materiales (enteros seguros). */
+  | 'limite-de-recursos'
   | MotivoColocacion
+
+/** El estado trae lo que necesitan los comandos de edificios (un guardado manipulado podría no traerlo). */
+function estadoDeEdificiosValido(estado: EstadoJuego): boolean {
+  return (
+    edificiosValidos(estado.edificios) &&
+    typeof estado.zonas === 'string' &&
+    typeof estado.materiales === 'object' &&
+    estado.materiales !== null &&
+    Number.isSafeInteger(estado.materiales.madera) &&
+    Number.isSafeInteger(estado.materiales.piedra) &&
+    estado.materiales.madera >= 0 &&
+    estado.materiales.piedra >= 0 &&
+    Number.isSafeInteger(estado.siguienteIdEdificio)
+  )
+}
 
 /**
  * Todas las comprobaciones de `Construir`, en su orden, sin aplicar nada: `undefined` si se
@@ -113,24 +176,69 @@ export function comprobarConstruir(
     return 'parametro-invalido'
   }
   if (estado.modo !== 'plano') return 'solo-en-plano'
-  if (
-    !edificiosValidos(estado.edificios) ||
-    typeof estado.zonas !== 'string' ||
-    typeof estado.materiales !== 'object' ||
-    estado.materiales === null ||
-    !Number.isSafeInteger(estado.materiales.madera) ||
-    !Number.isSafeInteger(estado.materiales.piedra) ||
-    estado.materiales.madera < 0 ||
-    estado.materiales.piedra < 0 ||
-    !Number.isSafeInteger(estado.siguienteIdEdificio)
-  ) {
-    return 'estado-invalido'
-  }
+  if (!estadoDeEdificiosValido(estado)) return 'estado-invalido'
   const r = colocacionValida(estado, tipoEdificio, x, y)
   if (!r.valida) return r.motivo
   const def = defEdificio(tipoEdificio)
   if (!def) return 'tipo-desconocido'
   if (!Number.isSafeInteger(estado.dia + def.dias)) return 'limite-de-dia'
+  return undefined
+}
+
+/**
+ * Todas las comprobaciones de `MoverEdificio`, sin aplicar nada (la silueta de mover usa esta
+ * misma función). Mismas reglas de colocación que construir, pero sin costes y sin contar la
+ * huella actual del propio edificio.
+ */
+export function comprobarMover(
+  estado: EstadoJuego,
+  id: unknown,
+  x: number,
+  y: number,
+): ErrorComando | undefined {
+  if (typeof id !== 'number' || !Number.isSafeInteger(id)) return 'parametro-invalido'
+  if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y)) return 'parametro-invalido'
+  if (estado.modo !== 'plano') return 'solo-en-plano'
+  if (!estadoDeEdificiosValido(estado)) return 'estado-invalido'
+  const e = estado.edificios.find((b) => b.id === id)
+  if (!e) return 'edificio-inexistente'
+  if (e.obra !== null) return 'en-obra'
+  const r = colocacionValida(estado, e.tipo, x, y, { ignorarId: id, ignorarCostes: true })
+  return r.valida ? undefined : r.motivo
+}
+
+/** Comprobaciones de `DemolerEdificio` y `CancelarObra` (mismo orden que el comando). */
+function comprobarQuitar(
+  estado: EstadoJuego,
+  id: unknown,
+  accion: 'demoler' | 'cancelar',
+): ErrorComando | undefined {
+  if (typeof id !== 'number' || !Number.isSafeInteger(id)) return 'parametro-invalido'
+  if (estado.modo !== 'plano') return 'solo-en-plano'
+  if (
+    !estadoDeEdificiosValido(estado) ||
+    !Number.isSafeInteger(estado.dinero) ||
+    estado.dinero < 0
+  ) {
+    return 'estado-invalido'
+  }
+  const e = estado.edificios.find((b) => b.id === id)
+  if (!e) return 'edificio-inexistente'
+  const def = defEdificio(e.tipo)
+  if (!def) return 'tipo-desconocido'
+  if (accion === 'demoler') {
+    if (e.obra !== null) return 'en-obra'
+    if (!def.demolible) return 'no-demolible'
+  } else if (e.obra === null) return 'no-es-obra'
+  const r = reembolso(estado, id)
+  if (!r) return 'tipo-desconocido'
+  if (
+    !Number.isSafeInteger(estado.dinero + r.coste.dinero) ||
+    !Number.isSafeInteger(estado.materiales.madera + r.coste.madera) ||
+    !Number.isSafeInteger(estado.materiales.piedra + r.coste.piedra)
+  ) {
+    return 'limite-de-recursos'
+  }
   return undefined
 }
 
@@ -271,6 +379,54 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
             },
           ],
           siguienteIdEdificio: id + 1,
+        },
+      }
+    }
+    case 'MoverEdificio': {
+      const { id, x, y } = comando
+      const error = comprobarMover(estado, id, x, y)
+      if (error) return { ok: false, estado, error }
+      const e = estado.edificios.find((b) => b.id === id)
+      if (!e) return { ok: false, estado, error: 'edificio-inexistente' }
+      // Soltarlo donde ya está no cambia nada.
+      if (e.x === x && e.y === y) return { ok: true, estado, eventos: SIN_EVENTOS }
+      const nx = x + 0 // -0 se normaliza a 0
+      const ny = y + 0
+      return {
+        ok: true,
+        eventos: [{ tipo: 'edificio-movido', id, tipoEdificio: e.tipo, x: nx, y: ny }],
+        estado: {
+          ...estado,
+          edificios: estado.edificios.map((b) => (b.id === id ? { ...b, x: nx, y: ny } : b)),
+        },
+      }
+    }
+    case 'DemolerEdificio':
+    case 'CancelarObra': {
+      const demoler = comando.tipo === 'DemolerEdificio'
+      const error = comprobarQuitar(estado, comando.id, demoler ? 'demoler' : 'cancelar')
+      if (error) return { ok: false, estado, error }
+      const e = estado.edificios.find((b) => b.id === comando.id)
+      const r = reembolso(estado, comando.id)
+      // Aserto: `comprobarQuitar` ya garantiza ambos; solo estrecha el tipo.
+      if (!e || !r) return { ok: false, estado, error: 'edificio-inexistente' }
+      const evento: EventoJuego = {
+        tipo: demoler ? 'edificio-demolido' : 'obra-cancelada',
+        id: e.id,
+        tipoEdificio: e.tipo,
+        reembolso: r.coste,
+      }
+      return {
+        ok: true,
+        eventos: [evento],
+        estado: {
+          ...estado,
+          dinero: estado.dinero + r.coste.dinero,
+          materiales: {
+            madera: estado.materiales.madera + r.coste.madera,
+            piedra: estado.materiales.piedra + r.coste.piedra,
+          },
+          edificios: estado.edificios.filter((b) => b.id !== e.id),
         },
       }
     }

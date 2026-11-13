@@ -87,6 +87,8 @@ interface Window {
       | {
           abierto: boolean
           tipo: string | undefined
+          /** `id` del edificio que se está moviendo (modo mover); undefined al construir. */
+          origen: number | undefined
           confirmando: boolean
           centro: { x: number; y: number } | undefined
           silueta:
@@ -114,6 +116,15 @@ interface Window {
       diasCartel: number | undefined
       profundidad: number
     }[]
+    /** Edificio u obra seleccionado y la confirmación abierta («demoler» o «cancelar»); undefined sin partida. */
+    edificioSeleccionado():
+      { id: number | undefined; confirmando: 'demoler' | 'cancelar' | undefined } | undefined
+    /** Selecciona un edificio u obra por id (Modo Plano); solo con `?debug`. */
+    seleccionarEdificio(id: number): void
+    /** Punto de pantalla (px) donde pulsar para tocar el edificio; solo con `?debug`. */
+    puntoClicEdificio(id: number): { x: number; y: number } | undefined
+    /** Centra la cámara del Plano en la casilla (cx, cy); solo con `?debug`. */
+    centrarCamara(cx: number, cy: number): void
     /** Veredicto de `colocacionValida` en (x, y); solo con `?debug`. */
     colocacion(
       tipo: string,
@@ -122,6 +133,14 @@ interface Window {
     ): { valida: boolean; motivo: string | undefined } | undefined
     /** Cámara del valle; scrollX/Y es la esquina superior izquierda de la vista sin zoom. */
     camara():
-      { zoom: number; scrollX: number; scrollY: number; ancho: number; alto: number } | undefined
+      | {
+          zoom: number
+          scrollX: number
+          scrollY: number
+          ancho: number
+          alto: number
+          guiando: boolean
+        }
+      | undefined
   }
 }

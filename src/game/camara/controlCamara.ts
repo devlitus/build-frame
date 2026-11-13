@@ -146,6 +146,11 @@ export class ControlCamara {
     this.soltando = true
   }
 
+  /** Hay un deslizamiento en curso (guía o vuelta de la extensión). */
+  get guiando(): boolean {
+    return this.guia !== undefined || this.soltando
+  }
+
   /** Un paso del deslizamiento suave; `delta` en ms de tiempo real. */
   avanzarGuia(delta: number): void {
     const g = this.guia

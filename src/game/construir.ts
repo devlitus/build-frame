@@ -1,5 +1,6 @@
 import {
   comprobarConstruir,
+  comprobarMover,
   defEdificio,
   ladoValle,
   type EstadoJuego,
@@ -28,6 +29,17 @@ export interface Silueta {
   readonly ancho: number
   readonly alto: number
   readonly resultado: ResultadoSilueta
+  /**
+   * Solo al mover: la silueta está justo donde el edificio ya está. El núcleo lo acepta (mover a su
+   * sitio no cambia nada), pero para el jugador no es un sitio al que mover: ni se pinta como válida
+   * ni Enter ni «Mover aquí» hacen nada.
+   */
+  readonly mismoSitio: boolean
+}
+
+/** ¿Se puede colocar de verdad? Válida para el núcleo y distinta del sitio actual (al mover). */
+export function sePuedeColocar(s: Silueta | undefined): boolean {
+  return s !== undefined && s.resultado.valida && !s.mismoSitio
 }
 
 /**
@@ -47,32 +59,55 @@ export function esquinaDeSilueta(
   }
 }
 
+/** Casilla que hay que apuntar para que la silueta de `def` quede con la esquina `esquina` (inversa de `esquinaDeSilueta`). */
+export function centroDeSilueta(
+  def: { readonly ancho: number; readonly alto: number },
+  esquina: Casilla,
+): Casilla {
+  return {
+    x: esquina.x + Math.floor((def.ancho - 1) / 2),
+    y: esquina.y + Math.floor((def.alto - 1) / 2),
+  }
+}
+
 function veredicto(
   estado: EstadoJuego,
   tipo: TipoEdificio,
   x: number,
   y: number,
+  origenId: number | undefined,
 ): ResultadoSilueta {
-  const motivo = comprobarConstruir(estado, tipo, x, y)
+  // Mover usa las mismas reglas que construir, sin costes y sin chocar con el propio edificio.
+  const motivo =
+    origenId === undefined
+      ? comprobarConstruir(estado, tipo, x, y)
+      : comprobarMover(estado, origenId, x, y)
   return motivo ? { valida: false, motivo } : { valida: true }
 }
 
-/** Silueta de `tipo` centrada en la casilla `centro`, con el veredicto del núcleo; undefined si el tipo no existe. */
+/**
+ * Silueta de `tipo` centrada en la casilla `centro`, con el veredicto del núcleo; undefined si el
+ * tipo no existe. Con `origenId` es la silueta de mover ese edificio (`comprobarMover`).
+ */
 export function calcularSilueta(
   estado: EstadoJuego,
   tipo: TipoEdificio,
   centro: Casilla,
+  origenId?: number,
 ): Silueta | undefined {
   const def = defEdificio(tipo)
   if (!def) return undefined
   const { x, y } = esquinaDeSilueta(def, centro, ladoValle(estado.valle))
+  const actual =
+    origenId === undefined ? undefined : estado.edificios.find((b) => b.id === origenId)
   return {
     tipo,
     x,
     y,
     ancho: def.ancho,
     alto: def.alto,
-    resultado: veredicto(estado, tipo, x, y),
+    resultado: veredicto(estado, tipo, x, y, origenId),
+    mismoSitio: actual !== undefined && actual.x === x && actual.y === y,
   }
 }
 
@@ -84,6 +119,8 @@ export type AvisoConstruccion = () => void
 export class Construccion {
   private _abierto = false
   private _tipo: TipoEdificio | undefined = undefined
+  /** Edificio que se está moviendo (modo «mover»); undefined al construir. */
+  private _origen: number | undefined = undefined
   private _centro: Casilla | undefined = undefined
   private _confirmando: OrigenConfirmacion | undefined = undefined
   private readonly suscriptores = new Set<AvisoConstruccion>()
@@ -96,6 +133,11 @@ export class Construccion {
   /** Edificio elegido en el catálogo, o undefined si se está viendo el catálogo. */
   get tipo(): TipoEdificio | undefined {
     return this._tipo
+  }
+
+  /** `id` del edificio que se está moviendo, o undefined si se está construyendo. */
+  get origen(): number | undefined {
+    return this._origen
   }
 
   /** Casilla del cursor (centro de la silueta), o undefined si aún no se ha colocado. */
@@ -121,17 +163,38 @@ export class Construccion {
 
   /** Cierra el modo y suelta edificio, cursor y confirmación. */
   cerrar(): void {
-    if (!this._abierto && !this._tipo && !this._centro && !this._confirmando) return
+    if (
+      !this._abierto &&
+      !this._tipo &&
+      !this._centro &&
+      !this._confirmando &&
+      this._origen === undefined
+    )
+      return
     this._abierto = false
     this._tipo = undefined
+    this._origen = undefined
     this._centro = undefined
+    this._confirmando = undefined
+    this.avisar()
+  }
+
+  /**
+   * Abre el modo en «mover»: la silueta es la del edificio `id` (de tipo `tipo`) y empieza donde
+   * está (`centro`). No se elige otro edificio ni hay catálogo; «Cerrar» o `cerrar()` cancela.
+   */
+  abrirMover(id: number, tipo: TipoEdificio, centro: Casilla): void {
+    this._abierto = true
+    this._origen = id
+    this._tipo = tipo
+    this._centro = { x: centro.x, y: centro.y }
     this._confirmando = undefined
     this.avisar()
   }
 
   /** Elige el edificio (o vuelve al catálogo con `undefined`). Con el modo cerrado no hace nada. */
   elegir(tipo: TipoEdificio | undefined): void {
-    if (!this._abierto || tipo === this._tipo) return
+    if (!this._abierto || tipo === this._tipo || this._origen !== undefined) return
     this._tipo = tipo
     this._confirmando = undefined
     if (tipo === undefined) this._centro = undefined
@@ -178,6 +241,7 @@ export class Construccion {
   terminarColocacion(): void {
     if (!this._abierto) return
     this._tipo = undefined
+    this._origen = undefined
     this._centro = undefined
     this._confirmando = undefined
     this.avisar()
