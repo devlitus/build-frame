@@ -128,10 +128,13 @@ describe('reembolso', () => {
     const c = terminada('cobertizo')
     const e = {
       ...c.e,
-      edificios: c.e.edificios.map((b) => {
-        const { pagado: _pagado, ...resto } = b
-        return resto
-      }),
+      edificios: c.e.edificios.map((b) => ({
+        id: b.id,
+        tipo: b.tipo,
+        x: b.x,
+        y: b.y,
+        obra: b.obra,
+      })),
     }
     expect(reembolso(e, c.id)!.coste).toEqual({ dinero: 150, madera: 25, piedra: 5 })
   })
