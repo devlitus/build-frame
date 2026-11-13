@@ -1,7 +1,7 @@
 # GDD — Documento de Diseño del Juego
 
 > **Título provisional:** *Raíces*
-> **Versión del documento:** 0.5 · 2026-11-11 (estilo de arte decidido: acuarela)
+> **Versión del documento:** 0.6 · 2026-11-13 (zonas gratis y cámara con dos dedos al pintar o colocar, tras M4)
 > **Estado:** borrador vivo. Se actualiza en cada hito.
 
 ---
@@ -55,7 +55,7 @@ Toda funcionalidad nueva debe reforzar al menos uno de estos pilares. Si no lo h
 | Modo | Para qué | Control PC | Control móvil |
 |---|---|---|---|
 | **Modo Vida** (por defecto) | Moverse con el personaje, trabajar la tierra, hablar con vecinos, ir al pueblo | WASD/flechas + ratón para la acción, teclas rápidas para las herramientas | *Joystick* virtual o tocar el destino; botón de acción contextual |
-| **Modo Plano** | Comprar parcelas, pintar zonas, colocar y mover edificios | Ratón: arrastrar, rueda para el zoom | Arrastrar con un dedo, pellizcar para el zoom, mantener pulsado para opciones |
+| **Modo Plano** | Comprar parcelas, pintar zonas, colocar y mover edificios | Ratón: arrastrar, rueda para el zoom | Arrastrar con un dedo, pellizcar para el zoom, mantener pulsado para opciones. Con el pincel de zonas o la colocación de un edificio activos, un dedo pinta o coloca y la cámara se mueve con dos dedos |
 
 **Por qué el híbrido:** solo con el personaje la construcción a gran escala se vuelve tediosa; solo con la gestión se pierde la parte de "vida" y el vínculo con el mundo. El híbrido da las dos sensaciones y encaja con el pilar 3: al principio pasas casi todo el tiempo en el Modo Vida y más adelante en el Modo Plano.
 
@@ -119,7 +119,7 @@ El jugador "pinta" zonas sobre las casillas de sus parcelas. Cada zona habilita 
 | Taller | Procesado: mermeladas, quesos, harina | Medio |
 | Decoración / ocio | Jardines, bancos, estanques (bienestar) | Temprano |
 
-Las zonas se pueden repintar (con un coste o tiempo de reconversión pequeño).
+Pintar, repintar y borrar zonas es gratis e instantáneo, para que planificar la granja no castigue los cambios de idea. Bajo un edificio, la zona siempre sigue siendo compatible con él.
 
 ### 6.4 Construcción
 - Los edificios ocupan casillas, deben estar en una zona compatible y tienen un coste de dinero y materiales (ver 6.5).
