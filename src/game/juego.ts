@@ -305,6 +305,12 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
         ed.y + Math.floor((def.alto - 1) / 2),
       )
     },
+    centrarCamara: (cx, cy) => {
+      // Solo con `?debug`: centra la cámara del Plano en la casilla (cx, cy), sin barrido.
+      if (!leerParametros(window.location.search).debug) return
+      const e = g.scene.getScene('valle')
+      if (e instanceof EscenaValle) e.centrarCamaraEn(cx, cy)
+    },
     colocacion: (tipo, x, y) => {
       // Solo con `?debug`: veredicto de `colocacionValida` para el estado actual.
       if (!leerParametros(window.location.search).debug || !partida) return undefined

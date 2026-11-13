@@ -123,6 +123,8 @@ interface Window {
     seleccionarEdificio(id: number): void
     /** Punto de pantalla (px) donde pulsar para tocar el edificio; solo con `?debug`. */
     puntoClicEdificio(id: number): { x: number; y: number } | undefined
+    /** Centra la cámara del Plano en la casilla (cx, cy); solo con `?debug`. */
+    centrarCamara(cx: number, cy: number): void
     /** Veredicto de `colocacionValida` en (x, y); solo con `?debug`. */
     colocacion(
       tipo: string,

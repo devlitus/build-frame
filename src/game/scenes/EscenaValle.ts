@@ -415,6 +415,12 @@ export class EscenaValle extends Phaser.Scene {
     return puntoDeToque(c.vista, pantalla, libre, rectParcela(g, i))
   }
 
+  /** Centra la cámara en la casilla (cx, cy) (ganchos de prueba). */
+  centrarCamaraEn(cx: number, cy: number): void {
+    if (!Number.isFinite(cx) || !Number.isFinite(cy)) return
+    this.control?.centrarEn({ x: (cx + 0.5) * TAM_CASILLA, y: (cy + 0.5) * TAM_CASILLA })
+  }
+
   /** Punto de pantalla (px) del centro de la casilla (cx, cy); undefined si queda fuera de la zona libre. */
   puntoClicCasilla(cx: number, cy: number): { x: number; y: number } | undefined {
     const c = this.control

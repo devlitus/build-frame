@@ -264,3 +264,43 @@ test(
       .toBe(false)
   },
 )
+
+test('demoler un edificio terminado devuelve la mitad del coste', HUMO, async ({ page }) => {
+  await abrirValle(page, '?semilla=42&debug&modo=plano&propias=14,15,20,21')
+  // Vivienda en el centro y una caja de envío en una casilla válida, terminada tras un día.
+  await page.evaluate(() => {
+    window.__raices?.emitir({
+      tipo: 'PintarZona',
+      x0: 40,
+      y0: 40,
+      x1: 55,
+      y1: 55,
+      zona: 'vivienda',
+    })
+    const r = window.__raices
+    for (let y = 40; y < 56; y++) {
+      for (let x = 40; x < 56; x++) {
+        if (r?.colocacion('caja-envio', x, y)?.valida) {
+          r.emitir({ tipo: 'Construir', tipoEdificio: 'caja-envio', x, y })
+          y = 99
+          break
+        }
+      }
+    }
+    r?.emitir({ tipo: 'CambiarModo', modo: 'vida' })
+    r?.emitir({ tipo: 'AvanzarTiempo', minutos: 2000 })
+    r?.emitir({ tipo: 'CambiarModo', modo: 'plano' })
+  })
+  await expect
+    .poll(() => page.evaluate(() => window.__raices?.edificios()[0]?.enObra), LENTO)
+    .toBe(false)
+  expect(await page.evaluate(() => window.__raices?.dinero())).toBe(1050)
+  const id = await page.evaluate(() => window.__raices?.edificios()[0]?.id)
+  await page.evaluate((i) => window.__raices?.seleccionarEdificio(i ?? -1), id)
+  const panel = page.getByRole('region', { name: 'Caja de envío' })
+  await panel.getByRole('button', { name: 'Demoler' }).click(LENTO)
+  await expect(panel.getByRole('alertdialog')).toContainText('Recuperas: 25 monedas y 10 de madera')
+  await panel.getByRole('button', { name: 'Sí, demoler' }).click(LENTO)
+  await expect.poll(() => page.evaluate(() => window.__raices?.dinero()), LENTO).toBe(1075)
+  await expect.poll(() => page.evaluate(() => window.__raices?.edificios().length), LENTO).toBe(0)
+})
