@@ -148,7 +148,7 @@ export interface EstiloZona {
   /** Opacidad del relleno en el Modo Plano. */
   readonly alfa: number
   readonly patron: PatronZona
-  /** Color del patrón: oscuro sobre fondos claros y crema sobre el azul. */
+  /** Color del patrón: oscuro sobre fondos claros y crema sobre el verde azulado. */
   readonly colorPatron: number
 }
 
@@ -157,7 +157,7 @@ export const ESTILO_ZONAS: Readonly<
 > = {
   cultivo: { color: 0xe69f00, alfa: 0.55, patron: 'surcos', colorPatron: 0x3b2a1a },
   huerto: { color: 0xcc79a7, alfa: 0.55, patron: 'puntos', colorPatron: 0x3b2a1a },
-  vivienda: { color: 0x0072b2, alfa: 0.6, patron: 'diagonal', colorPatron: 0xfff3c4 },
+  vivienda: { color: 0x009e73, alfa: 0.6, patron: 'diagonal', colorPatron: 0xfff3c4 },
   almacen: { color: 0xf0e442, alfa: 0.6, patron: 'cuadro', colorPatron: 0x3b2a1a },
 }
 

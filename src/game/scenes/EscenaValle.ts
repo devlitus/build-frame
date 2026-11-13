@@ -274,6 +274,12 @@ export class EscenaValle extends Phaser.Scene {
     const alEsc = (): void => {
       // Con el pincel de zonas, Esc suelta primero la esquina marcada y luego el cursor.
       if (partida.pincel.cancelarTeclado()) return
+      // Sin nada marcado, Esc cierra la barra (como «Listo») y el foco vuelve al lienzo.
+      if (partida.pincel.abierto) {
+        document.getElementById('juego')?.focus({ preventScroll: true })
+        partida.pincel.cerrar()
+        return
+      }
       // Con una confirmación de compra abierta, el primer Esc solo la cancela.
       if (partida.seleccion.cancelarConfirmacion()) return
       partida.seleccion.deseleccionar()

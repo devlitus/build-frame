@@ -295,6 +295,16 @@ test.describe('escritorio', () => {
     await page.keyboard.press('Escape')
     expect((await pincel())?.cursor).toBeUndefined()
   })
+
+  test('Esc sin nada marcado cierra la barra y devuelve el foco al lienzo', async ({ page }) => {
+    await abrir(page)
+    await abrirBarra(page)
+    await herramienta(page, 'Huerto').click()
+    await page.keyboard.press('Escape')
+    expect((await page.evaluate(() => window.__raices?.pincel()))?.abierto).toBe(false)
+    await expect(page.getByRole('group', { name: 'Pincel de zonas' })).toHaveCount(0)
+    expect(await page.evaluate(() => document.activeElement?.id)).toBe('juego')
+  })
 })
 
 test.describe('móvil', () => {

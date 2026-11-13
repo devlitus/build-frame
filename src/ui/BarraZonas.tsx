@@ -100,9 +100,10 @@ export function BarraZonas() {
           type="button"
           class="boton-listo"
           title={t('zonasListoAyuda')}
-          onClick={(ev) => {
+          onClick={() => {
+            // Con teclado también: al desmontarse la barra el foco se perdería en <body>.
+            document.getElementById('juego')?.focus({ preventScroll: true })
             partida.pincel.cerrar()
-            devolverFoco(ev)
           }}
         >
           {t('zonasListo')}
