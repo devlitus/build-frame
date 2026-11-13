@@ -76,7 +76,7 @@ export function edificiosValidos(edificios: unknown): boolean {
       if (!entero(e.id) || !entero(e.x) || !entero(e.y) || typeof e.tipo !== 'string') return false
       const o = e.obra
       if (o === null) return true
-      if (typeof o !== 'object' || o === undefined) return false
+      if (typeof o !== 'object') return false
       const ob = o as Record<string, unknown>
       return entero(ob.diaInicio) && entero(ob.diaFin)
     })
