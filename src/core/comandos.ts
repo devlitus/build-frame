@@ -116,6 +116,9 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
         }
         // Desmayo: el avance se corta en el fin de jornada y el sobrante se descarta,
         // así un avance enorme nunca salta días de golpe.
+        if (!edificiosValidos(estado.edificios)) {
+          return { ok: false, estado, error: 'estado-invalido' }
+        }
         // Único punto de cambio de día: termina obras y recoloca al personaje (obras.ts).
         const r = empezarDiaSiguiente(estado)
         return { ok: true, eventos: [{ tipo: 'desmayo' }, ...r.eventos], estado: r.estado }

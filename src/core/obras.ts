@@ -87,10 +87,11 @@ export function personajeAlDespertar(estado: EstadoJuego): Personaje {
   const puerta = puertaDe(def, casa.x, casa.y)
   if (casillaLibre(mapa, puerta.x, puerta.y)) return en(puerta.x, puerta.y)
   const h = huellaDe(def, casa.x, casa.y)
+  // Defensa en profundidad: nunca más allá del valle, pase lo que pase con x, y.
   for (let d = 1; d <= mapa.lado; d++) {
     let mejor: { x: number; y: number; dist: number } | null = null
-    for (let y = h.y0 - d; y <= h.y1 + d; y++) {
-      for (let x = h.x0 - d; x <= h.x1 + d; x++) {
+    for (let y = Math.max(h.y0 - d, 0); y <= Math.min(h.y1 + d, mapa.lado - 1); y++) {
+      for (let x = Math.max(h.x0 - d, 0); x <= Math.min(h.x1 + d, mapa.lado - 1); x++) {
         // Solo el anillo exterior a distancia exacta d.
         if (x > h.x0 - d && x < h.x1 + d && y > h.y0 - d && y < h.y1 + d) continue
         if (!casillaLibre(mapa, x, y)) continue
