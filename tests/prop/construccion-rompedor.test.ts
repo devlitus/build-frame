@@ -110,6 +110,8 @@ function oraculo(e: EstadoJuego, tipo: unknown, x: number, y: number): MotivoCol
     return ['tipo-desconocido']
   }
   const d = def(tipo as TipoEdificio)
+  // Decisión del orquestador: `unico-ya-existe` va en segunda posición.
+  if (d.unico && e.edificios.some((b) => b.tipo === tipo)) return ['unico-ya-existe']
   const lado = ladoValle(e.valle)
   if (
     !Number.isInteger(x) ||
@@ -151,7 +153,37 @@ function oraculo(e: EstadoJuego, tipo: unknown, x: number, y: number): MotivoCol
   if (casillas.some((q) => !permitidos.includes(e.zonas[q.k] ?? '?'))) {
     out.push('zona-incompatible')
   }
-  if (d.unico && e.edificios.some((b) => b.tipo === tipo)) out.push('unico-ya-existe')
+  // Ronda 2: bloquea-paso, con un BFS propio (4-conexo desde la aparición).
+  const alcance = (extra: Set<number>): Set<number> => {
+    const libre = (k: number) => !agua.has(k) && !obst.has(k) && !ocup.has(k) && !extra.has(k)
+    const inicio = ay * lado + ax
+    if (!libre(inicio)) return new Set<number>()
+    const visto = new Set<number>([inicio])
+    const pila = [inicio]
+    while (pila.length > 0) {
+      const k = pila.pop() as number
+      const kx = k % lado
+      const ky = (k - kx) / lado
+      for (const [nx, ny] of [
+        [kx + 1, ky],
+        [kx - 1, ky],
+        [kx, ky + 1],
+        [kx, ky - 1],
+      ] as const) {
+        if (nx < 0 || ny < 0 || nx >= lado || ny >= lado) continue
+        const nk = ny * lado + nx
+        if (!visto.has(nk) && libre(nk)) {
+          visto.add(nk)
+          pila.push(nk)
+        }
+      }
+    }
+    return visto
+  }
+  const huella = new Set(casillas.map((q) => q.k))
+  const antes = alcance(new Set())
+  const despues = alcance(huella)
+  if ([...antes].some((k) => !huella.has(k) && !despues.has(k))) out.push('bloquea-paso')
   if (e.dinero < d.coste.dinero) out.push('fondos-insuficientes')
   if (e.materiales.madera < d.coste.madera || e.materiales.piedra < d.coste.piedra) {
     out.push('materiales-insuficientes')
