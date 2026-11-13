@@ -9,3 +9,4 @@ playwright-report/
 .claude/settings.local.json
 capturas/
 assets-src/protagonista/acuarela/crudo/
+*.blend1
