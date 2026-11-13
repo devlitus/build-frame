@@ -75,11 +75,14 @@ Transversal              Arte, audio, rendimiento, accesibilidad
 - Colocar con validación (zona, espacio, coste en dinero y materiales) y vista previa válida/inválida.
 - Construcción que dura días de juego.
 - Mover y demoler.
+- **Arte en paralelo** (hilo de arte, solo recursos): casa, cobertizo y caja de envío, terminados y en obra, y texturas de las zonas, en estilo B. Se conectan al juego en M5-00.
 
 **Aceptación:** se diseña una pequeña granja con zonas y 3 edificios; las reglas de colocación tienen tests.
 
 ### M5 — Cultivos, recolección y herramientas
 **Objetivo:** producir alimentos y materiales.
+- **M5-00 Integración del arte** (primera historia): protagonista animado en 4 direcciones, *tiles* de terreno, árbol, roca y edificios de M4 en lugar de los *placeholders*; nitidez en pantallas con DPR alto (#11).
+- **Arte en paralelo:** cultivos por fases, tierra arada y regada, iconos de herramientas y animaciones de uso.
 - Herramientas: azada, regadera, semillas, mano (cosechar), **hacha y pico**.
 - Energía del personaje.
 - 4–5 cultivos de una estación con fases de crecimiento.
@@ -95,6 +98,7 @@ Transversal              Arte, audio, rendimiento, accesibilidad
 - Caja de envío (cobro al día siguiente).
 - Precios con calidad y saturación simple.
 - Resumen al dormir (ingresos del día).
+- **Arte en paralelo, integrado en el hito:** la tienda y la entrada del pueblo, e iconos de productos y materiales.
 
 **Aceptación:** una partida desde cero permite ganar dinero y comprar una segunda parcela en ~30–45 min de juego.
 
@@ -105,7 +109,7 @@ Transversal              Arte, audio, rendimiento, accesibilidad
 - Menú principal: nueva partida y continuar.
 - Primeros objetivos del diario como tutorial.
 - Audio básico (música y efectos clave).
-- Primer pase de arte (estilo decidido; ver *Transversal*).
+- Pase final de arte del MVP: menú, interfaz y lo que aún sea *placeholder*.
 - Despliegue en **Vercel** (URL estable desde `main` y vistas previas por PR).
 - Formulario o canal para recoger *feedback*.
 
@@ -144,8 +148,8 @@ Antes de M14 se escribe un ADR que compare las opciones de backend (coste, priva
 
 | Área | Cuándo | Contenido |
 |---|---|---|
-| **Prototipo de arte** | Durante M2–M4 | Pruebas en ComfyUI/Blender, decisión de estilo, *prompts* y semillas documentados |
-| **Producción de arte** | Desde M5 | Sustituir los *placeholders* sistema a sistema |
+| **Prototipo de arte** | M2–M3 ✅ | Estilo B (tinta sepia + acuarela) aprobado; biblia en `docs/arte/BIBLIA.md` |
+| **Producción de arte** | Desde M4 | Cada hito lista su **arte en paralelo**: un hilo de arte produce los recursos (sin tocar `src/`) mientras se programa el hito, y se conectan al juego en una historia del propio hito o del siguiente. El hilo de arte se lanza en cuanto empieza el hito que lo necesita |
 | **Audio** | M7 en adelante | Música por estación y efectos |
 | **Rendimiento móvil** | Cada hito | Presupuesto de fps y memoria, prueba en un dispositivo real |
 | **Accesibilidad** | Cada hito con interfaz | Tamaño de texto, contraste, controles táctiles |
