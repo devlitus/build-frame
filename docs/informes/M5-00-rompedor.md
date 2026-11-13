@@ -38,3 +38,29 @@ No hay S1 ni S2 de datos o juego roto, pero sí un fallo de profundidad que el j
 - Cambio de DPR en caliente (arrastrar la ventana entre monitores, zoom del navegador): el factor se recalcula en el `ResizeObserver`, no probado.
 - Edificio tapando al protagonista con píxeles en el estado terminado (tras un desmayo el personaje reaparece en la puerta y no pude situarlo detrás sin teletransporte; la profundidad por la base se ve correcta en `m5-00-edificios-dia4.png`).
 - Colocar edificios con el ratón con DPR alto en escritorio (solo táctil).
+
+## Ronda 2
+
+Tras `678077e` y `9a2016c` (árboles y rocas como `Image` con profundidad por su base, en una capa con pool).
+
+### S2 y S3 de la ronda 1: resueltos
+
+Eran fallos de la geometría de mis tests, no del juego. La región (`−62..−22`) caía sobre el aire de las ~30 filas transparentes de arriba de `arbol@1x.webp` (64×96). Ahora la región sale de la máscara de alfa del PNG (filas con alfa >= 250 en las columnas medidas), con la escala de la variante (0,9 a 1,1) y la base `(y+1)·32` de `rectDecoracion`. Se guardan capturas con la región en rojo (`capturas/m5-00-region-s2.png`, `-s2-lado.png`, `-s3.png`) y se comprobó a ojo que cae sobre la copa.
+- **S2 (al norte)**: el personaje pegado al árbol por el norte solo solapa unos píxeles de la copa (la colisión lo deja con los pies en y·32−6 aprox.). Test válido pero débil, así que añadí «[S2] … en la fila del árbol, a su lado»: pies a `x·32−10`, `y·32+12` (detrás de la base), con el cuerpo solapando el borde de la copa. Diferencia con y sin personaje: **0,000** (umbral 0,05).
+- **S3 (zona al norte)**: diferencia en la copa **0,000** (umbral 0,02). Control añadido: el suelo despejado entre la copa y el borde norte de la zona sí cambia (73,7 %), así que la zona se pinta de verdad.
+- Los tests no bajan umbrales ni intención.
+
+### Fallos nuevos
+
+- **S3 · `contarEn` (el `enVista` de `objetosCapa()`) cuenta objetos repetidos cuando la vista sobrepasa el borde este del valle** (zoom mínimo: se vio 880 con solo 657 obstáculos en el valle). `seleccionar` solo acota índices de cubeta por abajo (`Math.max(0, …)`): con `bx1 >= n` la clave `by·n+bx` se solapa con la fila siguiente y se visita dos veces. `actualizar` no se ve afectado (indexa por `id` en un `Map`), solo el gancho; no hay efecto visible. Arreglo: acotar `bx1`/`by1` a `n−1`. Test: `tests/unit/capa-objetos-rompedor.test.ts` (2 tests, ambos fallan).
+- **S3 (infraestructura de tests, ya existía) · «sin costuras ni huecos de fondo con zooms fraccionarios y medio píxel» (`rendimiento-rompedor.spec.ts`) nunca se ejecuta.** Está en la regex `SOLO` (excluido de `escritorio`) y se salta por nombre de proyecto `!== 'escritorio'` en los proyectos `-solo`. Ejecutado a mano (copia sin skip) falla con 272 px de racha de fondo a zoom 0,94: el punto de aparición está cerca del borde sur del valle y la vista se sale del mundo, que enseña el color de fondo. No es regresión del arte, pero el test está muerto y su criterio ya no vale con ese encuadre.
+- **S3 (flaky) · «al girar el móvil el lienzo sigue a CSS×2 y el toque sigue cayendo en su casilla» falló una vez** con la tanda completa en paralelo (destino 23,74 en vez de 49,91 a 915×412) y pasó 3 de 3 a solas. Sospecho la espera de 250 ms tras redimensionar con carga alta. No reproducible.
+- **S3 de arte, sin test**: la costura tenue entre tiles de hierba es de las 4 variantes con brillo distinto (decisión del orquestador: es del arte).
+
+### Resiste
+
+- **Pool de la capa**: 40 pasos aleatorios (salto de cámara, rueda de zoom a ráfagas, arrastres rápidos con ratón) en Plano; tras cada paso `0 < activos <= enVista`, y cada 10 pasos la pantalla con el pool es idéntica (< 0,5 % de píxeles distintos) a la misma vista con la capa rehecha desde cero y `objetosCapa()` es igual. Sin objetos que se queden, falten o parpadeen en el borde, y sin errores de consola.
+- **Pérdida de contexto WebGL**: perder el contexto, mover la cámara a otro sitio y volver durante la pérdida, y restaurar deja la misma pantalla y el mismo recuento (captura `m5-00-contexto-pool.png`).
+- **Revalidado con los cambios** (escritorio y móvil): puntero y táctil a DPR 1, 2 y 3, costuras a DPR 1, 2 y 3, edificios en sus tres estados, portada y texturas, reinicios del valle, carga `@1x`/`@2x`. Todo pasa (36 pasan, 39 omitidos por proyecto, 1 flaky arriba).
+- **Rendimiento con `workers=1`** (`escritorio-solo` y `movil-solo`): pasan los que no se omiten; fps sin GPU de ~34 de día y ~26 de noche en escritorio. Los tests de fps a DPR 2 se omiten sin GPU.
+- **Visual**: `semilla-42-debug--*` son la portada, nítida y legible en las tres vistas. En `m5-00-contexto-pool.png` los árboles y el personaje (detrás de un árbol) se ven bien.

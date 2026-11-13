@@ -40,13 +40,57 @@ const personaje = async (p: Page) => {
  * (Playwright no puede importar el núcleo: `data/*.json` necesita un atributo de importación).
  */
 const ARBOLES = [
-  { x: 44, y: 90, parcela: 32 },
-  { x: 44, y: 95, parcela: 32 },
-  { x: 51, y: 86, parcela: 33 },
-  { x: 35, y: 86, parcela: 32 },
+  { x: 44, y: 90, parcela: 32, variante: 0.10440140427090228 },
+  { x: 44, y: 95, parcela: 32, variante: 0.835195173509419 },
+  { x: 51, y: 86, parcela: 33, variante: 0.5777981211431324 },
+  { x: 35, y: 86, parcela: 32, variante: 0.3822733308188617 },
 ]
 function arbolesCandidatos() {
   return ARBOLES
+}
+
+/**
+ * Región del mundo (px) que de verdad ocupa la copa opaca del árbol (máscara de alfa de
+ * `arbol@1x.webp`, 64×96, pivote en la base centrada, escala de la variante como `rectDecoracion`):
+ * las filas donde las columnas `cx ± semiancho` son opacas (alfa >= 250) y que caen entre
+ * `yMin` e `yMax` (mundo).
+ */
+async function regionCopaOpaca(
+  a: { x: number; y: number; variante: number },
+  semiancho: number,
+  yMin: number,
+  yMax: number,
+  xc?: number,
+) {
+  const { data, info } = await sharp('public/assets/objetos/arbol@1x.webp')
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  const k = 0.9 + 0.2 * a.variante
+  const base = (a.y + 1) * T
+  const cx = a.x * T + T / 2
+  const centro = xc ?? cx
+  const filas: number[] = []
+  for (let py = 0; py < info.height; py++) {
+    const wy0 = base - info.height * k + py * k
+    if (wy0 < yMin || wy0 + k > yMax) continue
+    let ok = true
+    for (let wx = centro - semiancho; wx <= centro + semiancho && ok; wx += 0.5) {
+      const px = Math.floor((wx - (cx - (info.width * k) / 2)) / k)
+      if (px < 0 || px >= info.width || (data[(py * info.width + px) * 4 + 3] ?? 0) < 250)
+        ok = false
+    }
+    if (ok) filas.push(py)
+  }
+  if (filas.length === 0) throw new Error('la copa no tiene filas opacas en ese rango')
+  const py0 = Math.min(...filas)
+  const py1 = Math.max(...filas) + 1
+  return {
+    x0: centro - semiancho,
+    x1: centro + semiancho,
+    y0: base - info.height * k + py0 * k,
+    y1: base - info.height * k + py1 * k,
+  }
 }
 
 /** Camina (Vida) hacia (x, y) en casillas con pasos pequeños; devuelve si llegó a menos de 0,2. */
@@ -88,6 +132,36 @@ async function recorteMundo(page: Page, r: { x0: number; y0: number; x1: number;
   return { data, w: info.width, h: info.height, ch: info.channels }
 }
 
+/** Guarda la captura entera con la región marcada en rojo (depuración). */
+async function guardarRegion(
+  page: Page,
+  r: { x0: number; y0: number; x1: number; y1: number },
+  nombre: string,
+) {
+  const c = await page.evaluate(() => window.__raices?.camara())
+  if (!c) return
+  const aP = (wx: number, wy: number) => ({
+    x: (wx - (c.scrollX + c.ancho / 2)) * c.zoom + c.ancho / 2,
+    y: (wy - (c.scrollY + c.alto / 2)) * c.zoom + c.alto / 2,
+  })
+  const a = aP(r.x0, r.y0)
+  const b = aP(r.x1, r.y1)
+  const png = await page.screenshot()
+  const caja = await sharp({
+    create: {
+      width: Math.max(1, Math.round(b.x - a.x)),
+      height: Math.max(1, Math.round(b.y - a.y)),
+      channels: 4,
+      background: { r: 255, g: 0, b: 0, alpha: 0.5 },
+    },
+  })
+    .png()
+    .toBuffer()
+  await sharp(png)
+    .composite([{ input: caja, left: Math.round(a.x), top: Math.round(a.y) }])
+    .toFile(`capturas/${nombre}.png`)
+}
+
 function fraccionDistinta(
   a: { data: Buffer; w: number; h: number; ch: number },
   b: { data: Buffer; w: number; h: number; ch: number },
@@ -124,16 +198,19 @@ test.describe('profundidad del arte horneado', () => {
     page,
   }) => {
     const a = await ponerseAlNorteDeUnArbol(page)
+    // Lo más pegado al árbol que deja la colisión, para que el cuerpo solape de verdad la copa.
+    for (let i = 0; i < 12; i++) {
+      await emitir(page, { tipo: 'MoverPersonaje', dx: 0, dy: 1, ms: 60 })
+    }
+    const pies = (await personaje(page)).y * T
+    expect(pies, 'el personaje debe quedar al norte del árbol').toBeLessThan((a.y + 0.5) * T)
     await emitir(page, { tipo: 'CambiarModo', modo: 'plano' })
     await page.evaluate(([x, y]) => window.__raices?.centrarCamara(x ?? 0, y ?? 0), [a.x, a.y - 1])
     await page.waitForTimeout(900)
-    // Parte alta de la copa, en el eje del árbol: el cuerpo del personaje (pies en y-0,5) la cubriría.
-    const region = {
-      x0: a.x * T + T / 2 - 8,
-      x1: a.x * T + T / 2 + 8,
-      y0: a.y * T - 62,
-      y1: a.y * T - 22,
-    }
+    // Copa opaca (máscara de alfa) que el cuerpo del personaje (pies en `pies`, ~40 px de alto) cubriría.
+    const region = await regionCopaOpaca(a, 6, pies - 40, pies - 1)
+    expect(region.y1 - region.y0, 'la región de la copa debe tener altura útil').toBeGreaterThan(10)
+    await guardarRegion(page, region, 'm5-00-region-s2')
     const con = await recorteMundo(page, region)
     await page.screenshot({ path: 'capturas/m5-00-prof-con.png' })
     // Mismo recorte con el personaje lejos: en Vida, 4 casillas al norte (hay hueco) y de vuelta a Plano.
@@ -153,6 +230,40 @@ test.describe('profundidad del arte horneado', () => {
     ).toBeLessThan(0.05)
   })
 
+  test('[S2] el protagonista que pasa por detrás (en la fila del árbol, a su lado) queda tapado por la copa', async ({
+    page,
+  }) => {
+    const a = await ponerseAlNorteDeUnArbol(page)
+    // A la casilla de al lado en la misma fila (pies más al norte que la base del árbol) y pegado a él.
+    expect(await irA(page, a.x - 0.5, a.y + 0.5)).toBe(true)
+    for (let i = 0; i < 12; i++) {
+      await emitir(page, { tipo: 'MoverPersonaje', dx: 1, dy: 0, ms: 60 })
+    }
+    const p = await personaje(page)
+    const pies = { x: p.x * T, y: p.y * T }
+    expect(pies.y, 'los pies deben quedar al norte de la base del árbol').toBeLessThan(
+      (a.y + 1) * T,
+    )
+    await emitir(page, { tipo: 'CambiarModo', modo: 'plano' })
+    await page.evaluate(([x, y]) => window.__raices?.centrarCamara(x ?? 0, y ?? 0), [a.x, a.y - 1])
+    await page.waitForTimeout(900)
+    const region = await regionCopaOpaca(a, 3, pies.y - 40, pies.y - 1, pies.x + 5)
+    await guardarRegion(page, region, 'm5-00-region-s2-lado')
+    const con = await recorteMundo(page, region)
+    await emitir(page, { tipo: 'CambiarModo', modo: 'vida' })
+    expect(await irA(page, a.x - 3.5, a.y + 0.5)).toBe(true)
+    await emitir(page, { tipo: 'CambiarModo', modo: 'plano' })
+    await page.evaluate(([x, y]) => window.__raices?.centrarCamara(x ?? 0, y ?? 0), [a.x, a.y - 1])
+    await page.waitForTimeout(900)
+    const sin = await recorteMundo(page, region)
+    await page.screenshot({ path: 'capturas/m5-00-prof-lado-sin.png' })
+    const f = fraccionDistinta(con, sin)
+    expect(
+      f,
+      `fracción de píxeles distintos en la copa con y sin personaje al lado: ${f.toFixed(3)} (árbol ${a.x},${a.y}, pies ${pies.x.toFixed(1)},${pies.y.toFixed(1)})`,
+    ).toBeLessThan(0.05)
+  })
+
   test('[S3] el relleno de una zona justo al norte de un árbol no tiñe su copa', async ({
     page,
   }) => {
@@ -160,13 +271,13 @@ test.describe('profundidad del arte horneado', () => {
     await emitir(page, { tipo: 'CambiarModo', modo: 'plano' })
     await page.evaluate(([x, y]) => window.__raices?.centrarCamara(x ?? 0, y ?? 0), [a.x, a.y - 1])
     await page.waitForTimeout(900)
-    const region = {
-      x0: a.x * T + T / 2 - 12,
-      x1: a.x * T + T / 2 + 12,
-      y0: a.y * T - 60,
-      y1: a.y * T - 8,
-    }
+    // Copa opaca de todo el ancho central; la zona (2 casillas al norte del árbol) llega hasta y*32.
+    const region = await regionCopaOpaca(a, 10, a.y * T - 64, a.y * T + 20)
+    await guardarRegion(page, region, 'm5-00-region-s3')
     const antes = await recorteMundo(page, region)
+    // Control: el suelo despejado entre la copa y el borde norte de la zona sí debe teñirse.
+    const aire = { x0: a.x * T - 40, x1: a.x * T - 8, y0: a.y * T - 60, y1: a.y * T - 40 }
+    const aireAntes = await recorteMundo(page, aire)
     await emitir(page, {
       tipo: 'PintarZona',
       x0: a.x - 1,
@@ -181,6 +292,8 @@ test.describe('profundidad del arte horneado', () => {
     ).toBe('cultivo')
     const despues = await recorteMundo(page, region)
     await page.screenshot({ path: 'capturas/m5-00-zona-copa.png' })
+    const fAire = fraccionDistinta(aireAntes, await recorteMundo(page, aire), 8)
+    expect(fAire, 'control: la zona debe teñir el suelo despejado').toBeGreaterThan(0.5)
     const f = fraccionDistinta(antes, despues, 8)
     expect(
       f,
@@ -722,4 +835,143 @@ test('reiniciar el valle varias veces no acumula texturas ni objetos y el arte s
   expect(fin.o).toBe(base.o)
   expect(await page.evaluate(() => window.__raices?.escenaActiva())).toBe('valle')
   expect(errores).toEqual([])
+})
+
+/** Ronda 2: la capa de árboles y rocas con pool (`capaObjetos.ts`) al mover, hacer zoom y perder el contexto. */
+test.describe('capa de objetos con pool', () => {
+  test.skip(({ isMobile }) => isMobile, 'basta en escritorio')
+  test.setTimeout(120_000)
+
+  const dosFotogramas = (p: Page) =>
+    p.evaluate(
+      () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))),
+    )
+
+  const foto = async (p: Page) =>
+    (
+      await sharp(await p.screenshot())
+        .removeAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true })
+    ).data
+
+  const difMedia = (x: Buffer, y: Buffer) => {
+    let s = 0
+    let n = 0
+    for (let i = 0; i < x.length; i++) {
+      const d = Math.abs((x[i] ?? 0) - (y[i] ?? 0))
+      if (d > 24) n++
+      s += d
+    }
+    return { media: s / x.length, fraccion: n / x.length }
+  }
+
+  test('tras saltos de cámara y zoom a ráfagas, la capa tiene justo lo visible y se ve igual que una capa rehecha', async ({
+    page,
+  }) => {
+    const errores = espiar(page)
+    await abrir(page, `./?semilla=${SEMILLA}&debug&modo=plano`)
+    await emitir(page, { tipo: 'CambiarModo', modo: 'plano' })
+    let sem = 7
+    const rnd = () => {
+      sem = (sem * 1103515245 + 12345) % 2147483648
+      return sem / 2147483648
+    }
+    const mal: string[] = []
+    const v = page.viewportSize() ?? { width: 1280, height: 720 }
+    for (let i = 0; i < 40; i++) {
+      const paso = i % 4
+      if (paso === 0) {
+        const m = await page.evaluate(() => window.__raices?.mundoPx())
+        const c = (m ?? 3200) / T
+        await page.evaluate(
+          ([x, y]) => window.__raices?.centrarCamara(x ?? 0, y ?? 0),
+          [Math.floor(rnd() * c), Math.floor(rnd() * c)],
+        )
+      } else if (paso === 1) {
+        await page.mouse.move(rnd() * v.width, rnd() * v.height)
+        for (let k = 0; k < 3; k++) await page.mouse.wheel(0, (rnd() - 0.5) * 900)
+      } else {
+        // arrastre rápido (sin esperar entre movimientos)
+        const x0 = 100 + rnd() * (v.width - 200)
+        const y0 = 100 + rnd() * (v.height - 200)
+        await page.mouse.move(x0, y0)
+        await page.mouse.down()
+        await page.mouse.move(x0 + (rnd() - 0.5) * 600, y0 + (rnd() - 0.5) * 400, { steps: 3 })
+        await page.mouse.up()
+      }
+      await dosFotogramas(page)
+      await dosFotogramas(page)
+      const c = await page.evaluate(() => window.__raices?.objetosCapa())
+      if (!c || c.activos > c.enVista || c.activos === 0)
+        mal.push(`paso ${i}: ${JSON.stringify(c)}`)
+      if (i % 10 !== 9) continue
+      // Punto de control: la vista con el pool, comparada con la misma vista con la capa rehecha desde
+      // cero (la pérdida de contexto la invalida entera).
+      await page.waitForTimeout(500)
+      const antes = await foto(page)
+      const capaAntes = await page.evaluate(() => window.__raices?.objetosCapa())
+      await page.evaluate(async () => {
+        const cv = document.querySelector('canvas') as HTMLCanvasElement
+        const gl = (cv.getContext('webgl2') ?? cv.getContext('webgl')) as WebGL2RenderingContext
+        const ext = gl.getExtension('WEBGL_lose_context')
+        ext?.loseContext()
+        await new Promise((r) => setTimeout(r, 300))
+        ext?.restoreContext()
+        await new Promise((r) => setTimeout(r, 1500))
+      })
+      await page.waitForTimeout(500)
+      const d = difMedia(antes, await foto(page))
+      if (d.fraccion >= 0.005)
+        mal.push(
+          `paso ${i}: ${(d.fraccion * 100).toFixed(2)} % de píxeles distintos con la capa rehecha`,
+        )
+      const capaDespues = await page.evaluate(() => window.__raices?.objetosCapa())
+      if (JSON.stringify(capaDespues) !== JSON.stringify(capaAntes))
+        mal.push(`paso ${i}: capa ${JSON.stringify(capaAntes)} -> ${JSON.stringify(capaDespues)}`)
+    }
+    expect(mal, mal.join(' | ')).toEqual([])
+    expect(errores).toEqual([])
+  })
+
+  test('perder el contexto, mover la cámara durante la pérdida y recuperarlo deja los árboles de la vista', async ({
+    page,
+  }) => {
+    const errores = espiar(page)
+    await abrir(page, `./?semilla=${SEMILLA}&debug&modo=plano`)
+    await emitir(page, { tipo: 'CambiarModo', modo: 'plano' })
+    await page.evaluate(() => window.__raices?.centrarCamara(44, 90))
+    await page.waitForTimeout(900)
+    const antes = await foto(page)
+    const capaAntes = await page.evaluate(() => window.__raices?.objetosCapa())
+    expect(capaAntes?.activos ?? 0).toBeGreaterThan(0)
+    const res = await page.evaluate(async () => {
+      const cv = document.querySelector('canvas') as HTMLCanvasElement
+      let restaurado = false
+      cv.addEventListener('webglcontextrestored', () => (restaurado = true))
+      const gl = (cv.getContext('webgl2') ?? cv.getContext('webgl')) as WebGL2RenderingContext
+      const ext = gl.getExtension('WEBGL_lose_context')
+      if (!ext) return 'sin-extension'
+      ext.loseContext()
+      await new Promise((r) => setTimeout(r, 200))
+      // Se mueve la cámara con el contexto perdido y se vuelve al mismo sitio.
+      window.__raices?.centrarCamara(10, 10)
+      await new Promise((r) => setTimeout(r, 300))
+      window.__raices?.centrarCamara(44, 90)
+      await new Promise((r) => setTimeout(r, 300))
+      ext.restoreContext()
+      await new Promise((r) => setTimeout(r, 1500))
+      return restaurado ? 'restaurado' : 'no-restaurado'
+    })
+    expect(res).toBe('restaurado')
+    await page.waitForTimeout(900)
+    expect(await page.evaluate(() => window.__raices?.objetosCapa())).toEqual(capaAntes)
+    const d = difMedia(antes, await foto(page))
+    await page.screenshot({ path: 'capturas/m5-00-contexto-pool.png' })
+    expect(
+      d.fraccion,
+      `píxeles distintos tras perder el contexto moviendo la cámara: ${(d.fraccion * 100).toFixed(2)} %`,
+    ).toBeLessThan(0.005)
+    expect(errores).toEqual([])
+  })
 })
