@@ -62,3 +62,16 @@ Con estados reales, el núcleo (economía, catálogo, silueta) no tiene ningún 
 
 - Con el ratón, mientras se coloca no se puede arrastrar la cámara (`dedosParaArrastrar = 2` también afecta al ratón). Un arrastre lleva la silueta y, al soltar, abre la confirmación en el punto de destino. No construye nada, porque hace falta otro clic, pero sorprende a quien arrastra para mover la vista.
 - En Plano el tiempo está detenido, así que el personaje no puede entrar en la huella después de elegir posición. Los únicos cambios de estado posibles con la silueta quieta vienen de los ganchos de depuración, y los cubren los tests anteriores.
+
+## Resolución (orquestador)
+- **S2 (pantalla de 640×320, silueta bajo el panel):** resuelto en `c67c70c` y `db8a3d5`. En pantallas apaisadas y bajas, el panel pasa a ser una tarjeta lateral (`min(400px, 58vw)`) y la silueta aparece en la zona libre.
+- **S3 (catálogo que tapaba el HUD):** resuelto en `c67c70c`.
+- **S3 (doble toque):** resuelto en `c67c70c` y `db8a3d5`. Durante 400 ms tras confirmar se ignoran los toques a menos de 48 px del punto confirmado, y también los clics de teclado. Cubre todo el catálogo y «Listo».
+- **S3 (Enter mantenido):** resuelto en `c67c70c`. El botón ignora la repetición automática de la tecla (`ev.repeat`).
+- **S3 (ayuda con ratón):** resuelto en `c67c70c`. La ayuda cambia según el tipo de puntero.
+- **S3 (dinero corrupto):** resuelto en `c67c70c`. `entradaCatalogo` trata los valores no enteros como «falta todo» y se muestra «No se puede pagar ahora».
+- **S3 (día en el límite):** resuelto en `c67c70c`. La nueva `comprobarConstruir` la usan tanto el comando como la silueta.
+- **Visuales:** resueltos en `c67c70c`, `db8a3d5` y `b71a7ad`:
+  - el cartel de obra mide 12 px en pantalla, como círculo o tablón según el tamaño, escalado con `1/zoom` y nítido con zoom bajo;
+  - la silueta 1×1 tiene un contorno más grueso.
+- **Observación del ratón:** se mantiene. En M1 se decidió que el botón derecho y el central no mueven la cámara; mientras se coloca un edificio, la cámara se mueve con la rueda y con WASD, y así lo dice la ayuda.
