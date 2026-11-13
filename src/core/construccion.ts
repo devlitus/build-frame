@@ -20,7 +20,7 @@ import { aguaDe, zonaEn } from './zonas'
  * 10. `zona-incompatible`: alguna casilla no tiene una zona compatible con el edificio.
  * 11. `bloquea-paso`: tras colocarlo, alguna casilla transitable que era alcanzable desde la
  *     aparición dejaría de serlo (encierra la aparición o al personaje, o crea una bolsa
- *     cerrada). Es el más caro de calcular: solo se evalúa si fallan los anteriores.
+ *     cerrada). Es el más caro de calcular: solo se evalúa si no falla ninguno de los anteriores.
  * 12. `fondos-insuficientes`: falta dinero.
  * 13. `materiales-insuficientes`: falta madera o piedra.
  */

@@ -25,6 +25,19 @@ export interface Edificio {
   readonly x: number
   readonly y: number
   readonly obra: Obra | null
+  /**
+   * Lo realmente pagado al construir. Cancelar (100 %) y demoler (`reembolsoDemolicion`) reembolsan
+   * sobre esto aunque el catálogo cambie. Ausente solo en edificios heredados o hechos a mano:
+   * M4-06 usará entonces el coste del catálogo.
+   */
+  readonly pagado?: Coste
+}
+
+/** Dinero y materiales (enteros ≥ 0). */
+export interface Coste {
+  readonly dinero: number
+  readonly madera: number
+  readonly piedra: number
 }
 
 /** Definición del catálogo para `tipo`, o `undefined` si no existe (incluye claves heredadas como `constructor`). */
@@ -41,6 +54,11 @@ export function huellaDe(
   y: number,
 ): { x0: number; y0: number; x1: number; y1: number } {
   return { x0: x, y0: y, x1: x + def.ancho - 1, y1: y + def.alto - 1 }
+}
+
+/** La lista de edificios es una lista de objetos (un guardado manipulado podría traer `null`). */
+export function edificiosValidos(edificios: unknown): boolean {
+  return Array.isArray(edificios) && edificios.every((b) => typeof b === 'object' && b !== null)
 }
 
 const cacheOcupadas = new WeakMap<readonly Edificio[], Map<number, ReadonlyMap<number, number>>>()

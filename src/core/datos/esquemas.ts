@@ -164,6 +164,11 @@ export const EsquemaConfigEdificios = v.strictObject({
   materialesIniciales: cantidades(MATERIALES),
   /** Fracción del coste que se devuelve al demoler un edificio (0.5 = la mitad); la usa M4-06. */
   reembolsoDemolicion: v.pipe(v.number(), v.finite(), v.minValue(0), v.maxValue(1)),
+  /**
+   * Cómo se redondea cada cantidad reembolsada (sobre lo realmente pagado, `Edificio.pagado`):
+   * `abajo` = al entero inferior. Un solo valor por ahora; lo usan M4-06 (cancelar y demoler).
+   */
+  redondeoReembolso: v.picklist(['abajo']),
   /** Catálogo: exactamente un registro por cada tipo de `TIPOS_EDIFICIO`. */
   edificios: v.strictObject(
     Object.fromEntries(TIPOS_EDIFICIO.map((t) => [t, EsquemaEdificio])) as Record<

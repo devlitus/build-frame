@@ -1,6 +1,6 @@
 import { ZONAS } from './datos/claves'
 import type { EstadoJuego } from './estado'
-import { casillasOcupadas } from './edificios'
+import { casillasOcupadas, edificiosValidos } from './edificios'
 import { ladoValle } from './mapa'
 import { casillasRio } from './rio'
 
@@ -96,7 +96,7 @@ export function aplicarZonas(
   if (
     typeof estado.zonas !== 'string' ||
     estado.zonas.length !== lado * lado ||
-    !Array.isArray(estado.edificios)
+    !edificiosValidos(estado.edificios)
   ) {
     return { ok: false, error: 'estado-invalido' }
   }

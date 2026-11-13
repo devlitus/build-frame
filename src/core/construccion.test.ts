@@ -86,6 +86,7 @@ describe('catálogo de edificios (data/edificios.json)', () => {
     const { edificios: ed, materialesIniciales, reembolsoDemolicion } = CONFIG_EDIFICIOS
     expect(materialesIniciales).toEqual({ madera: 80, piedra: 20 })
     expect(reembolsoDemolicion).toBe(0.5)
+    expect(CONFIG_EDIFICIOS.redondeoReembolso).toBe('abajo')
     expect(ed.casa).toMatchObject({
       ancho: 4,
       alto: 3,
@@ -117,6 +118,7 @@ describe('catálogo de edificios (data/edificios.json)', () => {
   interface Mutable {
     materialesIniciales: Record<string, unknown>
     reembolsoDemolicion: unknown
+    redondeoReembolso: unknown
     edificios: Record<TipoEdificio | 'torre', Def>
   }
   const valido = (o: unknown) => v.safeParse(EsquemaConfigEdificios, o).success
@@ -143,6 +145,8 @@ describe('catálogo de edificios (data/edificios.json)', () => {
     ['lote decimal', (o) => (o.materialesIniciales.piedra = 1.5)],
     ['reembolso > 1', (o) => (o.reembolsoDemolicion = 1.5)],
     ['reembolso negativo', (o) => (o.reembolsoDemolicion = -0.1)],
+    ['redondeo desconocido', (o) => (o.redondeoReembolso = 'arriba')],
+    ['redondeo ausente', (o) => delete o.redondeoReembolso],
   ])('rechaza datos mal formados: %s', (_n, mut) => {
     const o = clon()
     mut(o)
@@ -432,7 +436,14 @@ describe('comando Construir', () => {
     expect(r.estado.dinero).toBe(lim.dinero - 300)
     expect(r.estado.materiales).toEqual({ madera: 80 - 50, piedra: 20 - 10 })
     expect(r.estado.edificios).toEqual([
-      { id: 1, tipo: 'cobertizo', x: ALM.x, y: ALM.y, obra: { diaInicio: 5, diaFin: 7 } },
+      {
+        id: 1,
+        tipo: 'cobertizo',
+        x: ALM.x,
+        y: ALM.y,
+        obra: { diaInicio: 5, diaFin: 7 },
+        pagado: { dinero: 300, madera: 50, piedra: 10 },
+      },
     ])
     expect(r.estado.siguienteIdEdificio).toBe(2)
     expect(r.eventos).toEqual([

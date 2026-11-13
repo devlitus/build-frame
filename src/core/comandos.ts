@@ -4,7 +4,7 @@ import { parcelaComprable } from './parcelas'
 import { aplicarZonas, CARACTER_SIN_ZONA, CARACTER_ZONA, ZONAS, type Zona } from './zonas'
 import { moverPersonaje, personajeEnAparicion } from './personaje'
 import { colocacionValida, type MotivoColocacion } from './construccion'
-import { defEdificio, type TipoEdificio } from './edificios'
+import { defEdificio, edificiosValidos, type TipoEdificio } from './edificios'
 
 /**
  * Todo cambio de estado del juego ocurre mediante un comando (ADR 0004).
@@ -134,7 +134,8 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
       if (tiempoDetenido(estado) || ms === 0 || (dx === 0 && dy === 0)) {
         return { ok: true, estado, eventos: SIN_EVENTOS }
       }
-      if (!Array.isArray(estado.edificios)) return { ok: false, estado, error: 'estado-invalido' }
+      if (!edificiosValidos(estado.edificios))
+        return { ok: false, estado, error: 'estado-invalido' }
       const personaje = moverPersonaje(estado, estado.personaje, dx, dy, ms)
       const antes = estado.personaje
       // Contra un muro no cambia nada: se devuelve el mismo estado (sin avisos por fotograma).
@@ -211,7 +212,7 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
       }
       if (estado.modo !== 'plano') return { ok: false, estado, error: 'solo-en-plano' }
       if (
-        !Array.isArray(estado.edificios) ||
+        !edificiosValidos(estado.edificios) ||
         typeof estado.zonas !== 'string' ||
         typeof estado.materiales !== 'object' ||
         estado.materiales === null ||
@@ -244,7 +245,14 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
           },
           edificios: [
             ...estado.edificios,
-            { id, tipo: tipoEdificio, x: nx, y: ny, obra: { diaInicio: estado.dia, diaFin } },
+            {
+              id,
+              tipo: tipoEdificio,
+              x: nx,
+              y: ny,
+              obra: { diaInicio: estado.dia, diaFin },
+              pagado: { ...def.coste },
+            },
           ],
           siguienteIdEdificio: id + 1,
         },
