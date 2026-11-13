@@ -1161,7 +1161,9 @@ describe('partidas largas mezclando todos los comandos', () => {
         ),
         { numRuns: 150 },
       )
-      expect(construidos).toBeGreaterThan(10)
+      // Suelo de no vacuidad: con ahorros reales solo caben unas pocas obras por partida, así que
+      // más de 10 en 150 partidas aleatorias fluctuaba (9 en ~1 de cada 25 pasadas).
+      expect(construidos).toBeGreaterThan(3)
     })
   }
 })
