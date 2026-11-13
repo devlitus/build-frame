@@ -198,6 +198,24 @@ export function redibujarParcelas(
   }
 }
 
+/** Rectángulo de resalte (relleno crema suave y doble contorno tinta/crema), en px del mundo. */
+function resaltarRect(
+  g: Phaser.GameObjects.Graphics,
+  x: number,
+  y: number,
+  ancho: number,
+  alto: number,
+): void {
+  const e = ESTILO_RESALTE
+  g.fillStyle(e.crema, e.alfaRelleno)
+  g.fillRect(x, y, ancho, alto)
+  const m = e.grosorTinta / 2
+  g.lineStyle(e.grosorTinta, e.tinta, 1)
+  g.strokeRect(x + m, y + m, ancho - e.grosorTinta, alto - e.grosorTinta)
+  g.lineStyle(e.grosorCrema, e.crema, 1)
+  g.strokeRect(x + m, y + m, ancho - e.grosorTinta, alto - e.grosorTinta)
+}
+
 /** Redibuja el contorno de la parcela seleccionada (o lo borra si `indice` es undefined). */
 export function dibujarResalte(
   g: Phaser.GameObjects.Graphics,
@@ -208,14 +226,21 @@ export function dibujarResalte(
   if (indice === undefined) return
   const lado = valle.casillasPorParcela * TAM_CASILLA
   const n = valle.parcelasPorLado
-  const x = (indice % n) * lado
-  const y = Math.floor(indice / n) * lado
-  const e = ESTILO_RESALTE
-  g.fillStyle(e.crema, e.alfaRelleno)
-  g.fillRect(x, y, lado, lado)
-  const m = e.grosorTinta / 2
-  g.lineStyle(e.grosorTinta, e.tinta, 1)
-  g.strokeRect(x + m, y + m, lado - e.grosorTinta, lado - e.grosorTinta)
-  g.lineStyle(e.grosorCrema, e.crema, 1)
-  g.strokeRect(x + m, y + m, lado - e.grosorTinta, lado - e.grosorTinta)
+  resaltarRect(g, (indice % n) * lado, Math.floor(indice / n) * lado, lado, lado)
+}
+
+/** Redibuja el contorno de la huella de un edificio (casillas) seleccionado; lo borra si `huella` es undefined. */
+export function dibujarResalteEdificio(
+  g: Phaser.GameObjects.Graphics,
+  huella: { x0: number; y0: number; x1: number; y1: number } | undefined,
+): void {
+  g.clear()
+  if (!huella) return
+  resaltarRect(
+    g,
+    huella.x0 * TAM_CASILLA,
+    huella.y0 * TAM_CASILLA,
+    (huella.x1 - huella.x0 + 1) * TAM_CASILLA,
+    (huella.y1 - huella.y0 + 1) * TAM_CASILLA,
+  )
 }

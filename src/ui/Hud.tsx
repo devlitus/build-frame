@@ -6,6 +6,7 @@ import { Dinero } from './Dinero'
 import { Materiales } from './Materiales'
 import { BotonConstruir, PanelConstruir } from './PanelConstruir'
 import { BarraZonas, BotonZonas } from './BarraZonas'
+import { PanelEdificio } from './PanelEdificio'
 import { PanelParcela } from './PanelParcela'
 import { Reloj } from './Reloj'
 import { t } from './textos'
@@ -43,7 +44,7 @@ export function BotonModo() {
 function AyudaPlano() {
   const plano = useEstado((e) => e.modo === 'plano')
   const zonas = usePincel().abierto
-  const construir = useConstruccion().abierto
+  const { abierto: construir, origen } = useConstruccion()
   return plano ? (
     <>
       <p id="ayuda-plano" class="solo-lector">
@@ -54,9 +55,14 @@ function AyudaPlano() {
           {t('ayudaZonas')}
         </p>
       )}
-      {construir && (
+      {construir && origen === undefined && (
         <p id="ayuda-construir" class="solo-lector">
           {t('ayudaConstruir')}
+        </p>
+      )}
+      {construir && origen !== undefined && (
+        <p id="ayuda-mover" class="solo-lector">
+          {t('ayudaMover')}
         </p>
       )}
     </>
@@ -85,6 +91,7 @@ export function Hud({ partida, debug = false }: { partida: Partida; debug?: bool
         </div>
         <AyudaPlano />
         <PanelParcela />
+        <PanelEdificio />
         <BarraZonas />
         <PanelConstruir />
         <div class="botones-inferiores">

@@ -7,6 +7,7 @@ import {
   casillaBloqueada,
   colocacionValida,
   crearEstadoInicial,
+  defEdificio,
   ladoValle,
   mapaTransitabilidad,
   parcelaComprable,
@@ -263,6 +264,7 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
       return {
         abierto: c.abierto,
         tipo: c.tipo,
+        origen: c.origen,
         confirmando: c.confirmando !== undefined,
         centro: c.centro,
         silueta: s && {
@@ -279,6 +281,29 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
     edificios: () => {
       const e = g.scene.getScene('valle')
       return e instanceof EscenaValle ? e.edificiosVisibles().map((v) => ({ ...v })) : []
+    },
+    edificioSeleccionado: () => {
+      const s = partida?.edificioSeleccionado
+      return s && { id: s.id, confirmando: s.confirmando?.accion }
+    },
+    seleccionarEdificio: (id) => {
+      // Solo con `?debug`: selecciona un edificio u obra por id (Modo Plano).
+      if (!leerParametros(window.location.search).debug) return
+      if (partida?.estado.modo !== 'plano') return
+      if (!partida.estado.edificios.some((e) => e.id === id)) return
+      partida.edificioSeleccionado.seleccionar(id)
+    },
+    puntoClicEdificio: (id) => {
+      // Solo con `?debug`: dónde pulsar (px de pantalla) para tocar el edificio de verdad.
+      if (!leerParametros(window.location.search).debug) return undefined
+      const e = g.scene.getScene('valle')
+      const ed = partida?.estado.edificios.find((b) => b.id === id)
+      const def = ed && defEdificio(ed.tipo)
+      if (!(e instanceof EscenaValle) || !ed || !def) return undefined
+      return e.puntoClicCasilla(
+        ed.x + Math.floor((def.ancho - 1) / 2),
+        ed.y + Math.floor((def.alto - 1) / 2),
+      )
     },
     colocacion: (tipo, x, y) => {
       // Solo con `?debug`: veredicto de `colocacionValida` para el estado actual.

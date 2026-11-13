@@ -418,9 +418,12 @@ describe('mover la casa (D9)', () => {
     expect(Math.floor(dormida.personaje.x)).toBe(p1.x)
     expect(Math.floor(dormida.personaje.y)).toBe(p1.y)
   })
-  it('tras demoler la caja de envío la casa sigue siendo la casa única', () => {
+  it('la casa sigue siendo única aunque no se pueda demoler', () => {
     const t = terminada('casa')
-    expect(colocacionValida(t.e, 'casa', t.x + 20, t.y).motivo).toBe('unico-ya-existe')
+    expect(colocacionValida(t.e, 'casa', t.x + 20, t.y)).toEqual({
+      valida: false,
+      motivo: 'unico-ya-existe',
+    })
   })
 })
 

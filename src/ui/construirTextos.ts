@@ -56,6 +56,11 @@ export function textoResto(c: Coste): string {
   ])
 }
 
+/** Lo que se devuelve al demoler o cancelar, en palabras; «nada» si no es nada (la obra de la casa). */
+export function textoReembolso(c: Coste): string {
+  return sinNada(c) ? t('reembolsoNada') : textoCoste(c)
+}
+
 export function textoDias(dias: number): string {
   return tp(dias === 1 ? 'edificioDia' : 'edificioDias', { n: dias })
 }

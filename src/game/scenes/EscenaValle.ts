@@ -1,8 +1,11 @@
 import Phaser from 'phaser'
 import {
   aplicarComando,
+  casillasOcupadas,
   casillasRio,
   crearEstadoInicial,
+  defEdificio,
+  huellaDe,
   ladoValle,
   tiempoDetenido,
   type Comando,
@@ -30,7 +33,13 @@ import {
   type RectCasillas,
 } from '../pincel'
 import { PintorZonas } from '../pintorZonas'
-import { dibujarDecoracion, dibujarResalte, dibujarTerreno, tamanoMundoPx } from '../valle/dibujar'
+import {
+  dibujarDecoracion,
+  dibujarResalte,
+  dibujarResalteEdificio,
+  dibujarTerreno,
+  tamanoMundoPx,
+} from '../valle/dibujar'
 import { medirReservasHud } from '../areaHud'
 import { areaLibre, centroParaVer, parcelaEnPunto, puntoDeToque, rectParcela } from '../picking'
 import { parcelaEnCentroDeVista, parcelaVecina, type DireccionParcela } from '../cursorParcela'
@@ -269,11 +278,19 @@ export class EscenaValle extends Phaser.Scene {
     this.selector = new SelectorParcela(this, (p) => {
       // Tras comprar, el segundo clic de un doble clic no debe cambiar la selección.
       if (partida.seleccion.clicsBloqueados()) return
+      // Un clic sobre un edificio (u obra) lo selecciona; fuera de él, la parcela.
+      const edificio = this.edificioEn(p)
+      if (edificio !== undefined) {
+        partida.edificioSeleccionado.seleccionar(edificio)
+        return
+      }
       const g = this.geometria()
       const i = g ? parcelaEnPunto(g, p.x, p.y) : undefined
       // Tocar fuera del valle deselecciona; tocar la misma parcela la mantiene.
-      if (i === undefined) partida.seleccion.deseleccionar()
-      else partida.seleccion.seleccionar(i)
+      if (i === undefined) {
+        partida.seleccion.deseleccionar()
+        partida.edificioSeleccionado.deseleccionar()
+      } else partida.seleccion.seleccionar(i)
     })
     this.selector.activo = inicial.modo === 'plano'
     partida.pincel.cerrar()
@@ -299,7 +316,12 @@ export class EscenaValle extends Phaser.Scene {
     })
     this.desuscribirSeleccion?.()
     this.claveGuia = ''
-    this.desuscribirSeleccion = partida.seleccion.suscribir(() => this.alCambiarSeleccion())
+    const bajaParcela = partida.seleccion.suscribir(() => this.alCambiarSeleccion())
+    const bajaEdificio = partida.edificioSeleccionado.suscribir(() => this.alCambiarSeleccion())
+    this.desuscribirSeleccion = () => {
+      bajaParcela()
+      bajaEdificio()
+    }
     // Al girar o redimensionar, el panel y las reservas se vuelven a medir en el DOM: la guía se
     // repite en el siguiente fotograma, cuando ya están al día.
     this.scale.off('resize', this.alRedimensionar, this)
@@ -321,9 +343,11 @@ export class EscenaValle extends Phaser.Scene {
         partida.pincel.cerrar()
         return
       }
-      // Con una confirmación de compra abierta, el primer Esc solo la cancela.
+      // Con una confirmación abierta (compra, demoler, cancelar obra), el primer Esc solo la cancela.
+      if (partida.edificioSeleccionado.cancelarConfirmacion()) return
       if (partida.seleccion.cancelarConfirmacion()) return
       partida.seleccion.deseleccionar()
+      partida.edificioSeleccionado.deseleccionar()
     }
     const teclado = this.input.keyboard
     teclado?.on('keydown-ESC', alEsc)
@@ -433,7 +457,14 @@ export class EscenaValle extends Phaser.Scene {
     }
     if (ev.code === 'Enter' || ev.code === 'NumpadEnter' || ev.code === 'Space') {
       ev.preventDefault()
-      if (ev.repeat || seleccion.indice !== undefined) return
+      if (ev.repeat) return
+      // Con el cursor en el centro de la vista: si hay un edificio ahí se elige; si no, la parcela.
+      const edificio = this.edificioEnCentroDeVista()
+      if (edificio !== undefined) {
+        partida.edificioSeleccionado.seleccionar(edificio)
+        return
+      }
+      if (seleccion.indice !== undefined || partida.edificioSeleccionado.id !== undefined) return
       seleccion.seleccionar(parcelaEnCentroDeVista(g, this.control.vista))
       return
     }
@@ -486,7 +517,10 @@ export class EscenaValle extends Phaser.Scene {
     if (ev.code === 'Enter' || ev.code === 'NumpadEnter' || ev.code === 'Space') {
       ev.preventDefault()
       if (ev.repeat) return
-      if (partida.silueta()?.resultado.valida) construccion.pedirConfirmacion('teclado')
+      if (!partida.silueta()?.resultado.valida) return
+      // Mover es gratis: Enter lo hace; construir pide antes la confirmación.
+      if (construccion.origen !== undefined) partida.moverAqui()
+      else construccion.pedirConfirmacion('teclado')
       return
     }
     const direccion: Record<string, DireccionCasilla | undefined> = {
@@ -504,7 +538,26 @@ export class EscenaValle extends Phaser.Scene {
   /** Clic con el ratón sobre el valle: si la silueta se puede colocar, pide la confirmación. */
   private alClicRatonConstruir(): void {
     const partida = this._partida
+    // Al mover, el botón «Mover aquí» confirma; el clic solo coloca la silueta.
+    if (partida?.construccion.origen !== undefined) return
     if (partida?.silueta()?.resultado.valida) partida.construccion.pedirConfirmacion('puntero')
+  }
+
+  /** `id` del edificio u obra que cubre el punto (px del mundo), o undefined. */
+  private edificioEn(punto: { x: number; y: number }): number | undefined {
+    const s = this._partida?.estado
+    if (!s) return undefined
+    const lado = ladoValle(s.valle)
+    const cx = Math.floor(punto.x / TAM_CASILLA)
+    const cy = Math.floor(punto.y / TAM_CASILLA)
+    if (cx < 0 || cy < 0 || cx >= lado || cy >= lado) return undefined
+    return casillasOcupadas(s.edificios, lado).get(cy * lado + cx)
+  }
+
+  /** Edificio bajo el centro de la vista (el cursor del teclado en el Modo Plano), o undefined. */
+  private edificioEnCentroDeVista(): number | undefined {
+    const v = this.control?.vista
+    return v && this.edificioEn({ x: v.cx, y: v.cy })
   }
 
   /** Casilla en el centro de la zona libre (sin HUD ni panel), donde aparece la silueta al elegir un edificio. */
@@ -586,7 +639,13 @@ export class EscenaValle extends Phaser.Scene {
     }
     if (pincel.abierto || construccion.abierto) partida.seleccion.deseleccionar()
     // La ayuda del lienzo solo depende de qué está abierto: no se recalcula al arrastrar ni al mover la silueta.
-    const clave = pincel.abierto ? 'zonas' : construccion.abierto ? 'construir' : ''
+    const clave = pincel.abierto
+      ? 'zonas'
+      : construccion.abierto
+        ? construccion.origen === undefined
+          ? 'construir'
+          : 'mover'
+        : ''
     if (clave !== this.ayudaClave) {
       this.ayudaClave = clave
       this.ajustarLienzoAccesible(this.modoAplicado)
@@ -613,7 +672,9 @@ export class EscenaValle extends Phaser.Scene {
         this._partida?.pincel.abierto
           ? 'ayuda-plano ayuda-zonas'
           : this._partida?.construccion.abierto
-            ? 'ayuda-plano ayuda-construir'
+            ? this._partida.construccion.origen === undefined
+              ? 'ayuda-plano ayuda-construir'
+              : 'ayuda-plano ayuda-mover'
             : 'ayuda-plano',
       )
       if (contenedor) contenedor.dataset['modo'] = 'plano'
@@ -641,8 +702,29 @@ export class EscenaValle extends Phaser.Scene {
     const g = this.geometria()
     if (!partida || !g) return
     const i = partida.seleccion.indice
-    if (this.resalte) dibujarResalte(this.resalte, partida.estado.valle, i)
-    if (i === undefined) {
+    const idEdificio = partida.edificioSeleccionado.id
+    const edificio =
+      idEdificio === undefined
+        ? undefined
+        : partida.estado.edificios.find((e) => e.id === idEdificio)
+    const defSel = edificio && defEdificio(edificio.tipo)
+    const huella = edificio && defSel ? huellaDe(defSel, edificio.x, edificio.y) : undefined
+    if (this.resalte) {
+      if (huella) dibujarResalteEdificio(this.resalte, huella)
+      else dibujarResalte(this.resalte, partida.estado.valle, i)
+    }
+    // Al mover, la silueta empieza donde está el edificio: si queda tapada por el panel, la cámara la busca.
+    const moviendo = partida.construccion.origen
+    if (moviendo !== undefined && partida.construccion.activo) {
+      const o = partida.seleccion.ocupado
+      const clave = 'm' + moviendo + '|' + (o ? `${o.x},${o.y},${o.ancho},${o.alto}` : '')
+      if (clave !== this.claveGuia) {
+        this.claveGuia = clave
+        this.verSilueta()
+      }
+      return
+    }
+    if (i === undefined && !huella) {
       this.claveGuia = ''
       this.control?.soltarExtension()
       return
@@ -662,15 +744,27 @@ export class EscenaValle extends Phaser.Scene {
     // Las reservas del HUD cambian (p. ej. con el aviso de compra): entran en la clave para que
     // la guía se repita cuando aparecen o desaparecen, igual que con el panel.
     const reservas = medirReservasHud()
-    const clave = `${i}|${o ? `${o.x},${o.y},${o.ancho},${o.alto}` : ''}|${reservas.arriba},${reservas.abajo}`
+    const sujeto = huella ? 'e' + idEdificio : String(i)
+    const clave = `${sujeto}|${o ? `${o.x},${o.y},${o.ancho},${o.alto}` : ''}|${reservas.arriba},${reservas.abajo}`
     if (clave === this.claveGuia || !this.control) return
     this.claveGuia = clave
     const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const objetivo = huella
+      ? {
+          x: huella.x0 * TAM_CASILLA,
+          y: huella.y0 * TAM_CASILLA,
+          ancho: (huella.x1 - huella.x0 + 1) * TAM_CASILLA,
+          alto: (huella.y1 - huella.y0 + 1) * TAM_CASILLA,
+        }
+      : i === undefined
+        ? undefined
+        : rectParcela(g, i)
+    if (!objetivo) return
     const centro = centroParaVer(
       this.control.vista,
       pantalla,
       areaLibre(pantalla, o, reservas),
-      rectParcela(g, i),
+      objetivo,
     )
     if (centro) this.control.guiarA(centro)
   }

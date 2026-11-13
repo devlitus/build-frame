@@ -1069,3 +1069,54 @@ body {
   }
 }
 /* === Fin M4-05 === */
+
+/* === M4-06 · Panel del edificio (mover, demoler, cancelar obra) === */
+/* Reutiliza la tarjeta de `.panel-parcela` (lateral en apaisado, hoja inferior en vertical). */
+.edificio-estado,
+.edificio-nota,
+.edificio-reembolso {
+  margin: 0;
+}
+
+.edificio-estado {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  background: rgb(138 90 59 / 14%);
+  border: 2px solid var(--tierra);
+}
+
+.edificio-nota {
+  font-size: 0.9rem;
+}
+
+.edificio-reembolso {
+  font-weight: 600;
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  /* Mover y Demoler lado a lado: la tarjeta es baja. */
+  .edificio-acciones {
+    flex-direction: row;
+  }
+
+  .edificio-estado {
+    padding: 3px 8px;
+    font-size: 0.9rem;
+  }
+
+  .edificio-nota {
+    font-size: 0.8rem;
+    line-height: 1.15;
+  }
+
+  /* Con la confirmación abierta lo único que importa es la pregunta y sus dos botones. */
+  .panel-confirmando .edificio-estado,
+  .panel-confirmando .edificio-nota {
+    display: none;
+  }
+}
+/* === Fin M4-06 === */
