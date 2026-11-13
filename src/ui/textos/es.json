@@ -113,7 +113,7 @@
   "construirAqui": "Construir aquí",
   "construirCambiar": "Cambiar edificio",
   "construirAyudaSilueta": "Toca o arrastra para mover la silueta; con dos dedos mueves la vista; confirma con el botón",
-  "construirAyudaSiluetaTeclado": "Mueve la silueta con el ratón o las flechas; la rueda y WASD mueven la vista; Enter construye",
+  "construirAyudaSiluetaTeclado": "Mueve la silueta con el ratón o las flechas; WASD mueve la vista y la rueda acerca y aleja; Enter construye",
   "construirAyudaSiluetaCorta": "Toca o arrastra para mover; confirma con el botón",
   "construirAyudaSiluetaTecladoCorta": "Ratón o flechas mueven la silueta; Enter construye",
   "confirmarTitulo": "¿Construir {edificio}?",
@@ -162,7 +162,7 @@
   "moverOk": "Aquí se puede mover",
   "moverMismoSitio": "Ahí está ahora: elige otro sitio",
   "moverAyudaTactil": "Toca o arrastra para mover la silueta; con dos dedos mueves la vista; confirma con el botón",
-  "moverAyudaTeclado": "Mueve la silueta con el ratón o las flechas; la rueda y WASD mueven la vista; Enter mueve y Escape cancela",
+  "moverAyudaTeclado": "Mueve la silueta con el ratón o las flechas; WASD mueve la vista y la rueda acerca y aleja; Enter mueve y Escape cancela",
   "moverAyudaTactilCorta": "Toca o arrastra para mover; confirma con el botón",
   "moverAyudaTecladoCorta": "Ratón o flechas mueven la silueta; Enter mueve",
   "avisoEdificioMovido": "Movido: {edificio}",
@@ -177,5 +177,5 @@
   "errorEdificio_no-es-obra": "Ya está terminado: se puede demoler",
   "errorEdificio_no-demolible": "La casa no se puede demoler",
   "errorEdificio_limite-de-recursos": "Tienes demasiado para guardar más",
-  "ayudaMover": "Modo Mover abierto. Las flechas mueven la silueta del edificio; Enter lo mueve si la silueta es verde. Con Tab llegas al panel, donde «Mover aquí» confirma y «Cancelar» sale. Escape cancela. La vista se mueve con la rueda y las teclas W, A, S y D, o con dos dedos en pantallas táctiles."
+  "ayudaMover": "Modo Mover abierto. Las flechas mueven la silueta del edificio; Enter lo mueve si la silueta es verde. Con Tab llegas al panel, donde «Mover aquí» confirma y «Cancelar» sale. Escape cancela. La vista se mueve con W, A, S y D o con dos dedos en pantallas táctiles; la rueda acerca y aleja."
 }

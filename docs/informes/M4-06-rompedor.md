@@ -60,3 +60,13 @@ El núcleo (economía, mover, D9) no tiene ningún fallo. Todos los fallos está
 
 - **Test inestable del implementador:** `tests/prop/mover-demoler.test.ts`, «las partidas aleatorias llegan a mover, demoler y cancelar de verdad». También falló en mi ejecución completa de `vitest` (1 de 917). Sin semilla fija, sus generadores rara vez terminan un edificio antes de demolerlo. En mi generador eso se resolvió partiendo de valles con edificios ya terminados y fijando la semilla del test de cobertura.
 - En 640×320 `puntoClicCasilla` devuelve `undefined` en toda la pantalla aunque no haya ningún panel, porque las reservas del HUD se comen la zona libre. Los ganchos `puntoClicEdificio` y `sitios` no sirven allí. Mis tests proyectan la casilla con la cámara y comprueban `elementFromPoint`.
+
+## Resolución (orquestador)
+- **Fallos 1 y 2 (doble toque en «Sí, demoler» y en «Mover aquí»):** resueltos en `731d3fb`. `seleccion.bloquearClics` hace que el lienzo ignore durante 400 ms el toque que sigue a la confirmación.
+- **Fallos 3 y 4 (silueta en su mismo sitio):** resueltos en `731d3fb`. La silueta se pinta neutra y Enter no hace nada. `comprobarMover` no cambia.
+- **Fallo 5 (hueco transparente bajo el panel):** resuelto en `731d3fb`. `.edificio-acciones` pasa a `position: static`.
+- **Fallo 6 (640×320):** resuelto en `731d3fb`. Los paneles de parcela y de edificio pasan a tarjeta lateral en apaisado de alto ≤ 520 px.
+- **Resaltes de la casa y de una obra 1×1:** resueltos en `731d3fb` con un aro exterior de tinta, amarillo y crema.
+- **Test inestable del implementador:** resuelto en `731d3fb` con semilla fija y un valle que ya tiene edificios.
+- **Inestabilidad de los e2e en `movil`** (detectada por el revisor): resuelta en `66da7ff`. Un centrado explícito anula el salto de cámara pendiente del desmayo, y los tests esperan a que la cámara deje de moverse (gancho `guiando`).
+- **Textos de ayuda:** corregidos en `d38fad4` y en el commit final. La rueda acerca y aleja, y la vista se mueve con WASD o con dos dedos.
