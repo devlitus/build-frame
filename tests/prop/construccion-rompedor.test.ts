@@ -963,7 +963,12 @@ describe('buscarCamino con edificios', () => {
 // ----------------------------------------------------------------------------------------
 // Partidas largas
 // ----------------------------------------------------------------------------------------
-function comprobar(e: EstadoJuego, e0: EstadoJuego, gastoParcelas: number): void {
+function comprobar(
+  e: EstadoJuego,
+  e0: EstadoJuego,
+  gastoParcelas: number,
+  diasFin: Map<number, number>,
+): void {
   const lado = ladoValle(e.valle)
   const c = e.valle.casillasPorParcela
   const agua = aguaDe(e)
@@ -979,8 +984,17 @@ function comprobar(e: EstadoJuego, e0: EstadoJuego, gastoParcelas: number): void
     dinero += d.coste.dinero
     madera += d.coste.madera
     piedra += d.coste.piedra
-    expect(b.obra).not.toBeNull()
-    expect((b.obra?.diaFin ?? 0) - (b.obra?.diaInicio ?? 0)).toBe(d.dias)
+    // Desde M4-03 el desmayo cierra las obras (`obra` pasa a null al llegar el día `diaFin`).
+    if (b.obra !== null) {
+      expect(b.obra.diaFin - b.obra.diaInicio).toBe(d.dias)
+      expect(b.obra.diaFin).toBeGreaterThan(e.dia)
+      diasFin.set(b.id, b.obra.diaFin)
+    } else {
+      // Terminada: se vio en obra al crearla y el día actual ya alcanzó su `diaFin`.
+      const fin = diasFin.get(b.id)
+      expect(fin).toBeDefined()
+      expect(e.dia).toBeGreaterThanOrEqual(fin ?? Infinity)
+    }
     for (let y = b.y; y < b.y + d.alto; y++)
       for (let x = b.x; x < b.x + d.ancho; x++) {
         const k = y * lado + x
@@ -1122,6 +1136,7 @@ describe('partidas largas mezclando todos los comandos', () => {
             const comandos = comprarAp ? [{ tipo: 'ComprarParcela', indice: ap }, ...resto] : resto
             let e = e0
             let gastoParcelas = 0
+            const diasFin = new Map<number, number>()
             for (const c of comandos) {
               const previo = JSON.stringify(e)
               const r = cmd(e, c)
@@ -1133,7 +1148,7 @@ describe('partidas largas mezclando todos los comandos', () => {
                 if ((c as { tipo: string }).tipo === 'Construir') construidos++
               }
               e = r.estado
-              comprobar(e, e0, gastoParcelas)
+              comprobar(e, e0, gastoParcelas, diasFin)
             }
             // Determinismo y JSON ida y vuelta (y sigue aceptando comandos igual).
             const otra = comandos.reduce<EstadoJuego>((s, c) => cmd(s, c).estado, e0)
