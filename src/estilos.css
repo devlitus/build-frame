@@ -117,6 +117,20 @@ body {
   text-shadow: 0 1px 3px var(--sombra);
 }
 
+/* Botones inferiores (Construir, Zonas, Modo): una fila flexible abajo a la derecha que pasa a dos líneas si no cabe. */
+.botones-inferiores {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: flex-end;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
 /* Interfaz de partida: arriba (M2-06) hora y botones de tiempo; abajo a la izquierda (M2-04) el joystick. */
 .hud {
   align-self: stretch;
@@ -125,9 +139,6 @@ body {
 }
 
 .boton-modo {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
   pointer-events: auto;
   font: inherit;
   font-weight: 700;
@@ -560,17 +571,26 @@ body {
   color: var(--crema);
 }
 
-/* Móvil horizontal (poca altura): panel compacto para que «Comprar» quepa sin desplazarse. */
+/*
+ * Apaisado y bajo: el panel pasa a una tarjeta a la izquierda, bajo el HUD (el mismo patrón que el
+ * panel de construir), para que ni el panel tape los controles del tiempo ni los botones de abajo
+ * (Construir, Zonas, Modo) tapen sus botones. El resto del valle queda libre.
+ */
 @media (orientation: landscape) and (max-height: 520px) {
   .panel-parcela {
-    width: min(400px, 52%);
+    top: auto;
+    right: auto;
+    left: 8px;
+    bottom: 8px;
+    width: min(400px, 58vw);
     gap: 4px;
     padding: 6px 10px 8px;
-    max-height: calc(100% - 140px);
+    max-height: calc(100vh - 106px);
   }
 
   .hud-debug .panel-parcela {
-    max-height: calc(100% - 172px);
+    top: auto;
+    max-height: calc(100vh - 138px);
   }
 
   .panel-parcela h2 {
@@ -606,18 +626,6 @@ body {
   }
 }
 
-/* Móviles bajos (hasta 400 px): el panel se aparta del botón de modo para tener toda la altura. */
-@media (orientation: landscape) and (max-height: 400px) {
-  .panel-parcela {
-    right: 128px;
-    max-height: calc(100% - 84px);
-  }
-
-  .hud-debug .panel-parcela {
-    max-height: calc(100% - 116px);
-  }
-}
-
 /* Móvil vertical: hoja inferior, por encima del botón de modo. */
 @media (orientation: portrait) and (max-width: 700px) {
   .panel-parcela,
@@ -632,3 +640,518 @@ body {
   }
 }
 /* === Fin panel de parcela === */
+
+/* === M4-04 · Pincel de zonas === */
+.boton-zonas,
+.boton-listo,
+.herramienta-zona {
+  pointer-events: auto;
+  font: inherit;
+  font-weight: 700;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0.4rem 0.9rem;
+  border: 2px solid var(--tierra);
+  border-radius: 999px;
+  background: var(--crema);
+  color: var(--tierra);
+  box-shadow: 0 2px 8px var(--sombra);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.boton-zonas:focus-visible,
+.boton-listo:focus-visible,
+.herramienta-zona:focus-visible {
+  outline: 3px solid var(--crema);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px var(--tinta),
+    0 4px 12px var(--sombra);
+}
+
+/* Ocupa todo el ancho sobre el botón de modo; solo la caja interior recoge los toques. */
+.barra-zonas {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 72px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.barra-zonas-caja {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 16px;
+  background: rgb(246 236 214 / 96%);
+  border: 2px solid var(--tierra);
+  box-shadow: 0 4px 16px var(--sombra);
+  pointer-events: auto;
+}
+
+.herramienta-zona {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.herramienta-zona[aria-pressed='true'] {
+  background: var(--tierra);
+  color: var(--crema);
+}
+
+.boton-listo {
+  background: var(--tinta);
+  color: var(--crema);
+  border-color: var(--tinta);
+}
+
+/* Muestra de la zona: mismo color y mismo patrón que en el valle (colores en `estilo.ts`). */
+.muestra-zona {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border: 2px solid var(--tinta);
+  border-radius: 4px;
+  background-color: var(--zona, var(--crema));
+}
+
+.muestra-cultivo {
+  background-image: repeating-linear-gradient(0deg, transparent 0 4px, rgb(59 42 26 / 70%) 4px 6px);
+}
+
+.muestra-huerto {
+  background-image: radial-gradient(circle, rgb(59 42 26 / 75%) 2px, transparent 2.5px);
+  background-size: 8px 8px;
+}
+
+.muestra-vivienda {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 4px,
+    rgb(255 243 196 / 80%) 4px 6px
+  );
+}
+
+.muestra-almacen {
+  background-image:
+    linear-gradient(rgb(59 42 26 / 70%) 2px, transparent 2px),
+    linear-gradient(90deg, rgb(59 42 26 / 70%) 2px, transparent 2px);
+  background-size: 8px 8px;
+}
+
+.muestra-borrar {
+  background-color: var(--zona, var(--crema));
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent 0 3px,
+    rgb(255 243 196 / 80%) 3px 5px
+  );
+  border-style: dashed;
+}
+/* === Fin pincel de zonas === */
+
+/* === M4-05 · Materiales en el HUD, modo Construir y silueta === */
+.materiales {
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: var(--tierra);
+  color: var(--crema);
+  box-shadow: 0 2px 8px var(--sombra);
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.material-simbolo {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+.material {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.boton-construir {
+  pointer-events: auto;
+  font: inherit;
+  font-weight: 700;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0.4rem 0.9rem;
+  border: 2px solid var(--tierra);
+  border-radius: 999px;
+  background: var(--crema);
+  color: var(--tierra);
+  box-shadow: 0 2px 8px var(--sombra);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.boton-construir:focus-visible {
+  outline: 3px solid var(--crema);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px var(--tinta),
+    0 4px 12px var(--sombra);
+}
+
+/* Ocupa todo el ancho sobre el botón de modo; solo la caja interior recoge los toques. */
+.panel-construir {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 72px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.panel-construir-caja {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(100%, 820px);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 8px 10px 10px;
+  border-radius: 16px;
+  background: rgb(246 236 214 / 96%);
+  color: var(--tinta);
+  border: 2px solid var(--tierra);
+  box-shadow: 0 4px 16px var(--sombra);
+  touch-action: pan-y;
+}
+
+.construir-confirmacion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel-construir-confirmando {
+  background: rgb(255 226 150 / 96%);
+  border-color: #b8860b;
+}
+
+.construir-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.construir-titulo {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.construir-coste {
+  font-weight: 400;
+}
+
+.catalogo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.edificio-opcion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 12px;
+  font: inherit;
+  text-align: left;
+  border: 2px solid var(--tierra);
+  border-radius: 12px;
+  background: var(--crema);
+  color: var(--tinta);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.edificio-opcion:focus-visible {
+  outline: 3px solid var(--tinta);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--crema);
+}
+
+.edificio-nombre {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.edificio-detalle,
+.edificio-coste {
+  font-size: 0.9rem;
+}
+
+.edificio-opcion-no {
+  border-style: dashed;
+}
+
+.edificio-motivo {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #8a2b1c;
+}
+
+.construir-estado {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.construir-estado-ok {
+  background: rgb(0 158 115 / 22%);
+  border: 2px solid #007a59;
+}
+
+.construir-estado-no {
+  background: rgb(213 94 0 / 18%);
+  border: 2px dashed #a8480a;
+}
+
+.construir-ayuda {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.ayuda-corta {
+  display: none;
+}
+
+.construir-linea {
+  margin: 0;
+}
+
+.construir-acciones {
+  display: flex;
+  gap: 8px;
+}
+
+/*
+ * Pantalla apaisada y baja: el panel pasa a una tarjeta a la izquierda, bajo el HUD, y deja libre el
+ * resto del valle (la cámara coloca la silueta en lo que queda a su derecha). El catálogo se
+ * compacta para que quepan los tres edificios sin desplazar.
+ */
+@media (orientation: landscape) and (max-height: 520px) {
+  .panel-construir {
+    top: auto;
+    right: auto;
+    left: 8px;
+    bottom: 8px;
+    width: min(400px, 58vw);
+    justify-content: flex-start;
+  }
+
+  .panel-construir-caja {
+    width: 100%;
+    max-height: calc(100vh - 106px);
+    gap: 4px;
+    padding: 6px 6px 8px;
+    border-radius: 14px;
+  }
+
+  /* Ayuda en una línea corta. */
+  .ayuda-larga {
+    display: none;
+  }
+
+  .ayuda-corta {
+    display: inline;
+  }
+
+  /*
+   * Solo en táctil: con la silueta de construir elegida el panel sería más alto que el hueco bajo
+   * la píldora «En pausa (Plano)», así que su ayuda se queda para lectores de pantalla (los
+   * botones ya dicen qué hacer). En escritorio bajo y en el panel de mover sigue visible.
+   */
+  @media (pointer: coarse) {
+    .panel-construir-caja > .construir-ayuda-silueta {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+
+  .construir-ayuda {
+    font-size: 0.76rem;
+    line-height: 1.15;
+  }
+
+  .catalogo {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  /* Nombre y zona en la primera línea; coste y motivo debajo. */
+  .edificio-opcion {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 8px;
+    padding: 2px 8px;
+    min-height: 44px;
+    row-gap: 0;
+    line-height: 1.15;
+  }
+
+  .edificio-coste,
+  .edificio-motivo {
+    flex-basis: 100%;
+  }
+
+  .construir-cabecera .boton-listo {
+    min-height: 44px;
+  }
+
+  .edificio-nombre {
+    font-size: 1rem;
+  }
+
+  /* La zona requerida se ve siempre; la huella se omite (cabe en el nombre y en la silueta). */
+  .edificio-huella {
+    display: none;
+  }
+
+  .edificio-detalle,
+  .edificio-coste,
+  .edificio-motivo {
+    font-size: 0.76rem;
+  }
+}
+
+/* Móvil vertical: el panel sigue siendo una hoja inferior sobre el botón de modo. */
+@media (orientation: portrait) and (max-height: 520px) {
+  .panel-construir {
+    bottom: 68px;
+  }
+
+  .ayuda-larga {
+    display: none;
+  }
+
+  .ayuda-corta {
+    display: inline;
+  }
+}
+
+/* Pantallas muy estrechas: el HUD superior pasa a dos líneas y la fila de botones se compacta. */
+@media (max-width: 340px) {
+  .hud-izquierda {
+    flex-wrap: wrap;
+  }
+
+  .botones-inferiores {
+    gap: 6px;
+  }
+
+  .boton-construir,
+  .boton-zonas,
+  .boton-modo {
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+  }
+}
+/* === Fin M4-05 === */
+
+/* === M4-06 · Panel del edificio (mover, demoler, cancelar obra) === */
+/* Reutiliza la tarjeta de `.panel-parcela` (lateral en apaisado, hoja inferior en vertical). */
+.edificio-estado,
+.edificio-nota,
+.edificio-reembolso {
+  margin: 0;
+}
+
+.edificio-estado {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  background: rgb(138 90 59 / 14%);
+  border: 2px solid var(--tierra);
+}
+
+.edificio-nota {
+  font-size: 0.9rem;
+}
+
+.edificio-reembolso {
+  font-weight: 600;
+}
+
+/* Sin `sticky` (el de `.panel-parcela-acciones`): dejaba un rectángulo transparente bajo el panel. */
+.edificio-acciones {
+  position: static;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  background: none;
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  /* Mover y Demoler lado a lado: la tarjeta es baja. */
+  .edificio-acciones {
+    flex-direction: row;
+  }
+
+  .edificio-estado {
+    padding: 3px 8px;
+    font-size: 0.9rem;
+  }
+
+  .edificio-nota {
+    font-size: 0.8rem;
+    line-height: 1.15;
+  }
+
+  /* Con la confirmación abierta lo único que importa es la pregunta y sus dos botones. */
+  .panel-confirmando .edificio-estado,
+  .panel-confirmando .edificio-nota {
+    display: none;
+  }
+
+  /* Tarjeta baja: la confirmación, más compacta para que sus dos botones quepan sin desplazar. */
+  .panel-edificio .compra-confirmacion {
+    gap: 4px;
+    padding: 4px 8px 6px;
+  }
+
+  .panel-edificio .compra-confirmar-texto,
+  .panel-edificio .edificio-reembolso {
+    font-size: 0.9rem;
+    line-height: 1.2;
+  }
+}
+/* === Fin M4-06 === */

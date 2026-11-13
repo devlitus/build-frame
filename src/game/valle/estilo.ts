@@ -92,6 +92,16 @@ export const ESTILO_RESALTE = {
   alfaRelleno: 0.18,
 } as const
 
+/** Resalte de un edificio u obra: contorno por FUERA de la huella (no tapa el tejado), sin relleno. */
+export const ESTILO_RESALTE_EDIFICIO = {
+  tinta: 0x3b2a1a,
+  crema: 0xfff3c4,
+  acento: 0xffc93c,
+  grosorTinta: 10,
+  grosorAcento: 6,
+  grosorCrema: 2,
+} as const
+
 export const COLOR_ARBOL = { copa: 0x2f6b2f, copaClara: 0x3f8a3a, tronco: 0x6b4a2b } as const
 export const COLOR_ROCA = { relleno: 0x8a8a8a, borde: 0x5e5e5e } as const
 
@@ -135,3 +145,78 @@ export const PUNTOS_LUZ: readonly PuntoLuz[] = [
  * pueden ir por encima a propósito.
  */
 export const PROFUNDIDAD_TINTE = 1_000_000
+
+/**
+ * Zonas (M4-04). Colores de la paleta Okabe-Ito, pensada para daltonismo, y un patrón distinto
+ * por zona (surcos, puntos, diagonales, cuadrícula) para no depender solo del color. Provisional:
+ * el arte final llega en M5-00.
+ */
+export type PatronZona = 'surcos' | 'puntos' | 'diagonal' | 'cuadro'
+
+export interface EstiloZona {
+  readonly color: number
+  /** Opacidad del relleno en el Modo Plano. */
+  readonly alfa: number
+  readonly patron: PatronZona
+  /** Color del patrón: oscuro sobre fondos claros y crema sobre el verde azulado. */
+  readonly colorPatron: number
+}
+
+export const ESTILO_ZONAS: Readonly<
+  Record<'cultivo' | 'huerto' | 'vivienda' | 'almacen', EstiloZona>
+> = {
+  cultivo: { color: 0xe69f00, alfa: 0.55, patron: 'surcos', colorPatron: 0x3b2a1a },
+  huerto: { color: 0xcc79a7, alfa: 0.55, patron: 'puntos', colorPatron: 0x3b2a1a },
+  vivienda: { color: 0x009e73, alfa: 0.6, patron: 'diagonal', colorPatron: 0xfff3c4 },
+  almacen: { color: 0xf0e442, alfa: 0.6, patron: 'cuadro', colorPatron: 0x3b2a1a },
+}
+
+/** Opacidad de la capa de zonas en el Modo Vida: un tono suave que no tapa el valle. */
+export const ALFA_ZONAS_VIDA = 0.35
+
+/** Vista previa del pincel: borrador en bermellón (Okabe-Ito) y contorno doble tinta/crema. */
+export const ESTILO_PREVIA = {
+  borrar: 0xd55e00,
+  alfaRelleno: 0.4,
+  tinta: 0x3b2a1a,
+  crema: 0xfff3c4,
+  grosorTinta: 8,
+  grosorCrema: 4,
+} as const
+
+/**
+ * Edificios y obras (M4-05): formas simples provisionales (el arte final llega en M5-00) con el
+ * contorno sepia del estilo B (BIBLIA §5): `#4A3426`, grosor uniforme, nunca negro.
+ */
+export const ESTILO_EDIFICIOS = {
+  contorno: 0x4a3426,
+  /** Grosor del contorno en px del mundo (1 px @1x de la BIBLIA, a la escala de una casilla de 32 px). */
+  grosor: 2,
+  /** Líneas interiores: la mitad del contorno. */
+  grosorInterior: 1,
+  casa: { pared: 0xf1dfb8, techo: 0xc4623f, puerta: 0x7a4a2b, ventana: 0xa9d3e8 },
+  'caja-envio': { madera: 0xc99a5b, tabla: 0xa97a40 },
+  cobertizo: { pared: 0xb98b5a, techo: 0x8b7d6b, puerta: 0x6b4a2b },
+  obra: {
+    suelo: 0xd9c49a,
+    alfaSuelo: 0.7,
+    madera: 0xd8b36a,
+    cartel: 0xf6ecd6,
+    /** Tamaño del texto del cartel en píxeles de PANTALLA (se compensa el zoom). */
+    textoPx: 12,
+    /** Obras más estrechas que esto en pantalla llevan solo el número en un círculo. */
+    anchoMinimoTablonPx: 56,
+    colorTexto: '#4A3426',
+  },
+} as const
+
+/** Silueta de colocación: verde azulado (válida) y bermellón (no válida) de Okabe-Ito, con aspa si no vale. */
+export const ESTILO_SILUETA = {
+  valida: 0x009e73,
+  invalida: 0xd55e00,
+  alfaRelleno: 0.45,
+  tinta: 0x3b2a1a,
+  crema: 0xfff3c4,
+  grosorTinta: 12,
+  grosorCrema: 5,
+} as const

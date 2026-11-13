@@ -1,17 +1,22 @@
+import { CLAVE_TEXTOS_LIENZO, type TextosLienzo } from './textosLienzo'
 import Phaser from 'phaser'
 import { EscenaPortada } from './scenes/EscenaPortada'
 import { EscenaDepuracion } from './scenes/EscenaDepuracion'
 import { EscenaValle, type DatosEscenaValle } from './scenes/EscenaValle'
 import {
   casillaBloqueada,
+  colocacionValida,
   crearEstadoInicial,
+  defEdificio,
   ladoValle,
   mapaTransitabilidad,
   parcelaComprable,
   precioParcela,
+  zonaEn,
   type Comando,
 } from '../core'
 import { Partida } from './partida'
+import { sePuedeColocar } from './construir'
 import { leerParametros, semillaNueva } from './parametros'
 
 let juego: Phaser.Game | undefined
@@ -77,7 +82,7 @@ function vigilarTamano(g: Phaser.Game, padre: HTMLElement): void {
   g.events.once(Phaser.Core.Events.DESTROY, () => obs.disconnect())
 }
 
-export function crearJuego(padre: HTMLElement): Phaser.Game {
+export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Game {
   const directo = arrancaDirecto()
   const g = new Phaser.Game({
     type: Phaser.AUTO,
@@ -87,6 +92,7 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
     scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
   })
   juego = g
+  if (textos) g.registry.set(CLAVE_TEXTOS_LIENZO, textos)
   vigilarTamano(g, padre)
   g.scene.add('portada', EscenaPortada, !directo)
   if (directo) {
@@ -221,6 +227,101 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
       const e = g.scene.getScene('valle')
       return e instanceof EscenaValle ? e.puntoClic(indice) : undefined
     },
+    zonaDe: (cx, cy) => {
+      // Solo con `?debug`: zona pintada en la casilla (cx, cy), o undefined.
+      if (!leerParametros(window.location.search).debug) return undefined
+      const s = partida?.estado
+      return s && zonaEn(s, cx, cy)
+    },
+    puntoClicCasilla: (cx, cy) => {
+      // Solo con `?debug`: dónde pulsar (px de pantalla) para tocar la casilla de verdad.
+      if (!leerParametros(window.location.search).debug) return undefined
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.puntoClicCasilla(cx, cy) : undefined
+    },
+    alfaZonas: () => {
+      // Solo con `?debug`: opacidad de la capa de zonas.
+      if (!leerParametros(window.location.search).debug) return undefined
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.alfaZonas() : undefined
+    },
+    pincel: () => {
+      const p = partida?.pincel
+      return (
+        p && {
+          abierto: p.abierto,
+          herramienta: p.herramienta,
+          cursor: p.cursor,
+          ancla: p.ancla,
+          rectangulo: p.rectanguloPrevio,
+        }
+      )
+    },
+    materiales: () => partida && { ...partida.estado.materiales },
+    construccion: () => {
+      const c = partida?.construccion
+      if (!partida || !c) return undefined
+      const s = partida.silueta()
+      return {
+        abierto: c.abierto,
+        tipo: c.tipo,
+        origen: c.origen,
+        confirmando: c.confirmando !== undefined,
+        centro: c.centro,
+        silueta: s && {
+          tipo: s.tipo,
+          x: s.x,
+          y: s.y,
+          ancho: s.ancho,
+          alto: s.alto,
+          valida: sePuedeColocar(s),
+          motivo: s.resultado.valida
+            ? s.mismoSitio
+              ? 'mismo-sitio'
+              : undefined
+            : s.resultado.motivo,
+        },
+      }
+    },
+    edificios: () => {
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.edificiosVisibles().map((v) => ({ ...v })) : []
+    },
+    edificioSeleccionado: () => {
+      const s = partida?.edificioSeleccionado
+      return s && { id: s.id, confirmando: s.confirmando?.accion }
+    },
+    seleccionarEdificio: (id) => {
+      // Solo con `?debug`: selecciona un edificio u obra por id (Modo Plano).
+      if (!leerParametros(window.location.search).debug) return
+      if (partida?.estado.modo !== 'plano') return
+      if (!partida.estado.edificios.some((e) => e.id === id)) return
+      partida.edificioSeleccionado.seleccionar(id)
+    },
+    puntoClicEdificio: (id) => {
+      // Solo con `?debug`: dónde pulsar (px de pantalla) para tocar el edificio de verdad.
+      if (!leerParametros(window.location.search).debug) return undefined
+      const e = g.scene.getScene('valle')
+      const ed = partida?.estado.edificios.find((b) => b.id === id)
+      const def = ed && defEdificio(ed.tipo)
+      if (!(e instanceof EscenaValle) || !ed || !def) return undefined
+      return e.puntoClicCasilla(
+        ed.x + Math.floor((def.ancho - 1) / 2),
+        ed.y + Math.floor((def.alto - 1) / 2),
+      )
+    },
+    centrarCamara: (cx, cy) => {
+      // Solo con `?debug`: centra la cámara del Plano en la casilla (cx, cy), sin barrido.
+      if (!leerParametros(window.location.search).debug) return
+      const e = g.scene.getScene('valle')
+      if (e instanceof EscenaValle) e.centrarCamaraEn(cx, cy)
+    },
+    colocacion: (tipo, x, y) => {
+      // Solo con `?debug`: veredicto de `colocacionValida` para el estado actual.
+      if (!leerParametros(window.location.search).debug || !partida) return undefined
+      const r = colocacionValida(partida.estado, tipo, x, y)
+      return { valida: r.valida, motivo: r.valida ? undefined : r.motivo }
+    },
     camara: () => {
       const e = g.scene.getScene('valle')
       if (!(e instanceof EscenaValle) || !e.estado) return undefined
@@ -231,6 +332,7 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
         scrollY: c.scrollY,
         ancho: c.width,
         alto: c.height,
+        guiando: e.guiando(),
       }
     },
   }

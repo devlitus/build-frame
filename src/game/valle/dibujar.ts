@@ -9,6 +9,7 @@ import {
   TAM_CASILLA,
   ESTILO_PLANO,
   ESTILO_RESALTE,
+  ESTILO_RESALTE_EDIFICIO,
   estiloParcela,
 } from './estilo'
 import type { EstadoVisualParcela } from './estadoVisual'
@@ -198,6 +199,24 @@ export function redibujarParcelas(
   }
 }
 
+/** Rectángulo de resalte (relleno crema suave y doble contorno tinta/crema), en px del mundo. */
+function resaltarRect(
+  g: Phaser.GameObjects.Graphics,
+  x: number,
+  y: number,
+  ancho: number,
+  alto: number,
+): void {
+  const e = ESTILO_RESALTE
+  g.fillStyle(e.crema, e.alfaRelleno)
+  g.fillRect(x, y, ancho, alto)
+  const m = e.grosorTinta / 2
+  g.lineStyle(e.grosorTinta, e.tinta, 1)
+  g.strokeRect(x + m, y + m, ancho - e.grosorTinta, alto - e.grosorTinta)
+  g.lineStyle(e.grosorCrema, e.crema, 1)
+  g.strokeRect(x + m, y + m, ancho - e.grosorTinta, alto - e.grosorTinta)
+}
+
 /** Redibuja el contorno de la parcela seleccionada (o lo borra si `indice` es undefined). */
 export function dibujarResalte(
   g: Phaser.GameObjects.Graphics,
@@ -208,14 +227,30 @@ export function dibujarResalte(
   if (indice === undefined) return
   const lado = valle.casillasPorParcela * TAM_CASILLA
   const n = valle.parcelasPorLado
-  const x = (indice % n) * lado
-  const y = Math.floor(indice / n) * lado
-  const e = ESTILO_RESALTE
-  g.fillStyle(e.crema, e.alfaRelleno)
-  g.fillRect(x, y, lado, lado)
-  const m = e.grosorTinta / 2
-  g.lineStyle(e.grosorTinta, e.tinta, 1)
-  g.strokeRect(x + m, y + m, lado - e.grosorTinta, lado - e.grosorTinta)
-  g.lineStyle(e.grosorCrema, e.crema, 1)
-  g.strokeRect(x + m, y + m, lado - e.grosorTinta, lado - e.grosorTinta)
+  resaltarRect(g, (indice % n) * lado, Math.floor(indice / n) * lado, lado, lado)
+}
+
+/** Redibuja el contorno de la huella de un edificio (casillas) seleccionado; lo borra si `huella` es undefined. */
+export function dibujarResalteEdificio(
+  g: Phaser.GameObjects.Graphics,
+  huella: { x0: number; y0: number; x1: number; y1: number } | undefined,
+): void {
+  g.clear()
+  if (!huella) return
+  // Contorno por fuera de la huella: el tejado (que sobresale por arriba) y el edificio quedan a la vista,
+  // y una obra de 1×1 se distingue por el aro tinta + amarillo + crema que la rodea.
+  const e = ESTILO_RESALTE_EDIFICIO
+  const x = huella.x0 * TAM_CASILLA
+  const y = huella.y0 * TAM_CASILLA
+  const ancho = (huella.x1 - huella.x0 + 1) * TAM_CASILLA
+  const alto = (huella.y1 - huella.y0 + 1) * TAM_CASILLA
+  const aro = (grosor: number, color: number, desde: number): void => {
+    // Trazo del grosor dado que empieza `desde` px fuera del borde de la huella.
+    const d = desde + grosor / 2
+    g.lineStyle(grosor, color, 1)
+    g.strokeRect(x - d, y - d, ancho + 2 * d, alto + 2 * d)
+  }
+  aro(e.grosorTinta, e.tinta, 0)
+  aro(e.grosorAcento, e.acento, (e.grosorTinta - e.grosorAcento) / 2)
+  aro(e.grosorCrema, e.crema, (e.grosorTinta - e.grosorCrema) / 2)
 }

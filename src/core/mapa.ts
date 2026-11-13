@@ -1,5 +1,6 @@
 import type { ConfigPersonaje, ConfigValle } from './datos/esquemas'
 import { decorarValle, type Obstaculo } from './decoracion'
+import { casillasOcupadas, type Edificio } from './edificios'
 import { casillasRio, claveCasilla, generarVados } from './rio'
 import type { Valle } from './valle'
 
@@ -14,6 +15,8 @@ export interface DatosMapa {
   readonly valle: Valle
   readonly cauce: Cauce
   readonly obstaculos: readonly Obstaculo[]
+  /** Edificios y obras: bloquean el paso. */
+  readonly edificios: readonly Edificio[]
   /** Centro de la casilla de aparición, en unidades de casilla. */
   readonly aparicion: { readonly x: number; readonly y: number }
 }
@@ -30,7 +33,7 @@ export function ladoValle(valle: Valle): number {
 }
 
 /** Casillas de río que no son vado (agua). */
-function aguaBloqueada(valle: Valle, cauce: Cauce): Uint8Array {
+export function aguaBloqueada(valle: Valle, cauce: Cauce): Uint8Array {
   const lado = ladoValle(valle)
   const mapa = new Uint8Array(lado * lado)
   for (const c of casillasRio(valle, cauce.ancho)) mapa[claveCasilla(lado, c.x, c.y)] = 1
@@ -179,18 +182,23 @@ interface EntradaCache {
   readonly mapa: MapaTransitabilidad
 }
 
-const CACHE = new WeakMap<Cauce, WeakMap<readonly Obstaculo[], EntradaCache>>()
+const CACHE = new WeakMap<
+  Cauce,
+  WeakMap<readonly Obstaculo[], WeakMap<readonly Edificio[], EntradaCache>>
+>()
 
 /**
  * Mapa de transitabilidad derivado del estado: bloquean el río (salvo los vados), los
- * obstáculos y toda casilla que no se alcance desde la aparición. Se cachea por
- * referencia de cauce y obstáculos; la entrada solo vale si el valle es el mismo y la
+ * obstáculos, los edificios (y obras) y toda casilla que no se alcance desde la aparición. Se
+ * cachea por referencia de cauce, obstáculos y edificios; la entrada solo vale si el valle es el mismo y la
  * aparición (comparada por valor) coincide. Fuera del valle cuenta como bloqueado (`casillaBloqueada`).
  */
 export function mapaTransitabilidad(datos: DatosMapa): MapaTransitabilidad {
   let porObstaculos = CACHE.get(datos.cauce)
   if (!porObstaculos) CACHE.set(datos.cauce, (porObstaculos = new WeakMap()))
-  const hecho = porObstaculos.get(datos.obstaculos)
+  let porEdificios = porObstaculos.get(datos.obstaculos)
+  if (!porEdificios) porObstaculos.set(datos.obstaculos, (porEdificios = new WeakMap()))
+  const hecho = porEdificios.get(datos.edificios)
   if (
     hecho &&
     hecho.valle === datos.valle &&
@@ -202,11 +210,12 @@ export function mapaTransitabilidad(datos: DatosMapa): MapaTransitabilidad {
   const lado = ladoValle(datos.valle)
   const bloqueada = aguaBloqueada(datos.valle, datos.cauce)
   for (const o of datos.obstaculos) bloqueada[claveCasilla(lado, o.x, o.y)] = 1
+  for (const k of casillasOcupadas(datos.edificios, lado).keys()) bloqueada[k] = 1
   const inicio = claveCasilla(lado, Math.floor(datos.aparicion.x), Math.floor(datos.aparicion.y))
   const vista = alcanzables(lado, bloqueada, inicio)
   for (let i = 0; i < bloqueada.length; i++) bloqueada[i] = vista[i] === 1 ? 0 : 1
   const mapa: MapaTransitabilidad = { lado, bloqueada }
-  porObstaculos.set(datos.obstaculos, {
+  porEdificios.set(datos.edificios, {
     valle: datos.valle,
     aparicion: { x: datos.aparicion.x, y: datos.aparicion.y },
     mapa,

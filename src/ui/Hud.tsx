@@ -3,10 +3,14 @@ import type { Partida } from '../game/partida'
 import { Aviso } from './Aviso'
 import { ControlesTiempo } from './ControlesTiempo'
 import { Dinero } from './Dinero'
+import { Materiales } from './Materiales'
+import { BotonConstruir, PanelConstruir } from './PanelConstruir'
+import { BarraZonas, BotonZonas } from './BarraZonas'
+import { PanelEdificio } from './PanelEdificio'
 import { PanelParcela } from './PanelParcela'
 import { Reloj } from './Reloj'
 import { t } from './textos'
-import { ContextoPartida, useEstado, usePartida } from './useEstado'
+import { ContextoPartida, useConstruccion, useEstado, usePartida, usePincel } from './useEstado'
 
 /**
  * Botón de modo: muestra el modo vigente y cambia al otro. Tras pulsarlo con el puntero el foco
@@ -39,10 +43,29 @@ export function BotonModo() {
 /** Ayuda de teclado del Modo Plano para lectores de pantalla (la enlaza el lienzo con `aria-describedby`). */
 function AyudaPlano() {
   const plano = useEstado((e) => e.modo === 'plano')
+  const zonas = usePincel().abierto
+  const { abierto: construir, origen } = useConstruccion()
   return plano ? (
-    <p id="ayuda-plano" class="solo-lector">
-      {t('ayudaPlano')}
-    </p>
+    <>
+      <p id="ayuda-plano" class="solo-lector">
+        {t('ayudaPlano')}
+      </p>
+      {zonas && (
+        <p id="ayuda-zonas" class="solo-lector">
+          {t('ayudaZonas')}
+        </p>
+      )}
+      {construir && origen === undefined && (
+        <p id="ayuda-construir" class="solo-lector">
+          {t('ayudaConstruir')}
+        </p>
+      )}
+      {construir && origen !== undefined && (
+        <p id="ayuda-mover" class="solo-lector">
+          {t('ayudaMover')}
+        </p>
+      )}
+    </>
   ) : null
 }
 
@@ -60,6 +83,7 @@ export function Hud({ partida, debug = false }: { partida: Partida; debug?: bool
             <div class="hud-izquierda">
               <Reloj />
               <Dinero />
+              <Materiales />
             </div>
             <ControlesTiempo />
           </div>
@@ -67,7 +91,14 @@ export function Hud({ partida, debug = false }: { partida: Partida; debug?: bool
         </div>
         <AyudaPlano />
         <PanelParcela />
-        <BotonModo />
+        <PanelEdificio />
+        <BarraZonas />
+        <PanelConstruir />
+        <div class="botones-inferiores">
+          <BotonConstruir />
+          <BotonZonas />
+          <BotonModo />
+        </div>
       </div>
     </ContextoPartida.Provider>
   )

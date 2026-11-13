@@ -25,7 +25,7 @@ const avanzar = (e: EstadoJuego, minutos: number) =>
 
 describe('estado inicial del reloj', () => {
   it('empieza el día 1 a las 06:00, sin pausa y a velocidad 1', () => {
-    expect(VERSION_FORMATO).toBe(6)
+    expect(VERSION_FORMATO).toBe(8)
     expect(inicial).toMatchObject({
       dia: 1,
       minutoDelDia: 360,

@@ -1,0 +1,49 @@
+{
+  "materialesIniciales": {
+    "madera": 80,
+    "piedra": 20
+  },
+  "reembolsoDemolicion": 0.5,
+  "redondeoReembolso": "abajo",
+  "edificios": {
+    "casa": {
+      "ancho": 4,
+      "alto": 3,
+      "zonas": ["vivienda"],
+      "coste": {
+        "dinero": 0,
+        "madera": 0,
+        "piedra": 0
+      },
+      "dias": 3,
+      "unico": true,
+      "demolible": false
+    },
+    "caja-envio": {
+      "ancho": 1,
+      "alto": 1,
+      "zonas": ["vivienda", "almacen"],
+      "coste": {
+        "dinero": 50,
+        "madera": 20,
+        "piedra": 0
+      },
+      "dias": 1,
+      "unico": false,
+      "demolible": true
+    },
+    "cobertizo": {
+      "ancho": 3,
+      "alto": 2,
+      "zonas": ["almacen"],
+      "coste": {
+        "dinero": 300,
+        "madera": 50,
+        "piedra": 10
+      },
+      "dias": 2,
+      "unico": false,
+      "demolible": true
+    }
+  }
+}

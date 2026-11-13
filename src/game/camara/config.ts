@@ -23,6 +23,8 @@ export const CONFIG_CAMARA = {
   reservaHudSuperiorPx: 72,
   /** Franja inferior del botón de modo. */
   reservaHudInferiorPx: 72,
+  /** Modo Plano: aire (px de pantalla) que se deja entre el borde del valle y la zona libre al pasar del borde. */
+  holguraBordePx: 24,
   /** Constante de tiempo (ms) del deslizamiento suave que deja a la vista la parcela elegida. */
   suavizadoGuiaMs: 140,
 } as const

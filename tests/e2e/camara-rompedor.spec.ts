@@ -21,6 +21,16 @@ async function camara(page: Page): Promise<Camara> {
   return c
 }
 
+/** Los campos numéricos esperados existen y son finitos (`guiando` y otros no numéricos se ignoran). */
+function finitosNumericos(c: Camara): void {
+  for (const k of ['zoom', 'scrollX', 'scrollY', 'ancho', 'alto'] as const) {
+    expect(typeof c[k], k).toBe('number')
+  }
+  for (const v of Object.values(c)) {
+    if (typeof v === 'number') expect(Number.isFinite(v)).toBe(true)
+  }
+}
+
 const centro = (c: Camara) => ({ x: c.scrollX + c.ancho / 2, y: c.scrollY + c.alto / 2 })
 
 function dentro(c: Camara): void {
@@ -97,7 +107,7 @@ test.describe('ratón', () => {
         )
       }, dy)
       const c = await camara(page)
-      for (const n of Object.values(c)) expect(Number.isFinite(n)).toBe(true)
+      finitosNumericos(c)
       expect(c.zoom).toBeLessThanOrEqual(2.5 + 1e-9)
       expect(c.zoom).toBeGreaterThanOrEqual(720 / 3072 - 1e-9)
       dentro(c)
@@ -167,7 +177,7 @@ test.describe('ratón', () => {
       await page.mouse.wheel(0, -300)
       await page.mouse.wheel(0, 300)
       const c = await camara(page)
-      for (const n of Object.values(c)) expect(Number.isFinite(n)).toBe(true)
+      finitosNumericos(c)
       expect(c.zoom).toBeGreaterThan(0)
     }
     await page.setViewportSize({ width: 1280, height: 720 })
@@ -266,7 +276,7 @@ test.describe('táctil', () => {
     ])
     await tocar('touchEnd', [])
     const c = await camara(page)
-    for (const n of Object.values(c)) expect(Number.isFinite(n)).toBe(true)
+    finitosNumericos(c)
     expect(Math.abs(c.zoom - antes.zoom)).toBeLessThan(antes.zoom * 0.2)
   })
 
