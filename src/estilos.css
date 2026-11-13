@@ -5,6 +5,7 @@
   --sombra: rgb(0 0 0 / 35%);
   --tinta: #4a2f1c;
   --halo: rgb(255 244 222 / 85%);
+  --hierba: #9bbf86;
   font-family:
     system-ui,
     -apple-system,
@@ -724,7 +725,7 @@ body {
   flex: none;
   border: 2px solid var(--tinta);
   border-radius: 4px;
-  background-color: #9bbf86;
+  background-color: var(--hierba);
   background-repeat: no-repeat;
   /* La tira tiene 8 casillas: se amplía a 8 × 22 px y se ve la primera. */
   background-size: 176px 22px;

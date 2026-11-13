@@ -9,6 +9,11 @@ import type { Pantalla, Punto } from './camara/matematica'
  * pantalla y el zoom «lógicos» se obtienen aquí, y solo la cámara de Phaser trabaja en píxeles de
  * dispositivo (`zoom de Phaser = zoom lógico × factor`). Así los límites de zoom se expresan igual
  * en todos los dispositivos.
+ *
+ * AVISO: esto depende de internals de Phaser 3.90 (`transformX/Y` parcheados en `juego.ts`,
+ * `displayScale`, `canvasBounds`), por eso Phaser está fijado a `~3.90.0`. Actualizar Phaser obliga a
+ * revisar `punteroEnCss`. Convierte siempre con `mundoDePantalla`; nunca uses `pointer.worldX/worldY`,
+ * `positionToCamera` ni `setInteractive` sobre el lienzo (ESLint lo prohíbe en `src/game/`).
  */
 
 /** Tope del factor de resolución: a DPR 3 el lienzo cuatro veces mayor no compensa. */

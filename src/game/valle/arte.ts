@@ -1,5 +1,5 @@
 import type Phaser from 'phaser'
-import type { Terreno, TipoEdificio, Zona } from '../../core'
+import { ZONAS, type Terreno, type TipoEdificio, type Zona } from '../../core'
 import { dprActual, escalaArte, sufijoArte } from '../resolucion'
 import {
   ANIMACIONES_PERSONAJE,
@@ -141,7 +141,7 @@ export function cargarArte(escena: Phaser.Scene): void {
       )
     }
   }
-  for (const z of ['cultivo', 'huerto', 'vivienda', 'almacen'] as const) {
+  for (const z of ZONAS) {
     l.spritesheet(claveZona(z), rutaTiraZona(z, s), { frameWidth: c, frameHeight: c })
   }
   l.spritesheet(CLAVE_COLOCACION, ruta('zonas', 'colocacion', s), { frameWidth: c, frameHeight: c })

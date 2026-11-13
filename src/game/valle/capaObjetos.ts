@@ -177,7 +177,11 @@ export class CapaObjetos {
       } else {
         img = this.escena.add.image(0, 0, o.textura).setOrigin(0.5, 1)
       }
-      img.setTexture(o.textura, o.marco).setPosition(o.x, o.y).setScale(o.escala).setDepth(o.profundidad)
+      img
+        .setTexture(o.textura, o.marco)
+        .setPosition(o.x, o.y)
+        .setScale(o.escala)
+        .setDepth(o.profundidad)
       img.setData('objetoId', id)
       this.activos.set(id, img)
       this.aplicados.set(id, o)

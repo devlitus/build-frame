@@ -237,7 +237,9 @@ export class EscenaValle extends Phaser.Scene {
     // edificios), solo los de la vista de la cámara más un margen (`CapaObjetos`).
     this.capaObjetos?.destruir()
     this.capaObjetos = new CapaObjetos(this, this.mundoPx)
-    this.capaObjetos.reemplazar(objetosDeDecoracion(this, inicial.obstaculos, ladoValle(inicial.valle)))
+    this.capaObjetos.reemplazar(
+      objetosDeDecoracion(this, inicial.obstaculos, ladoValle(inicial.valle)),
+    )
     this.actualizarCapaObjetos()
     // Al perder y recuperar el contexto WebGL las texturas quedan vacías (Phaser no las
     // restaura): se vuelven a hornear con los mismos datos.
@@ -953,12 +955,13 @@ export class EscenaValle extends Phaser.Scene {
   }
 
   /** Objetos con profundidad (árboles y rocas) vivos y los que caen en la vista más el margen (ganchos de prueba). */
-  objetosCapa(): { activos: number; enVista: number } | undefined {
+  objetosCapa(): { activos: number; enVista: number; obstaculos: number } | undefined {
     const c = this.capaObjetos
     if (!c) return undefined
     const v = this.cameras.main.worldView
     return {
       activos: c.cantidad,
+      obstaculos: this.estado?.obstaculos.length ?? 0,
       enVista: c.contarEn({ x0: v.x, y0: v.y, x1: v.right, y1: v.bottom }),
     }
   }

@@ -145,7 +145,7 @@ describe('capa de objetos por profundidad', () => {
     const i0 = capa.imagen(0)
     const i1 = capa.imagen(1)
     const movido = { ...arbol(1, 6, 10), x: 6 * 32 + 20, profundidad: 11 * 32 + 1 }
-    capa.reemplazar([objetos[0], movido, objetos[2], objetos[3]])
+    capa.reemplazar([arbol(0, 5, 10), movido, arbol(2, 90, 90), arbol(3, 5, 60)])
     capa.actualizar(vista)
     expect(capa.imagen(0)).toBe(i0)
     expect(capa.imagen(1)).toBe(i1) // la del objeto cambiado se reutiliza, ya actualizada
@@ -199,7 +199,7 @@ describe('objetosDeDecoracion: id estable', () => {
     ] as const
     const antes = objetosDeDecoracion(escena as never, obs, lado)
     const despues = objetosDeDecoracion(escena as never, [obs[0], obs[2]], lado)
-    expect(despues.map((o) => o.id)).toEqual([antes[0].id, antes[2].id])
+    expect(despues.map((o) => o.id)).toEqual([antes[0]?.id, antes[2]?.id])
     expect(new Set(antes.map((o) => o.id)).size).toBe(3)
   })
 })

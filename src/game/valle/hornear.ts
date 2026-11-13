@@ -2,8 +2,9 @@ import type Phaser from 'phaser'
 import { rejillaTrozos, type Trozo } from './trozos'
 
 /**
- * Vuelca el terreno y la decoración a `RenderTexture` por trozos de tamaño fijo: en WebGL
- * un `Graphics` vivo se reprocesa en cada fotograma, una textura no. Para cada trozo,
+ * Vuelca el terreno a `RenderTexture` por trozos de tamaño fijo: en WebGL
+ * un `Graphics` vivo se reprocesa en cada fotograma, una textura no. Árboles y rocas no
+ * se hornean: son objetos con profundidad (`CapaObjetos`). Para cada trozo,
  * `pintar` estampa lo que cae en su región entre `beginDraw` y `endDraw`. Los trozos van en
  * posiciones enteras y se tocan sin hueco.
  */

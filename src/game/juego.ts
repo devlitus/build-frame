@@ -84,13 +84,34 @@ function vigilarTamano(g: Phaser.Game, padre: HTMLElement): void {
   }
   const obs = new ResizeObserver(ajustar)
   obs.observe(padre)
-  g.events.once(Phaser.Core.Events.DESTROY, () => obs.disconnect())
+  // Cambio de DPR en caliente (mover la ventana a otra pantalla, zoom del navegador): la consulta
+  // `resolution` solo avisa de un valor concreto, así que se rearma con cada cambio.
+  let consulta: MediaQueryList | undefined
+  const alCambiarDpr = (): void => {
+    ajustar()
+    escuchar()
+  }
+  const escuchar = (): void => {
+    consulta?.removeEventListener('change', alCambiarDpr)
+    consulta =
+      typeof matchMedia === 'function' ? matchMedia(`(resolution: ${dprActual()}dppx)`) : undefined
+    consulta?.addEventListener('change', alCambiarDpr)
+  }
+  escuchar()
+  g.events.once(Phaser.Core.Events.DESTROY, () => {
+    obs.disconnect()
+    consulta?.removeEventListener('change', alCambiarDpr)
+    consulta = undefined
+  })
 }
 
 /**
  * El puntero llega a todo el juego en píxeles CSS (como la interfaz y los tests), no en los del
  * lienzo: Phaser lo multiplica por `displayScale` (= factor de resolución). Se deshace aquí; las
  * conversiones al mundo pasan por `mundoDePantalla`.
+ *
+ * AVISO: parche sobre internals de Phaser 3.90 (fijado a `~3.90.0`); al actualizar Phaser hay que
+ * revisarlo. No uses `pointer.worldX/worldY`, `positionToCamera` ni `setInteractive` en el lienzo.
  */
 function punteroEnCss(g: Phaser.Game): void {
   const escala = g.scale

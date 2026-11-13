@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
-/** Techo de la capa con la vista más alejada: casi todos los obstáculos de la semilla (medido: 657). */
-const MAX_OBJETOS_CAPA = 1500
+/** Tope absoluto de la capa con `semilla=42` y el zoom inicial (medido: 256 en escritorio, 104 en móvil, de 657 obstáculos). */
+const MAX_CAPA_ZOOM_INICIAL = 350
 
 async function abrir(page: Page, ruta: string): Promise<void> {
   await page.goto(ruta)
@@ -17,10 +17,14 @@ test('el terreno está horneado: pocos objetos y ningún Graphics grande', async
   const medir = () =>
     page.evaluate(() => ({
       total: window.__raices?.objetosValle() ?? 0,
-      capa: window.__raices?.objetosCapa() ?? { activos: 0, enVista: 0 },
+      capa: window.__raices?.objetosCapa() ?? { activos: 0, enVista: 0, obstaculos: 0 },
     }))
   const { total, capa } = await medir()
   expect(total).toBeGreaterThan(0)
+  console.log(
+    `capa de objetos con el zoom inicial: ${capa.activos} de ${capa.obstaculos} obstáculos`,
+  )
+  expect(capa.activos).toBeLessThanOrEqual(MAX_CAPA_ZOOM_INICIAL)
   // Todo lo que no es la capa de objetos por profundidad (árboles y rocas): el terreno horneado, las
   // capas y los gráficos, como antes.
   expect(total).toBeLessThanOrEqual(20)
@@ -44,13 +48,14 @@ test('con el zoom mínimo la capa de objetos sigue acotada por lo visible', asyn
   await page.waitForTimeout(500)
   const { total, capa } = await page.evaluate(() => ({
     total: window.__raices?.objetosValle() ?? 0,
-    capa: window.__raices?.objetosCapa() ?? { activos: 0, enVista: 0 },
+    capa: window.__raices?.objetosCapa() ?? { activos: 0, enVista: 0, obstaculos: 0 },
   }))
   console.log(`capa de objetos con el zoom mínimo: ${capa.activos} (más ${total} del resto)`)
   expect(capa.activos).toBeGreaterThan(0)
   expect(capa.activos).toBeLessThanOrEqual(capa.enVista)
-  // Con la vista entera del valle entran todos los obstáculos (unos cientos): es el techo de la capa.
-  expect(capa.activos).toBeLessThanOrEqual(MAX_OBJETOS_CAPA)
+  // El techo es el número de obstáculos del estado: la capa nunca puede tener más imágenes.
+  expect(capa.obstaculos).toBeGreaterThan(0)
+  expect(capa.activos).toBeLessThanOrEqual(capa.obstaculos)
   expect(total).toBeLessThanOrEqual(20)
 })
 

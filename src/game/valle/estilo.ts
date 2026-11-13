@@ -91,9 +91,6 @@ export const ESTILO_RESALTE_EDIFICIO = {
   grosorCrema: 2,
 } as const
 
-export const COLOR_ARBOL = { copa: 0x2f6b2f, copaClara: 0x3f8a3a, tronco: 0x6b4a2b } as const
-export const COLOR_ROCA = { relleno: 0x8a8a8a, borde: 0x5e5e5e } as const
-
 /**
  * Ciclo día/noche (M2-06): puntos de control (minuto del día, color del tinte, opacidad). Entre
  * dos puntos se interpola de forma lineal; el último enlaza con el primero a medianoche.
