@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import type { Intencion } from './entrada'
 import { CONFIG_TACTIL, intencionJoystick, type PuntoPantalla } from './joystick'
-import { mundoDePantalla } from './resolucion'
+import { mundoDePantalla, pantallaLogica } from './resolucion'
 
 type Fase = 'libre' | 'candidato' | 'joystick' | 'bloqueado'
 
@@ -104,7 +104,7 @@ export class ControlTactil {
     if (this.fase === 'candidato' && this.esTactil(p) && p.isDown) {
       if (Math.hypot(p.x - this.inicio.x, p.y - this.inicio.y) > CONFIG_TACTIL.umbralToquePx) {
         this.fase = 'joystick'
-        const { width, height } = this.escena.scale
+        const { ancho: width, alto: height } = pantallaLogica(this.escena)
         const m = CONFIG_TACTIL.baseJoystickPx / 2
         this.centro = {
           x: Math.min(Math.max(this.inicio.x, m), Math.max(m, width - m)),
