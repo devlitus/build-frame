@@ -33,7 +33,7 @@ export function ladoValle(valle: Valle): number {
 }
 
 /** Casillas de río que no son vado (agua). */
-function aguaBloqueada(valle: Valle, cauce: Cauce): Uint8Array {
+export function aguaBloqueada(valle: Valle, cauce: Cauce): Uint8Array {
   const lado = ladoValle(valle)
   const mapa = new Uint8Array(lado * lado)
   for (const c of casillasRio(valle, cauce.ancho)) mapa[claveCasilla(lado, c.x, c.y)] = 1

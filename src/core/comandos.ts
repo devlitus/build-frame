@@ -134,6 +134,7 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
       if (tiempoDetenido(estado) || ms === 0 || (dx === 0 && dy === 0)) {
         return { ok: true, estado, eventos: SIN_EVENTOS }
       }
+      if (!Array.isArray(estado.edificios)) return { ok: false, estado, error: 'estado-invalido' }
       const personaje = moverPersonaje(estado, estado.personaje, dx, dy, ms)
       const antes = estado.personaje
       // Contra un muro no cambia nada: se devuelve el mismo estado (sin avisos por fotograma).
@@ -214,6 +215,10 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
         typeof estado.zonas !== 'string' ||
         typeof estado.materiales !== 'object' ||
         estado.materiales === null ||
+        !Number.isSafeInteger(estado.materiales.madera) ||
+        !Number.isSafeInteger(estado.materiales.piedra) ||
+        estado.materiales.madera < 0 ||
+        estado.materiales.piedra < 0 ||
         !Number.isSafeInteger(estado.siguienteIdEdificio)
       ) {
         return { ok: false, estado, error: 'estado-invalido' }

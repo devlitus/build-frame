@@ -329,6 +329,7 @@ describe('colocacionValida: casos válidos y motivos', () => {
   it('el orden de los motivos es el documentado', () => {
     expect(MOTIVOS_COLOCACION).toEqual([
       'tipo-desconocido',
+      'unico-ya-existe',
       'fuera-del-valle',
       'no-propia',
       'agua',
@@ -337,7 +338,7 @@ describe('colocacionValida: casos válidos y motivos', () => {
       'aparicion',
       'personaje',
       'zona-incompatible',
-      'unico-ya-existe',
+      'bloquea-paso',
       'fondos-insuficientes',
       'materiales-insuficientes',
     ])
@@ -360,16 +361,19 @@ describe('colocacionValida: casos válidos y motivos', () => {
     expect(motivo(o, 'cobertizo', px + 2, py + 2)).toBe('obstaculo')
     // ocupada gana a zona-incompatible, único y costes.
     const c = ok(lim, { tipo: 'Construir', tipoEdificio: 'casa', x: VIV.x, y: VIV.y })
-    expect(motivo({ ...c, dinero: 0 }, 'casa', VIV.x + 1, VIV.y)).toBe('ocupada')
+    expect(motivo({ ...c, dinero: 0 }, 'caja-envio', VIV.x + 1, VIV.y)).toBe('ocupada')
     expect(motivo({ ...c, dinero: 0 }, 'cobertizo', VIV.x + 1, VIV.y)).toBe('ocupada')
-    // zona-incompatible gana a único y costes.
-    expect(motivo({ ...c, dinero: 0 }, 'casa', ALM.x, ALM.y)).toBe('zona-incompatible')
-    // único gana a costes.
+    // zona-incompatible gana a costes.
+    expect(motivo({ ...c, dinero: 0 }, 'cobertizo', VIV.x, VIV.y + 4)).toBe('zona-incompatible')
+    // único gana a todo lo demás salvo el tipo desconocido (ocupada, zona, costes).
+    expect(motivo({ ...c, dinero: 0 }, 'casa', ALM.x, ALM.y)).toBe('unico-ya-existe')
+    expect(motivo({ ...c, dinero: 0 }, 'casa', VIV.x + 1, VIV.y)).toBe('unico-ya-existe')
+    expect(motivo({ ...c, dinero: 0 }, 'casa', -5, -5)).toBe('unico-ya-existe')
     expect(motivo({ ...c, dinero: 0 }, 'casa', VIV.x, VIV.y + 4)).toBe('unico-ya-existe')
     // Todas son alcanzables y distintas.
     const vistos = new Set<MotivoColocacion>()
     for (const m of MOTIVOS_COLOCACION) vistos.add(m)
-    expect(vistos.size).toBe(12)
+    expect(vistos.size).toBe(13)
   })
 
   it('aparicion gana a personaje, personaje a zona-incompatible', () => {
@@ -388,7 +392,7 @@ describe('colocacionValida: casos válidos y motivos', () => {
     const id = (e.edificios[0] as { id: number }).id
     expect(colocacionValida(e, 'casa', VIV.x, VIV.y)).toMatchObject({
       valida: false,
-      motivo: 'ocupada',
+      motivo: 'unico-ya-existe',
     })
     expect(colocacionValida(e, 'casa', VIV.x, VIV.y, { ignorarId: id })).toEqual({ valida: true })
     expect(colocacionValida(e, 'casa', VIV.x + 1, VIV.y + 1, { ignorarId: id })).toEqual({
