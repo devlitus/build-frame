@@ -155,7 +155,10 @@ function oraculo(e: EstadoJuego, tipo: unknown, x: number, y: number): MotivoCol
   }
   // Ronda 2: bloquea-paso, con un BFS propio (4-conexo desde la aparición).
   const alcance = (extra: Set<number>): Set<number> => {
-    const libre = (k: number) => !agua.has(k) && !obst.has(k) && !ocup.has(k) && !extra.has(k)
+    // Los vados son agua para colocar, pero se pueden pisar: cuentan como paso.
+    const vados = new Set(e.cauce.vados)
+    const libre = (k: number) =>
+      (!agua.has(k) || vados.has(k)) && !obst.has(k) && !ocup.has(k) && !extra.has(k)
     const inicio = ay * lado + ax
     if (!libre(inicio)) return new Set<number>()
     const visto = new Set<number>([inicio])
