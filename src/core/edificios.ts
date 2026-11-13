@@ -56,9 +56,33 @@ export function huellaDe(
   return { x0: x, y0: y, x1: x + def.ancho - 1, y1: y + def.alto - 1 }
 }
 
-/** La lista de edificios es una lista de objetos (un guardado manipulado podría traer `null`). */
+const entero = (n: unknown): n is number => typeof n === 'number' && Number.isSafeInteger(n)
+const cacheValidos = new WeakMap<object, boolean>()
+
+/**
+ * La lista de edificios es una lista de objetos bien formados (un guardado manipulado podría
+ * traer otra cosa): `id`, `x`, `y` enteros seguros, `tipo` string y `obra` `null` o
+ * `{diaInicio, diaFin}` enteros seguros. No exige estar dentro del valle: los
+ * que se salen se ignoran al calcular casillas (`casillasOcupadas`).
+ * Memoizada por referencia de la lista (coste O(1) en llamadas repetidas).
+ */
 export function edificiosValidos(edificios: unknown): boolean {
-  return Array.isArray(edificios) && edificios.every((b) => typeof b === 'object' && b !== null)
+  if (!Array.isArray(edificios)) return false
+  let r = cacheValidos.get(edificios)
+  if (r === undefined) {
+    r = edificios.every((b: unknown) => {
+      if (typeof b !== 'object' || b === null) return false
+      const e = b as Record<string, unknown>
+      if (!entero(e.id) || !entero(e.x) || !entero(e.y) || typeof e.tipo !== 'string') return false
+      const o = e.obra
+      if (o === null) return true
+      if (typeof o !== 'object') return false
+      const ob = o as Record<string, unknown>
+      return entero(ob.diaInicio) && entero(ob.diaFin)
+    })
+    cacheValidos.set(edificios, r)
+  }
+  return r
 }
 
 const cacheOcupadas = new WeakMap<readonly Edificio[], Map<number, ReadonlyMap<number, number>>>()

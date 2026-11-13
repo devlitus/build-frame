@@ -2,7 +2,8 @@ import { MODOS_JUEGO, tiempoDetenido, type EstadoJuego, type ModoJuego } from '.
 import { CONFIG_TIEMPO } from './datos/tiempo'
 import { parcelaComprable } from './parcelas'
 import { aplicarZonas, CARACTER_SIN_ZONA, CARACTER_ZONA, ZONAS, type Zona } from './zonas'
-import { moverPersonaje, personajeEnAparicion } from './personaje'
+import { moverPersonaje } from './personaje'
+import { empezarDiaSiguiente, type ObraTerminada } from './obras'
 import { colocacionValida, type MotivoColocacion } from './construccion'
 import { defEdificio, edificiosValidos, type TipoEdificio } from './edificios'
 
@@ -61,10 +62,13 @@ export type Comando =
 /**
  * Hechos ocurridos al aplicar un comando, para que la capa de juego reaccione (avisos, efectos).
  * `desmayo`: el avance superó el fin de la jornada (02:00); el reloj pasó al día siguiente a
- * las 06:00 sin penalización y el personaje vuelve a la aparición (aviso en M2-06).
+ * las 06:00 sin penalización; las obras que tocan terminan (`obra-terminada`) y el personaje
+ * despierta en la puerta de la casa terminada o, si no hay, en la aparición (aviso en M2-06).
  */
 export type EventoJuego =
   | { readonly tipo: 'desmayo' }
+  /** La obra del edificio `id` terminó al empezar el día (una por obra, en orden de id). */
+  | ObraTerminada
   | { readonly tipo: 'parcela-comprada'; readonly indice: number; readonly precio: number }
   /** Zona pintada o borrada; `casillas` es el número de casillas que cambiaron. */
   | { readonly tipo: 'zonas-cambiadas'; readonly casillas: number }
@@ -112,16 +116,12 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
         }
         // Desmayo: el avance se corta en el fin de jornada y el sobrante se descarta,
         // así un avance enorme nunca salta días de golpe.
-        return {
-          ok: true,
-          eventos: [{ tipo: 'desmayo' }],
-          estado: {
-            ...estado,
-            dia: estado.dia + 1,
-            minutoDelDia: CONFIG_TIEMPO.horaInicio,
-            personaje: personajeEnAparicion(estado.aparicion),
-          },
+        if (!edificiosValidos(estado.edificios)) {
+          return { ok: false, estado, error: 'estado-invalido' }
         }
+        // Único punto de cambio de día: termina obras y recoloca al personaje (obras.ts).
+        const r = empezarDiaSiguiente(estado)
+        return { ok: true, eventos: [{ tipo: 'desmayo' }, ...r.eventos], estado: r.estado }
       }
       return { ok: true, eventos: SIN_EVENTOS, estado: { ...estado, minutoDelDia: minuto } }
     }
