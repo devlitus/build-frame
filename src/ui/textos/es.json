@@ -177,5 +177,5 @@
   "errorEdificio_no-es-obra": "Ya está terminado: se puede demoler",
   "errorEdificio_no-demolible": "La casa no se puede demoler",
   "errorEdificio_limite-de-recursos": "Tienes demasiado para guardar más",
-  "ayudaMover": "Modo Mover abierto. Las flechas mueven la silueta del edificio; Enter lo mueve si la silueta es verde. Con Tab llegas al panel, donde «Mover aquí» confirma y «Cancelar» sale. Escape cancela. La vista se mueve con el ratón o el dedo, o con la rueda y el pellizco."
+  "ayudaMover": "Modo Mover abierto. Las flechas mueven la silueta del edificio; Enter lo mueve si la silueta es verde. Con Tab llegas al panel, donde «Mover aquí» confirma y «Cancelar» sale. Escape cancela. La vista se mueve con la rueda y las teclas W, A, S y D, o con dos dedos en pantallas táctiles."
 }
