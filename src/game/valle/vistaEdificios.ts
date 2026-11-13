@@ -7,7 +7,6 @@ import {
   type EstadoJuego,
   type TipoEdificio,
 } from '../../core'
-import { tp } from '../../ui/textos'
 import { ESTILO_EDIFICIOS as E, TAM_CASILLA as T } from './estilo'
 
 /** Lo que se ve de un edificio ahora mismo (ganchos de prueba y e2e). */
@@ -26,15 +25,23 @@ export interface EdificioVisible {
   readonly profundidad: number
 }
 
-/** Texto del cartel de una obra («3 días», «1 día»). */
-export function textoCartel(dias: number): string {
-  return tp(dias === 1 ? 'cartelDia' : 'cartelDias', { n: dias })
+/** Forma del cartel de una obra: círculo con el número (obra estrecha en pantalla) o tablón con «N días». */
+type FormaCartel = 'circulo' | 'tablon'
+
+interface Cartel {
+  /** Un solo objeto en la escena (la obra suma dos: su andamio y este contenedor). */
+  readonly caja: Phaser.GameObjects.Container
+  readonly g: Phaser.GameObjects.Graphics
+  readonly texto: Phaser.GameObjects.Text
+  forma: FormaCartel
 }
 
 interface Dibujo {
   readonly clave: string
   readonly g: Phaser.GameObjects.Graphics
-  readonly texto: Phaser.GameObjects.Text | undefined
+  readonly cartel: Cartel | undefined
+  readonly rect: { readonly x: number; readonly y: number; readonly w: number; readonly h: number }
+  readonly dias: number | undefined
   readonly visible: EdificioVisible
 }
 
@@ -186,20 +193,25 @@ const dibujar: Readonly<Record<TipoEdificio, (g: G, r: Rect) => void>> = {
 /**
  * Capa de edificios y obras (M4-05). Un `Graphics` por edificio, con `depth` = borde inferior de
  * la huella en px (como el personaje, ADR 0003: lo que está más al sur tapa a lo que está más al
- * norte), y el cartel de las obras con su `Text`. Son gráficos vectoriales (no texturas
- * horneadas): el contexto WebGL perdido no los vacía, y cada uno se destruye cuando desaparece su
- * edificio o cambia su aspecto, así que no acumulan texturas. Solo se redibuja cuando cambia la
- * lista de edificios o el día (los días del cartel).
+ * norte), y el cartel de las obras (otro `Graphics` y un `Text`). Son gráficos vectoriales (no
+ * texturas horneadas): el contexto WebGL perdido no los vacía, y cada uno se destruye cuando
+ * desaparece su edificio o cambia su aspecto, así que no acumulan texturas. Solo se redibuja cuando
+ * cambia la lista de edificios o el día; el cartel se dibuja a tamaño de pantalla y con el zoom solo
+ * cambia su escala (y su forma, si cruza el umbral).
  */
 export class VistaEdificios {
   private readonly dibujos = new Map<number, Dibujo>()
   private lista: readonly Edificio[] | undefined = undefined
   private dia = -1
-  /** Zoom de cámara (cuantizado) con el que se dibujaron los carteles: tienen tamaño fijo en pantalla. */
-  private zoom = -1
+  /** Último zoom aplicado a los carteles. */
+  private zoom = 1
   private _repintados = 0
 
-  constructor(private readonly escena: Phaser.Scene) {}
+  /** `textoCartel` forma el texto del tablón («3 días»); lo pone quien construye la vista (la interfaz tiene los textos). */
+  constructor(
+    private readonly escena: Phaser.Scene,
+    private readonly textoCartel: (dias: number) => string,
+  ) {}
 
   /** Veces que se ha dibujado un edificio desde cero (ganchos de prueba). */
   get repintados(): number {
@@ -213,27 +225,31 @@ export class VistaEdificios {
 
   /**
    * `zoom` es el de la cámara: el cartel de una obra mide lo mismo en pantalla con cualquier zoom,
-   * así que se rehace (solo las obras) cuando el zoom cambia un par de puntos.
+   * así que con un zoom nuevo solo se reescala (sin rehacer la obra).
    */
   actualizar(e: Pick<EstadoJuego, 'edificios' | 'dia'>, zoom = 1): void {
-    const z = Math.round(Math.min(Math.max(zoom, 0.1), 8) * 50) / 50
-    if (e.edificios === this.lista && e.dia === this.dia && z === this.zoom) return
-    this.lista = e.edificios
-    this.dia = e.dia
-    this.zoom = z
-    const vivos = new Set<number>()
-    for (const ed of e.edificios) {
-      const def = defEdificio(ed.tipo)
-      if (!def) continue
-      vivos.add(ed.id)
-      const dias = ed.obra ? diasRestantes(ed.obra, e.dia) : undefined
-      const clave = `${ed.tipo}|${ed.x},${ed.y}|${dias ?? 'ok'}${dias === undefined ? '' : `|${z}`}`
-      const actual = this.dibujos.get(ed.id)
-      if (actual?.clave === clave) continue
-      this.quitar(ed.id)
-      this.dibujos.set(ed.id, this.crear(ed, clave, dias, def, z))
+    const z = Math.min(Math.max(zoom, 0.1), 8)
+    if (e.edificios !== this.lista || e.dia !== this.dia) {
+      this.lista = e.edificios
+      this.dia = e.dia
+      const vivos = new Set<number>()
+      for (const ed of e.edificios) {
+        const def = defEdificio(ed.tipo)
+        if (!def) continue
+        vivos.add(ed.id)
+        const dias = ed.obra ? diasRestantes(ed.obra, e.dia) : undefined
+        const clave = `${ed.tipo}|${ed.x},${ed.y}|${dias ?? 'ok'}`
+        if (this.dibujos.get(ed.id)?.clave === clave) continue
+        this.quitar(ed.id)
+        this.dibujos.set(ed.id, this.crear(ed, clave, dias, def, z))
+      }
+      for (const id of [...this.dibujos.keys()]) if (!vivos.has(id)) this.quitar(id)
+      this.zoom = z
+      return
     }
-    for (const id of [...this.dibujos.keys()]) if (!vivos.has(id)) this.quitar(id)
+    if (z === this.zoom) return
+    this.zoom = z
+    for (const d of this.dibujos.values()) this.ajustarCartel(d, z)
   }
 
   private crear(
@@ -248,16 +264,29 @@ export class VistaEdificios {
     const r: Rect = { x: h.x0 * T, y: h.y0 * T, w: def.ancho * T, h: def.alto * T }
     const profundidad = (h.y1 + 1) * T
     const g = this.escena.add.graphics().setDepth(profundidad)
-    let texto: Phaser.GameObjects.Text | undefined
+    let cartel: Cartel | undefined
     if (dias === undefined) dibujar[ed.tipo](g, r)
     else {
       dibujarAndamio(g, r)
-      texto = this.dibujarCartel(g, r, dias, zoom, profundidad)
+      const texto = this.escena.add
+        .text(0, 0, '', {
+          fontFamily: 'system-ui, sans-serif',
+          fontSize: `${E.obra.textoPx}px`,
+          fontStyle: 'bold',
+          color: E.obra.colorTexto,
+        })
+        .setOrigin(0.5)
+        .setResolution(2)
+      const fondo = this.escena.add.graphics()
+      const caja = this.escena.add.container(0, 0, [fondo, texto]).setDepth(profundidad + 0.1)
+      cartel = { caja, g: fondo, texto, forma: 'tablon' }
     }
-    return {
+    const d: Dibujo = {
       clave,
       g,
-      texto,
+      cartel,
+      rect: r,
+      dias,
       visible: {
         id: ed.id,
         tipo: ed.tipo,
@@ -270,55 +299,49 @@ export class VistaEdificios {
         profundidad,
       },
     }
+    this.ajustarCartel(d, zoom, true)
+    return d
   }
 
   /**
-   * Cartel de la obra con tamaño fijo en pantalla (compensa el zoom de la cámara). Una obra
-   * estrecha en pantalla lleva solo el número en un círculo; una ancha, «N días» en un tablón.
+   * Cartel con tamaño fijo en pantalla: se dibuja en píxeles de pantalla alrededor de su centro y se
+   * escala con 1/zoom. Una obra estrecha en pantalla lleva solo el número en un círculo; una ancha,
+   * «N días» en un tablón. Solo se redibuja si cambia la forma.
    */
-  private dibujarCartel(
-    g: G,
-    { x, y, w, h }: Rect,
-    dias: number,
-    zoom: number,
-    profundidad: number,
-  ): Phaser.GameObjects.Text {
+  private ajustarCartel(d: Dibujo, zoom: number, primera = false): void {
+    const { cartel, rect, dias } = d
+    if (!cartel || dias === undefined) return
     const o = E.obra
-    const k = 1 / zoom
-    const compacto = w * zoom < o.anchoMinimoTablonPx
-    const texto = this.escena.add
-      .text(0, 0, compacto ? String(dias) : textoCartel(dias), {
-        fontFamily: 'system-ui, sans-serif',
-        fontSize: `${o.textoPx * k}px`,
-        fontStyle: 'bold',
-        color: o.colorTexto,
-      })
-      .setOrigin(0.5)
-      .setResolution(2)
-      .setDepth(profundidad + 0.1)
-    const cx = x + w / 2
-    // El cartel se apoya en el borde inferior de la huella, sin salirse por abajo más de un poco.
-    const alto = (o.textoPx + 8) * k
-    const ancho = compacto ? alto : texto.width + 12 * k
-    const cy = y + h - Math.min(alto / 2, h / 2) - 2 * k
-    texto.setPosition(cx, cy)
-    g.fillStyle(o.cartel, 1)
-    g.lineStyle(E.grosor * k, E.contorno, 1)
-    if (compacto) {
-      g.fillCircle(cx, cy, alto / 2)
-      g.strokeCircle(cx, cy, alto / 2)
-    } else {
-      g.fillRect(cx - ancho / 2, cy - alto / 2, ancho, alto)
-      g.strokeRect(cx - ancho / 2, cy - alto / 2, ancho, alto)
+    const forma: FormaCartel = rect.w * zoom < o.anchoMinimoTablonPx ? 'circulo' : 'tablon'
+    const alto = o.textoPx + 8
+    if (primera || forma !== cartel.forma) {
+      cartel.forma = forma
+      cartel.texto.setText(forma === 'circulo' ? String(dias) : this.textoCartel(dias))
+      const g = cartel.g
+      g.clear()
+      g.fillStyle(o.cartel, 1)
+      g.lineStyle(E.grosor, E.contorno, 1)
+      if (forma === 'circulo') {
+        g.fillCircle(0, 0, alto / 2)
+        g.strokeCircle(0, 0, alto / 2)
+      } else {
+        const ancho = cartel.texto.width + 12
+        g.fillRect(-ancho / 2, -alto / 2, ancho, alto)
+        g.strokeRect(-ancho / 2, -alto / 2, ancho, alto)
+      }
     }
-    return texto
+    // El cartel se apoya en el borde inferior de la huella, sin salirse por abajo más de un poco.
+    const k = 1 / zoom
+    const cx = rect.x + rect.w / 2
+    const cy = rect.y + rect.h - Math.min((alto * k) / 2, rect.h / 2) - 2 * k
+    cartel.caja.setPosition(cx, cy).setScale(k)
   }
 
   private quitar(id: number): void {
     const d = this.dibujos.get(id)
     if (!d) return
     d.g.destroy()
-    d.texto?.destroy()
+    d.cartel?.caja.destroy()
     this.dibujos.delete(id)
   }
 

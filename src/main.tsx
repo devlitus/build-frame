@@ -7,7 +7,7 @@ import {
   iniciarPartida,
   partidaActual,
 } from './game/juego'
-import { t } from './ui/textos'
+import { t, tp } from './ui/textos'
 import { Hud } from './ui/Hud'
 import { Portada } from './ui/Portada'
 import './estilos.css'
@@ -19,7 +19,9 @@ if (!juego || !ui) throw new Error('Faltan los contenedores #juego o #ui')
 juego.setAttribute('role', 'application')
 juego.setAttribute('aria-label', t('lienzoValle'))
 juego.tabIndex = -1
-crearJuego(juego)
+crearJuego(juego, {
+  cartelObra: (dias) => tp(dias === 1 ? 'cartelDia' : 'cartelDias', { n: dias }),
+})
 
 function App() {
   const [jugando, setJugando] = useState(arrancaDirecto())

@@ -173,7 +173,9 @@ describe('Partida y el modo Construir', () => {
     p.construccion.pedirConfirmacion('puntero')
     const r = p.construirAqui()
     expect(r?.ok).toBe(false)
-    expect(avisos).toEqual([{ tipo: 'construir-rechazado', error: 'fondos-insuficientes' }])
+    expect(avisos).toEqual([
+      { tipo: 'construir-rechazado', error: 'fondos-insuficientes', edificio: 'caja-envio' },
+    ])
     expect(p.construccion.confirmando).toBeUndefined()
     expect(p.construccion.tipo).toBe('caja-envio')
   })

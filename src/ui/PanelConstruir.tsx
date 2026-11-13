@@ -35,9 +35,27 @@ function useTactil(): boolean {
   return tactil
 }
 
-/** Instante (ms) en que se confirmó la última obra: el catálogo recién pintado ignora el segundo toque de un doble toque. */
-let ultimaConfirmacion = Number.NEGATIVE_INFINITY
+/**
+ * Última confirmación de una obra (lo guarda `PanelConstruir` en una ref): el catálogo recién pintado
+ * ignora el segundo toque de un doble toque, sea sobre un edificio o sobre «Listo». Con puntero la
+ * guarda vale para los clics cerca del punto confirmado; con teclado (sin posición), para todos.
+ */
+interface Confirmacion {
+  readonly t: number
+  readonly x: number | undefined
+  readonly y: number | undefined
+}
+type GuardaConfirmacion = { current: Confirmacion }
 const GUARDA_TRAS_CONFIRMAR_MS = 400
+const GUARDA_RADIO_PX = 48
+const SIN_CONFIRMAR: Confirmacion = { t: Number.NEGATIVE_INFINITY, x: undefined, y: undefined }
+
+function dentroDeGuarda(guarda: GuardaConfirmacion, ev: MouseEvent): boolean {
+  const { t, x, y } = guarda.current
+  if (performance.now() - t >= GUARDA_TRAS_CONFIRMAR_MS) return false
+  if (x === undefined || y === undefined) return true
+  return Math.hypot(ev.clientX - x, ev.clientY - y) < GUARDA_RADIO_PX
+}
 
 function devolverFoco(): void {
   document.getElementById('juego')?.focus({ preventScroll: true })
@@ -72,9 +90,9 @@ export function BotonConstruir() {
   )
 }
 
-function Opcion(props: { entrada: EntradaCatalogo }) {
+function Opcion(props: { entrada: EntradaCatalogo; guarda: GuardaConfirmacion }) {
   const partida = usePartida()
-  const { entrada } = props
+  const { entrada, guarda } = props
   const { def, tipo } = entrada
   const motivo = textoMotivoCatalogo(entrada)
   return (
@@ -83,8 +101,8 @@ function Opcion(props: { entrada: EntradaCatalogo }) {
       class={`edificio-opcion edificio-${tipo}${motivo ? ' edificio-opcion-no' : ''}`}
       data-tipo={tipo}
       data-motivo={entrada.motivo}
-      onClick={() => {
-        if (performance.now() - ultimaConfirmacion < GUARDA_TRAS_CONFIRMAR_MS) return
+      onClick={(ev) => {
+        if (dentroDeGuarda(guarda, ev)) return
         partida.construccion.elegir(tipo)
         // Con puntero o con teclado: lo siguiente es mover la silueta, que escucha el lienzo.
         devolverFoco()
@@ -92,7 +110,9 @@ function Opcion(props: { entrada: EntradaCatalogo }) {
     >
       <span class="edificio-nombre">{nombreEdificio(tipo)}</span>
       <span class="edificio-detalle">
-        {tp('edificioHuella', { a: def.ancho, b: def.alto })} ·{' '}
+        <span class="edificio-huella">
+          {tp('edificioHuella', { a: def.ancho, b: def.alto })} ·{' '}
+        </span>
         {tp('edificioZona', { zonas: textoZonas(def.zonas) })}
       </span>
       <span class="edificio-coste">
@@ -108,7 +128,8 @@ function Opcion(props: { entrada: EntradaCatalogo }) {
   )
 }
 
-function Catalogo() {
+function Catalogo(props: { guarda: GuardaConfirmacion }) {
+  const { guarda } = props
   const partida = usePartida()
   const edificios = useEstado((e) => e.edificios)
   const dinero = useEstado((e) => e.dinero)
@@ -125,7 +146,8 @@ function Catalogo() {
           type="button"
           class="boton-listo"
           title={t('construirListoAyuda')}
-          onClick={() => {
+          onClick={(ev) => {
+            if (dentroDeGuarda(guarda, ev)) return
             devolverFoco()
             partida.construccion.cerrar()
           }}
@@ -136,7 +158,7 @@ function Catalogo() {
       <ul class="catalogo">
         {lista.map((e) => (
           <li key={e.tipo}>
-            <Opcion entrada={e} />
+            <Opcion entrada={e} guarda={guarda} />
           </li>
         ))}
       </ul>
@@ -187,7 +209,12 @@ function Colocando(props: { tipo: TipoEdificio }) {
         {texto}
       </p>
       <p class="construir-ayuda">
-        {t(tactil ? 'construirAyudaSilueta' : 'construirAyudaSiluetaTeclado')}
+        <span class="ayuda-larga">
+          {t(tactil ? 'construirAyudaSilueta' : 'construirAyudaSiluetaTeclado')}
+        </span>
+        <span class="ayuda-corta">
+          {t(tactil ? 'construirAyudaSiluetaCorta' : 'construirAyudaSiluetaTecladoCorta')}
+        </span>
       </p>
       <div class="construir-acciones">
         <button
@@ -216,9 +243,13 @@ function Colocando(props: { tipo: TipoEdificio }) {
   )
 }
 
-function Confirmacion(props: { tipo: TipoEdificio; origen: 'puntero' | 'teclado' }) {
+function PanelConfirmacion(props: {
+  tipo: TipoEdificio
+  origen: 'puntero' | 'teclado'
+  guarda: GuardaConfirmacion
+}) {
   const partida = usePartida()
-  const { tipo, origen } = props
+  const { tipo, origen, guarda } = props
   const estado = useEstado((e) => e)
   const silueta = useSilueta()
   const entrada = useMemo(() => catalogo(estado).find((e) => e.tipo === tipo), [estado, tipo])
@@ -238,12 +269,21 @@ function Confirmacion(props: { tipo: TipoEdificio; origen: 'puntero' | 'teclado'
   const { coste, dias } = entrada.def
   const resto = restoTrasPagar(estado, coste)
   return (
-    <>
+    <div
+      class="construir-confirmacion"
+      role="alertdialog"
+      aria-labelledby="construir-pregunta"
+      aria-describedby="construir-coste construir-resto"
+    >
       <p class="compra-confirmar-texto" id="construir-pregunta">
         {tp('confirmarTitulo', { edificio: nombreEdificio(tipo) })}
       </p>
-      <p class="construir-linea">{tp('confirmarCoste', { coste: textoCoste(coste) })}</p>
-      <p class="construir-linea">{tp('confirmarResto', { resto: textoResto(resto) })}</p>
+      <p class="construir-linea" id="construir-coste">
+        {tp('confirmarCoste', { coste: textoCoste(coste) })}
+      </p>
+      <p class="construir-linea" id="construir-resto">
+        {tp('confirmarResto', { resto: textoResto(resto) })}
+      </p>
       <p class="construir-linea">
         {tp(dias === 1 ? 'confirmarDuracionUno' : 'confirmarDuracion', { n: dias })}
       </p>
@@ -257,8 +297,11 @@ function Confirmacion(props: { tipo: TipoEdificio; origen: 'puntero' | 'teclado'
             // (El clic de Enter nace en el keydown; cancelarlo aquí evita ese clic.)
             if (ev.repeat) ev.preventDefault()
           }}
-          onClick={() => {
-            ultimaConfirmacion = performance.now()
+          onClick={(ev) => {
+            guarda.current =
+              ev.detail > 0
+                ? { t: performance.now(), x: ev.clientX, y: ev.clientY }
+                : { t: performance.now(), x: undefined, y: undefined }
             devolverFoco()
             partida.construirAqui()
           }}
@@ -277,7 +320,7 @@ function Confirmacion(props: { tipo: TipoEdificio; origen: 'puntero' | 'teclado'
           {t('confirmarNo')}
         </button>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -290,6 +333,7 @@ export function PanelConstruir() {
   const partida = usePartida()
   const { abierto, tipo, confirmando } = useConstruccion()
   const raiz = useRef<HTMLDivElement>(null)
+  const guarda = useRef(SIN_CONFIRMAR)
 
   useLayoutEffect(() => {
     const el = raiz.current
@@ -325,9 +369,9 @@ export function PanelConstruir() {
         aria-label={t('construirPanel')}
       >
         {tipo === undefined ? (
-          <Catalogo />
+          <Catalogo guarda={guarda} />
         ) : confirmando ? (
-          <Confirmacion tipo={tipo} origen={confirmando} />
+          <PanelConfirmacion tipo={tipo} origen={confirmando} guarda={guarda} />
         ) : (
           <Colocando tipo={tipo} />
         )}

@@ -5,6 +5,7 @@ import {
   type EstadoJuego,
   type EventoJuego,
   type ResultadoComando,
+  type TipoEdificio,
 } from '../core'
 import { Construccion, calcularSilueta, type Silueta } from './construir'
 import { Pincel } from './pincel'
@@ -22,7 +23,12 @@ export type Suscriptor = (cambio: CambioPartida) => void
 export type AvisoInterfaz =
   | 'zona-sin-casillas'
   /** El núcleo rechazó `Construir` (el estado cambió entre la silueta y la confirmación). */
-  | { readonly tipo: 'construir-rechazado'; readonly error: ErrorComando }
+  | {
+      readonly tipo: 'construir-rechazado'
+      readonly error: ErrorComando
+      /** Edificio que se quiso construir (para el detalle de zona del motivo). */
+      readonly edificio: TipoEdificio
+    }
 
 /**
  * Contenedor de la partida en la capa de juego: guarda el `EstadoJuego`, aplica comandos con
@@ -84,7 +90,7 @@ export class Partida {
     if (r.ok) this.construccion.terminarColocacion()
     else {
       this.construccion.cancelarConfirmacion()
-      this.avisarInterfaz({ tipo: 'construir-rechazado', error: r.error })
+      this.avisarInterfaz({ tipo: 'construir-rechazado', error: r.error, edificio: s.tipo })
     }
     return r
   }

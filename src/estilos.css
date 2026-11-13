@@ -117,6 +117,20 @@ body {
   text-shadow: 0 1px 3px var(--sombra);
 }
 
+/* Botones inferiores (Construir, Zonas, Modo): una fila flexible abajo a la derecha que pasa a dos líneas si no cabe. */
+.botones-inferiores {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: flex-end;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
 /* Interfaz de partida: arriba (M2-06) hora y botones de tiempo; abajo a la izquierda (M2-04) el joystick. */
 .hud {
   align-self: stretch;
@@ -125,9 +139,6 @@ body {
 }
 
 .boton-modo {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
   pointer-events: auto;
   font: inherit;
   font-weight: 700;
@@ -652,12 +663,6 @@ body {
   touch-action: manipulation;
 }
 
-.boton-zonas {
-  position: absolute;
-  right: 124px;
-  bottom: 12px;
-}
-
 .boton-zonas:focus-visible,
 .boton-listo:focus-visible,
 .herramienta-zona:focus-visible {
@@ -773,6 +778,12 @@ body {
   white-space: nowrap;
 }
 
+.material-simbolo {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
 .material {
   display: inline-flex;
   align-items: center;
@@ -781,9 +792,6 @@ body {
 
 .boton-construir {
   pointer-events: auto;
-  position: absolute;
-  right: 236px;
-  bottom: 12px;
   font: inherit;
   font-weight: 700;
   min-width: 48px;
@@ -832,6 +840,12 @@ body {
   border: 2px solid var(--tierra);
   box-shadow: 0 4px 16px var(--sombra);
   touch-action: pan-y;
+}
+
+.construir-confirmacion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .panel-construir-confirmando {
@@ -930,6 +944,10 @@ body {
   font-size: 0.85rem;
 }
 
+.ayuda-corta {
+  display: none;
+}
+
 .construir-linea {
   margin: 0;
 }
@@ -950,7 +968,7 @@ body {
     right: auto;
     left: 8px;
     bottom: 8px;
-    width: min(360px, 56vw);
+    width: min(400px, 58vw);
     justify-content: flex-start;
   }
 
@@ -958,12 +976,22 @@ body {
     width: 100%;
     max-height: calc(100vh - 106px);
     gap: 4px;
-    padding: 6px 8px 8px;
+    padding: 6px 6px 8px;
     border-radius: 14px;
   }
 
-  .construir-ayuda {
+  /* Ayuda en una línea corta. */
+  .ayuda-larga {
     display: none;
+  }
+
+  .ayuda-corta {
+    display: inline;
+  }
+
+  .construir-ayuda {
+    font-size: 0.76rem;
+    line-height: 1.15;
   }
 
   .catalogo {
@@ -971,11 +999,21 @@ body {
     gap: 3px;
   }
 
+  /* Nombre y zona en la primera línea; coste y motivo debajo. */
   .edificio-opcion {
-    padding: 2px 10px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 8px;
+    padding: 2px 8px;
     min-height: 44px;
-    gap: 0;
+    row-gap: 0;
     line-height: 1.15;
+  }
+
+  .edificio-coste,
+  .edificio-motivo {
+    flex-basis: 100%;
   }
 
   .construir-cabecera .boton-listo {
@@ -986,10 +1024,12 @@ body {
     font-size: 1rem;
   }
 
-  .edificio-detalle {
+  /* La zona requerida se ve siempre; la huella se omite (cabe en el nombre y en la silueta). */
+  .edificio-huella {
     display: none;
   }
 
+  .edificio-detalle,
   .edificio-coste,
   .edificio-motivo {
     font-size: 0.76rem;
@@ -1002,8 +1042,30 @@ body {
     bottom: 68px;
   }
 
-  .construir-ayuda {
+  .ayuda-larga {
     display: none;
+  }
+
+  .ayuda-corta {
+    display: inline;
+  }
+}
+
+/* Pantallas muy estrechas: el HUD superior pasa a dos líneas y la fila de botones se compacta. */
+@media (max-width: 340px) {
+  .hud-izquierda {
+    flex-wrap: wrap;
+  }
+
+  .botones-inferiores {
+    gap: 6px;
+  }
+
+  .boton-construir,
+  .boton-zonas,
+  .boton-modo {
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
   }
 }
 /* === Fin M4-05 === */

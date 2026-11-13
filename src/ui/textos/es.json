@@ -114,6 +114,8 @@
   "construirCambiar": "Cambiar edificio",
   "construirAyudaSilueta": "Toca o arrastra para mover la silueta; con dos dedos mueves la vista; confirma con el botón",
   "construirAyudaSiluetaTeclado": "Mueve la silueta con el ratón o las flechas; la rueda y WASD mueven la vista; Enter construye",
+  "construirAyudaSiluetaCorta": "Toca o arrastra para mover; confirma con el botón",
+  "construirAyudaSiluetaTecladoCorta": "Ratón o flechas mueven la silueta; Enter construye",
   "confirmarTitulo": "¿Construir {edificio}?",
   "confirmarCoste": "Cuesta: {coste}",
   "confirmarResto": "Te quedará: {resto}",

@@ -60,12 +60,10 @@ export function Aviso() {
     const bajaUi = partida.suscribirAvisos((aviso) => {
       if (aviso === 'zona-sin-casillas') mostrarAviso(t('avisoZonaSinCasillas'))
       else if (aviso.tipo === 'construir-rechazado') {
-        const { tipo } = partida.construccion
         const e = partida.estado
-        // El tipo elegido ya se soltó si se construyó: sin él el motivo va sin detalle de zona.
         mostrarAviso(
           tp('avisoConstruirRechazado', {
-            motivo: textoColocacion(aviso.error, tipo ?? 'caja-envio', e),
+            motivo: textoColocacion(aviso.error, aviso.edificio, e),
           }),
         )
       }

@@ -242,6 +242,8 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
       const error = comprobarConstruir(estado, tipoEdificio, x, y)
       if (error) return { ok: false, estado, error }
       const def = defEdificio(tipoEdificio)
+      // Aserto: `comprobarConstruir` ya devuelve 'tipo-desconocido' si no hay definición; esta rama no se alcanza
+      // y solo sirve para estrechar el tipo.
       if (!def) return { ok: false, estado, error: 'tipo-desconocido' }
       const diaFin = estado.dia + def.dias
       const id = estado.siguienteIdEdificio

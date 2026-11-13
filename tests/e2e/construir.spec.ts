@@ -330,3 +330,42 @@ test('construir convive con las zonas y la parcela: abrir uno cierra los otros',
   await expect(panel(page)).toHaveCount(0)
   expect(errores).toEqual([])
 })
+
+test('la zona requerida de cada edificio se ve en pantallas apaisadas bajas y los botones de abajo no se cortan', async ({
+  page,
+}) => {
+  test.skip(esMovil(), 'fija sus propios tamaños')
+  for (const vp of [
+    { width: 915, height: 412 },
+    { width: 640, height: 320 },
+    { width: 320, height: 640 },
+    { width: 360, height: 640 },
+  ]) {
+    await page.setViewportSize(vp)
+    const errores = await abrir(page)
+    // Botones inferiores: dentro de la pantalla.
+    for (const nombre of ['Construir', 'Zonas']) {
+      const b = await page.getByRole('button', { name: nombre, exact: true }).boundingBox()
+      expect(b, `${nombre} ${vp.width}×${vp.height}`).not.toBeNull()
+      if (!b) continue
+      expect.soft(b.x, `${nombre} ${vp.width}×${vp.height} izquierda`).toBeGreaterThanOrEqual(0)
+      expect.soft(b.x + b.width, `${nombre} derecha`).toBeLessThanOrEqual(vp.width)
+    }
+    await abrirCatalogo(page)
+    for (const [nombre, zona] of [
+      [/^Casa/, 'Zona: Vivienda'],
+      [/^Caja de envío/, 'Zona: Vivienda o Almacén'],
+      [/^Cobertizo/, 'Zona: Almacén'],
+    ] as const) {
+      const opcion = panel(page).getByRole('button', { name: nombre })
+      await expect(opcion).toContainText(zona)
+      // El texto de la zona es visible (no oculto con display: none) y cabe dentro del botón.
+      const detalle = opcion.locator('.edificio-detalle')
+      await expect(detalle, `${zona} ${vp.width}×${vp.height}`).toBeVisible()
+      const d = await detalle.boundingBox()
+      const o = await opcion.boundingBox()
+      expect(d && o && d.y >= o.y && d.y + d.height <= o.y + o.height + 0.5).toBe(true)
+    }
+    expect(errores).toEqual([])
+  }
+})

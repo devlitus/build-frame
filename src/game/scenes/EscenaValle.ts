@@ -15,6 +15,7 @@ import { conPropiasDeDepuracion } from '../valle/debug'
 import type { EstadoVisualParcela } from '../valle/estadoVisual'
 import { VistaParcelas } from '../valle/vistaParcelas'
 import { VistaPincel } from '../valle/vistaPincel'
+import { CLAVE_TEXTOS_LIENZO, type TextosLienzo } from '../textosLienzo'
 import { VistaEdificios, type EdificioVisible } from '../valle/vistaEdificios'
 import { VistaSilueta } from '../valle/vistaSilueta'
 import { ColocadorEdificio } from '../colocador'
@@ -237,7 +238,8 @@ export class EscenaValle extends Phaser.Scene {
     this.vistaPincel = new VistaPincel(this)
     // Edificios y obras (M4-05): un Graphics por edificio, ordenados por Y como el personaje.
     this.edificios?.destruir()
-    this.edificios = new VistaEdificios(this)
+    const textos = this.registry.get(CLAVE_TEXTOS_LIENZO) as TextosLienzo | undefined
+    this.edificios = new VistaEdificios(this, textos?.cartelObra ?? ((dias) => String(dias)))
     this.edificios.actualizar(inicial, this.cameras.main.zoom)
     this.vistaSilueta?.destruir()
     this.vistaSilueta = new VistaSilueta(this)

@@ -1,3 +1,4 @@
+import { CLAVE_TEXTOS_LIENZO, type TextosLienzo } from './textosLienzo'
 import Phaser from 'phaser'
 import { EscenaPortada } from './scenes/EscenaPortada'
 import { EscenaDepuracion } from './scenes/EscenaDepuracion'
@@ -79,7 +80,7 @@ function vigilarTamano(g: Phaser.Game, padre: HTMLElement): void {
   g.events.once(Phaser.Core.Events.DESTROY, () => obs.disconnect())
 }
 
-export function crearJuego(padre: HTMLElement): Phaser.Game {
+export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Game {
   const directo = arrancaDirecto()
   const g = new Phaser.Game({
     type: Phaser.AUTO,
@@ -89,6 +90,7 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
     scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
   })
   juego = g
+  if (textos) g.registry.set(CLAVE_TEXTOS_LIENZO, textos)
   vigilarTamano(g, padre)
   g.scene.add('portada', EscenaPortada, !directo)
   if (directo) {

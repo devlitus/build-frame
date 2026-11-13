@@ -87,9 +87,11 @@ export function Hud({ partida, debug = false }: { partida: Partida; debug?: bool
         <PanelParcela />
         <BarraZonas />
         <PanelConstruir />
-        <BotonConstruir />
-        <BotonZonas />
-        <BotonModo />
+        <div class="botones-inferiores">
+          <BotonConstruir />
+          <BotonZonas />
+          <BotonModo />
+        </div>
       </div>
     </ContextoPartida.Provider>
   )
