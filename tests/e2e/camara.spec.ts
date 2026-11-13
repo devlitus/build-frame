@@ -47,6 +47,20 @@ async function dentroDelValle(page: Page, c: Camara): Promise<void> {
   } else expect(arriba + visibleY / 2).toBeCloseTo(mundo / 2, 0)
 }
 
+/**
+ * En el Modo Plano la vista puede pasar del borde del valle (para centrar cualquier casilla y ver
+ * lo que tapan los paneles y botones), pero su centro sigue dentro del valle.
+ */
+async function centroDentroDelValle(page: Page, c: Camara): Promise<void> {
+  const mundo = (await page.evaluate(() => window.__raices?.mundoPx())) ?? 0
+  const x = c.scrollX + c.ancho / 2
+  const y = c.scrollY + c.alto / 2
+  expect(x).toBeGreaterThanOrEqual(-0.5)
+  expect(x).toBeLessThanOrEqual(mundo + 0.5)
+  expect(y).toBeGreaterThanOrEqual(-0.5)
+  expect(y).toBeLessThanOrEqual(mundo + 0.5)
+}
+
 test.describe('ratón', () => {
   test.skip(({ isMobile }) => isMobile, 'solo escritorio')
 
@@ -100,7 +114,7 @@ test.describe('ratón', () => {
     await dentroDelValle(page, c)
   })
 
-  test('arrastrar mucho no saca la cámara del valle', async ({ page }) => {
+  test('arrastrar mucho no saca el centro de la cámara del valle', async ({ page }) => {
     for (const [dx, dy] of [
       [1200, 700],
       [-1200, -700],
@@ -111,7 +125,7 @@ test.describe('ratón', () => {
         await page.mouse.move(640 + dx / 2, 360 + dy / 2, { steps: 4 })
         await page.mouse.up()
       }
-      await dentroDelValle(page, await camara(page))
+      await centroDentroDelValle(page, await camara(page))
     }
   })
 })

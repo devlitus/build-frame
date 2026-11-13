@@ -111,6 +111,82 @@ export function calcularSilueta(
   }
 }
 
+/**
+ * ¿Cae toda la huella de la silueta en parcelas propias? Bastan las cuatro esquinas: ningún
+ * edificio es mayor que una parcela (ancho y alto <= casillasPorParcela), así que la huella toca
+ * como mucho dos parcelas por eje y las esquinas ya cubren todas las que pisa.
+ */
+function huellaEnPropia(estado: EstadoJuego, s: Silueta): boolean {
+  const v = estado.valle
+  const c = v.casillasPorParcela
+  for (const y of [s.y, s.y + s.alto - 1]) {
+    for (const x of [s.x, s.x + s.ancho - 1]) {
+      const p = v.parcelas[Math.floor(y / c) * v.parcelasPorLado + Math.floor(x / c)]
+      if (p?.estado !== 'propia') return false
+    }
+  }
+  return true
+}
+
+/** Radio (casillas) de la búsqueda de un sitio válido junto a la tierra propia más cercana. */
+const RADIO_BUSQUEDA_SILUETA = 6
+
+/**
+ * Casilla donde nace la silueta al elegir un edificio. Si la huella ya cae entera en tierra propia
+ * en `preferida` (el centro de la zona libre) se queda ahí. Si no, va a la tierra propia más
+ * cercana: una posición válida cerca de ella si existe; si no, la más cercana a `preferida` cuya
+ * huella esté en tierra propia; y si tampoco hay, la casilla propia más cercana. Sin parcelas
+ * propias, `preferida`.
+ */
+export function casillaInicialSilueta(
+  estado: EstadoJuego,
+  tipo: TipoEdificio,
+  preferida: Casilla,
+): Casilla {
+  const inicial = calcularSilueta(estado, tipo, preferida)
+  if (!inicial || huellaEnPropia(estado, inicial)) return preferida
+  const v = estado.valle
+  const lado = ladoValle(v)
+  const c = v.casillasPorParcela
+  // Casilla de tierra propia más cercana a `preferida`.
+  let cercana: Casilla | undefined
+  let dMin = Infinity
+  for (const p of v.parcelas) {
+    if (p.estado !== 'propia') continue
+    const x = Math.min(Math.max(preferida.x, p.columna * c), (p.columna + 1) * c - 1)
+    const y = Math.min(Math.max(preferida.y, p.fila * c), (p.fila + 1) * c - 1)
+    const d = (x - preferida.x) ** 2 + (y - preferida.y) ** 2
+    if (d < dMin) {
+      dMin = d
+      cercana = { x, y }
+    }
+  }
+  if (!cercana) return preferida
+  let valida: { c: Casilla; d: number } | undefined
+  let propia: { c: Casilla; d: number } | undefined
+  for (
+    let y = Math.max(0, cercana.y - RADIO_BUSQUEDA_SILUETA);
+    y <= Math.min(lado - 1, cercana.y + RADIO_BUSQUEDA_SILUETA);
+    y++
+  ) {
+    for (
+      let x = Math.max(0, cercana.x - RADIO_BUSQUEDA_SILUETA);
+      x <= Math.min(lado - 1, cercana.x + RADIO_BUSQUEDA_SILUETA);
+      x++
+    ) {
+      const s = calcularSilueta(estado, tipo, { x, y })
+      if (!s) continue
+      const d = (x - preferida.x) ** 2 + (y - preferida.y) ** 2
+      if (s.resultado.valida) {
+        if (!valida || d < valida.d) valida = { c: { x, y }, d }
+      } else if (huellaEnPropia(estado, s)) {
+        if (!propia || d < propia.d) propia = { c: { x, y }, d }
+      }
+    }
+  }
+  return valida?.c ?? propia?.c ?? cercana
+}
+
 /** Quién pidió la confirmación: decide dónde cae el foco (con el puntero, en «Cancelar»; con el teclado, en «Construir»). */
 export type OrigenConfirmacion = 'puntero' | 'teclado'
 

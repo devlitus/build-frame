@@ -211,7 +211,7 @@ function Colocando(props: { tipo: TipoEdificio }) {
         <span aria-hidden="true">{valida ? '✓ ' : '✕ '}</span>
         {texto}
       </p>
-      <p class="construir-ayuda">
+      <p class="construir-ayuda construir-ayuda-silueta">
         <span class="ayuda-larga">
           {t(tactil ? 'construirAyudaSilueta' : 'construirAyudaSiluetaTeclado')}
         </span>

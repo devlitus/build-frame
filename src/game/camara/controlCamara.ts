@@ -5,6 +5,8 @@ import {
   factorPellizco,
   limitarVista,
   limitarZoom,
+  type Extension,
+  type Margenes,
   medirDedos,
   transformar,
   type Pantalla,
@@ -45,6 +47,10 @@ export class ControlCamara {
    * con un gesto del usuario o al pasar a Vida.
    */
   private extension: Punto | undefined = undefined
+  /** Márgenes permanentes del Modo Plano (undefined en Vida): ver `Margenes`. */
+  private margenes: Margenes | undefined = undefined
+  /** La vista está fuera de los límites tras reducirse los márgenes y se desliza de vuelta. */
+  private recolocando = false
   /** La extensión se está soltando: la vista vuelve suavemente a los límites normales. */
   private soltando = false
   /** Última vista aplicada: al redimensionar se conserva su centro. */
@@ -133,6 +139,7 @@ export class ControlCamara {
     this.guia = { ...punto }
     if (conExtension) this.extension = { ...punto }
     this.soltando = false
+    this.recolocando = false
     this.persiguiendo = false
   }
 
@@ -146,9 +153,45 @@ export class ControlCamara {
     this.soltando = true
   }
 
+  /**
+   * Fija los márgenes del Modo Plano (o `undefined`). Si al reducirse la vista queda fuera de
+   * los límites, vuelve deslizándose (no de golpe).
+   */
+  fijarMargenes(m: Margenes | undefined): void {
+    const a = this.margenes
+    if (
+      a === m ||
+      (a && m && a.arriba === m.arriba && a.abajo === m.abajo && a.izq === m.izq && a.der === m.der)
+    )
+      return
+    this.margenes = m ? { ...m } : undefined
+    const v = this.actual
+    const l = limitarVista(v, this.pantalla, this.mundoPx, this.limites())
+    const fuera = l.cx !== v.cx || l.cy !== v.cy
+    // Al salir del Plano la vista vuelve de golpe (en Vida siempre dentro del valle); si solo
+    // cambia el panel, se desliza.
+    this.recolocando = fuera && m !== undefined
+    if (fuera && m === undefined) this.aplicar(l)
+  }
+
   /** Hay un deslizamiento en curso (guía o vuelta de la extensión). */
   get guiando(): boolean {
-    return this.guia !== undefined || this.soltando
+    return this.guia !== undefined || this.soltando || this.recolocando
+  }
+
+  /** Límites mientras la vista se desliza de vuelta: incluyen el centro actual. */
+  private limitesAnchos(): Extension {
+    return { x: this.actual.cx, y: this.actual.cy, margenes: this.margenes }
+  }
+
+  private limitesMargenes(): Extension | undefined {
+    return this.margenes && { margenes: this.margenes }
+  }
+
+  private limites(): Extension | undefined {
+    const e = this.extension
+    if (!e && !this.margenes) return undefined
+    return { x: e?.x, y: e?.y, margenes: this.margenes }
   }
 
   /** Un paso del deslizamiento suave; `delta` en ms de tiempo real. */
@@ -167,9 +210,20 @@ export class ControlCamara {
       if (!(Math.hypot(g.x - w.cx, g.y - w.cy) < antes)) this.guia = undefined
       return
     }
+    if (this.recolocando) {
+      const v = this.actual
+      const meta = limitarVista(v, this.pantalla, this.mundoPx, this.limites())
+      if (Math.hypot(meta.cx - v.cx, meta.cy - v.cy) < CONFIG_CAMARA.umbralSeguimientoPx) {
+        this.recolocando = false
+        this.aplicar(meta)
+        return
+      }
+      this.aplicar(acercar(v, { x: meta.cx, y: meta.cy }, delta, CONFIG_CAMARA.suavizadoGuiaMs))
+      return
+    }
     if (!this.soltando || !this.extension) return
     const v = this.actual
-    const meta = limitarVista(v, this.pantalla, this.mundoPx)
+    const meta = limitarVista(v, this.pantalla, this.mundoPx, this.limitesMargenes())
     if (Math.hypot(meta.cx - v.cx, meta.cy - v.cy) < CONFIG_CAMARA.umbralSeguimientoPx) {
       this.borrarExtension()
       this.aplicar(meta)
@@ -202,7 +256,10 @@ export class ControlCamara {
   private aplicar(v: Vista): void {
     if (this.pantalla.ancho <= 0 || this.pantalla.alto <= 0) return
     const cam = this.escena.cameras.main
-    const l = limitarVista(v, this.pantalla, this.mundoPx, this.extension)
+    // Con la vista aún deslizándose de vuelta (`recolocando`) los límites son los de antes.
+    const l = this.recolocando
+      ? limitarVista(v, this.pantalla, this.mundoPx, this.limitesAnchos())
+      : limitarVista(v, this.pantalla, this.mundoPx, this.limites())
     cam.setZoom(l.zoom)
     cam.setScroll(l.cx - cam.width / 2, l.cy - cam.height / 2)
     this.actual = l
@@ -269,6 +326,7 @@ export class ControlCamara {
   private mover(desde: Punto, hasta: Punto, factor: number): void {
     this.guia = undefined
     this.soltando = false
+    this.recolocando = false
     // La extensión se encoge al centro actual: el gesto es continuo (sin salto a los límites
     // normales) y la extensión desaparece sola cuando la vista vuelve a quedar dentro del valle.
     if (this.extension) this.extension = { x: this.actual.cx, y: this.actual.cy }
@@ -282,11 +340,11 @@ export class ControlCamara {
         factor,
         limitesZoom(pantalla, this.mundoPx),
         this.mundoPx,
-        this.extension,
+        this.limites(),
       ),
     )
     if (this.extension) {
-      const normal = limitarVista(this.actual, pantalla, this.mundoPx)
+      const normal = limitarVista(this.actual, pantalla, this.mundoPx, this.limitesMargenes())
       if (normal.cx === this.actual.cx && normal.cy === this.actual.cy) this.extension = undefined
     }
   }

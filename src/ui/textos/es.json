@@ -47,6 +47,7 @@
   "compraPropia": "Ya es tuya",
   "compraNoDisponible": "No se puede comprar",
   "avisoDesmayo": "Te quedaste dormido… Despiertas en la entrada del valle",
+  "avisoDesmayoCasa": "Te quedaste dormido… Despiertas en casa",
   "avisoCompra": "¡Parcela {id} comprada por {n}!",
   "comprarPorMonedas": "Comprar por {n} monedas",
   "comprarPorMoneda": "Comprar por {n} moneda",

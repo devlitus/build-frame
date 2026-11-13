@@ -72,6 +72,17 @@ function casillaLibre(mapa: MapaTransitabilidad, cx: number, cy: number): boolea
 }
 
 /**
+ * ¿Despierta el personaje junto a su casa? Es lo que decide `personajeAlDespertar`: hay una casa
+ * terminada (despierta en su puerta o, si está bloqueada, en la casilla libre más cercana) y no
+ * en la aparición.
+ */
+export function despiertaEnCasa(estado: EstadoJuego): boolean {
+  const p = personajeAlDespertar(estado)
+  const a = personajeEnAparicion(estado.aparicion)
+  return p.x !== a.x || p.y !== a.y
+}
+
+/**
  * Dónde despierta el personaje al empezar un día, con las obras ya actualizadas: en la puerta
  * de la casa terminada (la de menor id) o, si no hay, en la aparición.
  *

@@ -160,12 +160,12 @@ test.describe('teclado y botón', () => {
       await page.keyboard.up(t)
       const c = await camara(page)
       if (!c) throw new Error('sin cámara')
-      const w = c.ancho / c.zoom
-      const h = c.alto / c.zoom
-      expect(c.scrollX + c.ancho / 2 - w / 2, t).toBeGreaterThanOrEqual(-1)
-      expect(c.scrollY + c.alto / 2 - h / 2, t).toBeGreaterThanOrEqual(-1)
-      expect(c.scrollX + c.ancho / 2 + w / 2, t).toBeLessThanOrEqual(mundo + 1)
-      expect(c.scrollY + c.alto / 2 + h / 2, t).toBeLessThanOrEqual(mundo + 1)
+      // En Plano el borde de la vista puede pasar del valle (para centrar cualquier casilla y ver lo que tapa
+      // la interfaz), pero su centro sigue dentro del valle.
+      expect(c.scrollX + c.ancho / 2, t).toBeGreaterThanOrEqual(-1)
+      expect(c.scrollY + c.alto / 2, t).toBeGreaterThanOrEqual(-1)
+      expect(c.scrollX + c.ancho / 2, t).toBeLessThanOrEqual(mundo + 1)
+      expect(c.scrollY + c.alto / 2, t).toBeLessThanOrEqual(mundo + 1)
     }
   })
 })

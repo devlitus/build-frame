@@ -238,17 +238,18 @@ test.describe('se recorre todo el valle', () => {
           }
           const r = visible(await camara(page))
           const etiqueta = `${caso.nombre} zoom ${extremo} dir ${dx},${dy}: ${JSON.stringify(r)}`
-          // Dentro de límites siempre.
+          // Dentro de límites siempre: en Plano el centro de la vista sigue dentro del valle (el borde puede pasarse
+          // para centrar cualquier casilla y ver lo que tapa la interfaz).
           if (r.w < MUNDO) {
-            expect(r.x0, etiqueta).toBeGreaterThanOrEqual(-0.5)
-            expect(r.x1, etiqueta).toBeLessThanOrEqual(MUNDO + 0.5)
+            expect(r.x0, etiqueta).toBeGreaterThanOrEqual(-0.5 - r.w / 2)
+            expect(r.x1, etiqueta).toBeLessThanOrEqual(MUNDO + 0.5 + r.w / 2)
           } else {
             expect(r.x0, etiqueta).toBeLessThanOrEqual(0.5)
             expect(r.x1, etiqueta).toBeGreaterThanOrEqual(MUNDO - 0.5)
           }
           if (r.h < MUNDO) {
-            expect(r.y0, etiqueta).toBeGreaterThanOrEqual(-0.5)
-            expect(r.y1, etiqueta).toBeLessThanOrEqual(MUNDO + 0.5)
+            expect(r.y0, etiqueta).toBeGreaterThanOrEqual(-0.5 - r.h / 2)
+            expect(r.y1, etiqueta).toBeLessThanOrEqual(MUNDO + 0.5 + r.h / 2)
           } else {
             expect(r.y0, etiqueta).toBeLessThanOrEqual(0.5)
             expect(r.y1, etiqueta).toBeGreaterThanOrEqual(MUNDO - 0.5)
@@ -318,9 +319,69 @@ test('horneado: con zoom máximo en las cuatro esquinas el terreno cubre la pant
       await g.arrastrar(dx * 300, dy * 300)
     }
     await page.waitForTimeout(100)
-    const r = visible(await camara(page))
-    expect(await fraccionFondo(page), JSON.stringify(r)).toBeLessThan(0.02)
+    const cam = await camara(page)
+    const r = visible(cam)
+    // El fondo permitido es el de lo que la vista pasa del borde (reservas de la interfaz), más el margen de siempre.
+    const paso =
+      (Math.max(0, -r.x0, r.x1 - MUNDO) * cam.zoom) / cam.ancho +
+      (Math.max(0, -r.y0, r.y1 - MUNDO) * cam.zoom) / cam.alto
+    // El desbordamiento tiene cota: el centro de la vista sigue dentro del valle (a lo sumo media vista fuera).
+    expect(cam.scrollX + cam.ancho / 2, JSON.stringify(r)).toBeGreaterThanOrEqual(-0.5)
+    expect(cam.scrollX + cam.ancho / 2, JSON.stringify(r)).toBeLessThanOrEqual(MUNDO + 0.5)
+    expect(cam.scrollY + cam.alto / 2, JSON.stringify(r)).toBeGreaterThanOrEqual(-0.5)
+    expect(cam.scrollY + cam.alto / 2, JSON.stringify(r)).toBeLessThanOrEqual(MUNDO + 0.5)
+    expect(Math.max(0, -r.x0, r.x1 - MUNDO)).toBeLessThanOrEqual(r.w / 2 + 0.5)
+    expect(Math.max(0, -r.y0, r.y1 - MUNDO)).toBeLessThanOrEqual(r.h / 2 + 0.5)
+    expect(await fraccionFondo(page), JSON.stringify(r)).toBeLessThan(0.02 + paso)
   }
+})
+
+/** En Vida la vista entera está dentro del valle (o centrada en el eje en que el valle cabe). */
+async function vistaDentroDelValle(page: Page): Promise<void> {
+  await expect.poll(() => page.evaluate(() => window.__raices?.camara()?.guiando)).toBe(false)
+  const cam = await camara(page)
+  const r = visible(cam)
+  const eje = (a: number, b: number, w: number) => {
+    if (w < MUNDO) {
+      expect(a).toBeGreaterThanOrEqual(-0.5)
+      expect(b).toBeLessThanOrEqual(MUNDO + 0.5)
+    } else expect((a + b) / 2).toBeCloseTo(MUNDO / 2, 0)
+  }
+  eje(r.x0, r.x1, r.w)
+  eje(r.y0, r.y1, r.h)
+}
+
+test.describe('Vida tras el Plano: la vista vuelve a quedar dentro del valle', () => {
+  test('con un panel abierto en una esquina del Plano', async ({ page }) => {
+    const errores = espiar(page)
+    await abrir(page, './?semilla=42&debug&modo=plano')
+    await page.evaluate(() => {
+      window.__raices?.seleccionar(0)
+      window.__raices?.centrarCamara(0, 0)
+    })
+    await expect.poll(() => page.evaluate(() => window.__raices?.camara()?.guiando)).toBe(false)
+    await page.evaluate(() => window.__raices?.emitir({ tipo: 'CambiarModo', modo: 'vida' }))
+    await expect.poll(() => page.evaluate(() => window.__raices?.modo())).toBe('vida')
+    await vistaDentroDelValle(page)
+    expect(errores).toEqual([])
+  })
+
+  test('con los márgenes que dejó el Plano (sin panel)', async ({ page }) => {
+    const errores = espiar(page)
+    await abrir(page, './?semilla=42&debug&modo=plano')
+    await page.evaluate(() => {
+      window.__raices?.seleccionar(0)
+      window.__raices?.centrarCamara(0, 95)
+    })
+    await expect.poll(() => page.evaluate(() => window.__raices?.camara()?.guiando)).toBe(false)
+    await page.evaluate(() => window.__raices?.emitir({ tipo: 'CambiarModo', modo: 'vida' }))
+    await expect.poll(() => page.evaluate(() => window.__raices?.modo())).toBe('vida')
+    await vistaDentroDelValle(page)
+    await page.evaluate(() => window.__raices?.emitir({ tipo: 'CambiarModo', modo: 'plano' }))
+    await page.evaluate(() => window.__raices?.emitir({ tipo: 'CambiarModo', modo: 'vida' }))
+    await vistaDentroDelValle(page)
+    expect(errores).toEqual([])
+  })
 })
 
 test('contador de fps: sigue en la esquina y legible tras zoom y giro', async ({
