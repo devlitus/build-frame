@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { dprActual, factorDe } from '../resolucion'
 
 const CLAVE_FONDO = 'portada-fondo'
 
@@ -17,7 +18,8 @@ export class EscenaPortada extends Phaser.Scene {
   }
 
   preload(): void {
-    const pixeles = Math.max(this.scale.width, this.scale.height) * window.devicePixelRatio
+    // El lienzo ya mide CSS × factor: los píxeles de dispositivo son esos por DPR / factor.
+    const pixeles = (Math.max(this.scale.width, this.scale.height) * dprActual()) / factorDe(this)
     const ancho = pixeles > 1100 ? 1664 : 960
     this.load.image(CLAVE_FONDO, `assets/portada/portada-${ancho}.webp`)
   }
@@ -25,8 +27,14 @@ export class EscenaPortada extends Phaser.Scene {
   create(): void {
     this.fondo = this.add.image(0, 0, CLAVE_FONDO)
     this.ajustar()
-    this.scale.on('resize', () => this.ajustar())
+    this.scale.on('resize', this.alRedimensionar, this)
+    // Al pararse la escena (empieza la partida) se quita el oyente: si no, se acumulaban.
+    this.events.once('shutdown', () => this.scale.off('resize', this.alRedimensionar, this))
     this.cameras.main.fadeIn(600, 63, 93, 58)
+  }
+
+  private alRedimensionar(): void {
+    this.ajustar()
   }
 
   /** Escala tipo `object-fit: cover`, manteniendo el foco a la vista. */

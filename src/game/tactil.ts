@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import type { Intencion } from './entrada'
 import { CONFIG_TACTIL, intencionJoystick, type PuntoPantalla } from './joystick'
+import { mundoDePantalla } from './resolucion'
 
 type Fase = 'libre' | 'candidato' | 'joystick' | 'bloqueado'
 
@@ -138,7 +139,7 @@ export class ControlTactil {
     const toque = this.fase === 'candidato' && corto && this.activo && !p.wasCanceled
     this.reiniciar()
     if (toque) {
-      const m = this.escena.cameras.main.getWorldPoint(p.x, p.y)
+      const m = mundoDePantalla(this.escena, p.x, p.y)
       this.destinoPendiente = { x: m.x, y: m.y }
     }
   }

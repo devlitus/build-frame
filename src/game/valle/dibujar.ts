@@ -1,11 +1,8 @@
 import type Phaser from 'phaser'
-import { claveCasilla, type Casilla, type Decoracion, type Valle } from '../../core'
+import type { Decoracion, Valle } from '../../core'
 import {
   COLOR_ARBOL,
-  COLOR_RIO,
   COLOR_ROCA,
-  COLOR_VADO,
-  COLOR_TERRENO,
   TAM_CASILLA,
   ESTILO_PLANO,
   ESTILO_RESALTE,
@@ -36,57 +33,12 @@ function cruza(r: Region | undefined, x: number, y: number, ancho: number, alto:
   return !r || (x < r.x + r.ancho && x + ancho > r.x && y < r.y + r.alto && y + alto > r.y)
 }
 
-/** Con `region`, solo dibuja las parcelas y casillas que la tocan. */
-export function dibujarTerreno(
-  escena: Phaser.Scene,
-  valle: Valle,
-  rio: readonly Casilla[],
-  vados: ReadonlySet<number>,
-  region?: Region,
-): Phaser.GameObjects.Graphics {
-  const g = escena.add.graphics().setDepth(0)
-  const c = valle.casillasPorParcela
-  const lado = c * TAM_CASILLA
-  const ladoCasillas = valle.parcelasPorLado * c
-  for (const p of valle.parcelas) {
-    if (!cruza(region, p.columna * lado, p.fila * lado, lado, lado)) continue
-    const color = COLOR_TERRENO[p.terreno]
-    g.fillStyle(color.base)
-    g.fillRect(p.columna * lado, p.fila * lado, lado, lado)
-    g.fillStyle(color.alterno)
-    for (let y = 0; y < c; y++) {
-      for (let x = (y + 1) % 2; x < c; x += 2) {
-        const px = (p.columna * c + x) * TAM_CASILLA
-        const py = (p.fila * c + y) * TAM_CASILLA
-        if (!cruza(region, px, py, TAM_CASILLA, TAM_CASILLA)) continue
-        g.fillRect(px, py, TAM_CASILLA, TAM_CASILLA)
-      }
-    }
-  }
-  for (const { x, y } of rio) {
-    if (!cruza(region, x * TAM_CASILLA, y * TAM_CASILLA, TAM_CASILLA, TAM_CASILLA)) continue
-    const px = x * TAM_CASILLA
-    const py = y * TAM_CASILLA
-    if (vados.has(claveCasilla(ladoCasillas, x, y))) {
-      g.fillStyle(COLOR_VADO.agua)
-      g.fillRect(px, py, TAM_CASILLA, TAM_CASILLA)
-      g.fillStyle(COLOR_VADO.piedra)
-      g.lineStyle(1, COLOR_VADO.piedraBorde)
-      for (const [fx, fy] of [
-        [0.3, 0.3],
-        [0.7, 0.65],
-      ] as const) {
-        g.fillCircle(px + fx * TAM_CASILLA, py + fy * TAM_CASILLA, 6)
-        g.strokeCircle(px + fx * TAM_CASILLA, py + fy * TAM_CASILLA, 6)
-      }
-      continue
-    }
-    g.fillStyle((x + y) % 2 === 0 ? COLOR_RIO.base : COLOR_RIO.alterno)
-    g.fillRect(px, py, TAM_CASILLA, TAM_CASILLA)
-  }
-  return g
-}
-
+/**
+ * Decoración procedural (círculos, triángulos y polígonos que caben en su casilla). Desde M5-00 el
+ * juego pinta árboles y rocas con el arte (`terrenoArte.ts`); esta función queda como dibujo de
+ * reserva y porque la ejerce el test de rompedor «ninguna forma de la decoración se sale de su
+ * casilla» (`tests/unit/valle-rompedor-m102.test.ts`).
+ */
 export function dibujarDecoracion(
   escena: Phaser.Scene,
   decoracion: readonly Decoracion[],

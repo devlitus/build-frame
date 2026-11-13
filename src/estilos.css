@@ -712,7 +712,11 @@ body {
   border-color: var(--tinta);
 }
 
-/* Muestra de la zona: mismo color y mismo patrón que en el valle (colores en `estilo.ts`). */
+/*
+ * Muestra de la zona: la primera casilla de relleno de la misma textura que usa el valle
+ * (`public/assets/zonas/zona-*`, puesta en línea por `BarraZonas.tsx` desde `arte.ts`), sobre un verde
+ * de hierba como en el lienzo. Una sola fuente para el lienzo y la barra (issue #46).
+ */
 .muestra-zona {
   display: inline-block;
   width: 22px;
@@ -720,34 +724,15 @@ body {
   flex: none;
   border: 2px solid var(--tinta);
   border-radius: 4px;
-  background-color: var(--zona, var(--crema));
-}
-
-.muestra-cultivo {
-  background-image: repeating-linear-gradient(0deg, transparent 0 4px, rgb(59 42 26 / 70%) 4px 6px);
-}
-
-.muestra-huerto {
-  background-image: radial-gradient(circle, rgb(59 42 26 / 75%) 2px, transparent 2.5px);
-  background-size: 8px 8px;
-}
-
-.muestra-vivienda {
-  background-image: repeating-linear-gradient(
-    135deg,
-    transparent 0 4px,
-    rgb(255 243 196 / 80%) 4px 6px
-  );
-}
-
-.muestra-almacen {
-  background-image:
-    linear-gradient(rgb(59 42 26 / 70%) 2px, transparent 2px),
-    linear-gradient(90deg, rgb(59 42 26 / 70%) 2px, transparent 2px);
-  background-size: 8px 8px;
+  background-color: #9bbf86;
+  background-repeat: no-repeat;
+  /* La tira tiene 8 casillas: se amplía a 8 × 22 px y se ve la primera. */
+  background-size: 176px 22px;
+  background-position: 0 0;
 }
 
 .muestra-borrar {
+  background-size: auto;
   background-color: var(--zona, var(--crema));
   background-image: repeating-linear-gradient(
     45deg,

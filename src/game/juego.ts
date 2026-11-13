@@ -18,6 +18,7 @@ import {
 import { Partida } from './partida'
 import { sePuedeColocar } from './construir'
 import { leerParametros, semillaNueva } from './parametros'
+import { dprActual, factorResolucion, pantallaLogica, tamanoLienzo, zoomLogico } from './resolucion'
 
 let juego: Phaser.Game | undefined
 let semillaActual: number | undefined
@@ -59,39 +60,66 @@ export function arrancaDirecto(): boolean {
 }
 
 /**
- * Phaser 3.90 (`ScaleManager.updateScale`) termina llamando a `getParentBounds()`, que
- * actualiza `parentSize` sin emitir refresh. Si el contenedor cambia de tamaño en dos
- * pasos (p. ej. al girar el móvil tras un pellizco), `step()` ya no ve diferencia y nunca
- * hace `refresh()`: el lienzo y la cámara se quedan con el tamaño viejo. Este observador
- * fuerza el refresh cuando el contenedor no coincide con el tamaño del juego.
+ * Mantiene el lienzo a la resolución del dispositivo (issue #11): `Phaser.Scale.RESIZE` ignora
+ * `devicePixelRatio`, así que el tamaño del juego (en píxeles de dispositivo) lo fijamos aquí con
+ * el modo `NONE` y un `zoom` de pantalla de 1 / factor: el lienzo mide CSS × min(DPR, 2) píxeles y
+ * el navegador lo muestra a tamaño CSS. Se llama con cada cambio del contenedor (giro, ventana,
+ * zoom del navegador) y, de paso, resuelve el problema de Phaser 3.90 con `getParentBounds()` que
+ * dejaba el lienzo con el tamaño viejo al girar en dos pasos.
  */
 function vigilarTamano(g: Phaser.Game, padre: HTMLElement): void {
   if (typeof ResizeObserver === 'undefined') return
-  const obs = new ResizeObserver(() => {
+  const ajustar = (): void => {
     const { clientWidth, clientHeight } = padre
-    if (
-      clientWidth > 0 &&
-      clientHeight > 0 &&
-      (clientWidth !== g.scale.width || clientHeight !== g.scale.height)
-    ) {
-      g.scale.getParentBounds()
-      g.scale.refresh()
-    }
-  })
+    if (clientWidth <= 0 || clientHeight <= 0) return
+    const factor = factorResolucion(dprActual())
+    const ancho = tamanoLienzo(clientWidth, factor)
+    const alto = tamanoLienzo(clientHeight, factor)
+    if (ancho === g.scale.width && alto === g.scale.height && 1 / factor === g.scale.zoom) return
+    // El estilo se fija a mano: Phaser no lo toca si coincide con el tamaño del juego (factor 1).
+    g.scale.zoom = 1 / factor
+    g.canvas.style.width = `${clientWidth}px`
+    g.canvas.style.height = `${clientHeight}px`
+    g.scale.resize(ancho, alto)
+  }
+  const obs = new ResizeObserver(ajustar)
   obs.observe(padre)
   g.events.once(Phaser.Core.Events.DESTROY, () => obs.disconnect())
 }
 
+/**
+ * El puntero llega a todo el juego en píxeles CSS (como la interfaz y los tests), no en los del
+ * lienzo: Phaser lo multiplica por `displayScale` (= factor de resolución). Se deshace aquí; las
+ * conversiones al mundo pasan por `mundoDePantalla`.
+ */
+function punteroEnCss(g: Phaser.Game): void {
+  const escala = g.scale
+  escala.transformX = (pageX: number): number =>
+    (pageX - escala.canvasBounds.left) * escala.displayScale.x * escala.zoom
+  escala.transformY = (pageY: number): number =>
+    (pageY - escala.canvasBounds.top) * escala.displayScale.y * escala.zoom
+}
+
 export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Game {
   const directo = arrancaDirecto()
+  const factor = factorResolucion(dprActual())
   const g = new Phaser.Game({
     type: Phaser.AUTO,
     parent: padre,
     input: { activePointers: 2 }, // ratón + 2 dedos
     backgroundColor: '#3f5d3a',
-    scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
+    // Con `zoom` distinto de 1 Phaser activa `pixelArt` (filtro del vecino más cercano y píxeles
+    // enteros) por defecto: el arte es acuarela y debe filtrarse de forma lineal.
+    render: { pixelArt: false, antialias: true, roundPixels: false },
+    scale: {
+      mode: Phaser.Scale.NONE,
+      width: tamanoLienzo(padre.clientWidth, factor),
+      height: tamanoLienzo(padre.clientHeight, factor),
+      zoom: 1 / factor,
+    },
   })
   juego = g
+  punteroEnCss(g)
   if (textos) g.registry.set(CLAVE_TEXTOS_LIENZO, textos)
   vigilarTamano(g, padre)
   g.scene.add('portada', EscenaPortada, !directo)
@@ -325,13 +353,15 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
     camara: () => {
       const e = g.scene.getScene('valle')
       if (!(e instanceof EscenaValle) || !e.estado) return undefined
+      // Todo en píxeles CSS (como si el lienzo no tuviera factor de resolución).
       const c = e.cameras.main
+      const pantalla = pantallaLogica(e)
       return {
-        zoom: c.zoom,
-        scrollX: c.scrollX,
-        scrollY: c.scrollY,
-        ancho: c.width,
-        alto: c.height,
+        zoom: zoomLogico(e),
+        scrollX: c.scrollX + (c.width - pantalla.ancho) / 2,
+        scrollY: c.scrollY + (c.height - pantalla.alto) / 2,
+        ancho: pantalla.ancho,
+        alto: pantalla.alto,
         guiando: e.guiando(),
       }
     },
