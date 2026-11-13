@@ -46,3 +46,9 @@ Medido con comandos reales: comprar la primera parcela, pintar la huella de cada
 ## Observaciones (sin test)
 - La prioridad pone `zona-incompatible` antes de `unico-ya-existe`. Si intentas una segunda casa sobre almacén, la interfaz dirá «zona incompatible» y no «ya tienes casa». Coincide con lo documentado, pero quizá no es lo más útil para el jugador. Es decisión de la PO.
 - No hay e2e ni capturas: la historia no cambia nada visible.
+
+## Ronda 2
+
+Cambios en tests del rompedor (autorizados por el orquestador): el oráculo conoce `bloquea-paso` y la nueva prioridad (`unico-ya-existe` segunda); el test de mover la casa espera `unico-ya-existe` y añade el caso equivalente con una caja (no única), que sigue dando `ocupada`; la búsqueda de balance (`colocarTres`) confirma cada candidato con comandos reales y retrocede si el núcleo lo rechaza.
+
+Balance tras `bloquea-paso` (mismas 200 semillas): sin cambios salvo dos cifras: las parcelas asequibles con sitio pasan del 99,9 % al 99,7 % (bosque del 99,7 % al 99,2 %). Semillas con alguna parcela válida 100 %; parcela de la aparición 82,5 %; dinero restante mínimo 50, mediana 210, máximo 490.

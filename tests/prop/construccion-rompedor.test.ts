@@ -682,12 +682,39 @@ describe('opciones para mover (ignorarId, ignorarCostes)', () => {
     const [x, y] = sitio
     e = pasoOk(e, { tipo: 'Construir', tipoEdificio: 'casa', x, y })
     const id = e.edificios[0]?.id ?? -1
-    expect(colocacionValida(e, 'casa', x + 1, y)).toEqual({ valida: false, motivo: 'ocupada' })
+    // Ronda 2 (autorizado): con la prioridad nueva, la segunda casa da unico-ya-existe.
+    expect(colocacionValida(e, 'casa', x + 1, y)).toEqual({
+      valida: false,
+      motivo: 'unico-ya-existe',
+    })
     expect(colocacionValida(e, 'casa', x + 1, y, { ignorarId: id })).toEqual({ valida: true })
     expect(colocacionValida(e, 'casa', x + 1, y, { ignorarId: id + 99 })).toEqual({
       valida: false,
+      motivo: 'unico-ya-existe',
+    })
+    // Mismo caso con un edificio NO único (caja): sin ignorarId sigue siendo ocupada.
+    let hueco: readonly [number, number] | undefined
+    for (let y2 = 0; y2 < LADO && !hueco; y2++)
+      for (let x2 = 0; x2 < LADO && !hueco; x2++)
+        if (colocacionValida(e, 'caja-envio', x2, y2).valida) hueco = [x2, y2]
+    if (!hueco) throw new Error('sin sitio para la caja')
+    const conCaja = pasoOk(e, {
+      tipo: 'Construir',
+      tipoEdificio: 'caja-envio',
+      x: hueco[0],
+      y: hueco[1],
+    })
+    const idCaja = conCaja.edificios[1]?.id ?? -1
+    expect(colocacionValida(conCaja, 'caja-envio', hueco[0], hueco[1])).toEqual({
+      valida: false,
       motivo: 'ocupada',
     })
+    expect(
+      colocacionValida(conCaja, 'caja-envio', hueco[0], hueco[1], { ignorarId: idCaja }),
+    ).toEqual({ valida: true })
+    expect(
+      colocacionValida(conCaja, 'caja-envio', hueco[0], hueco[1], { ignorarId: idCaja + 99 }),
+    ).toEqual({ valida: false, motivo: 'ocupada' })
     const pobre = { ...e, dinero: 0, materiales: { madera: 0, piedra: 0 } }
     // ignorarCostes: un cobertizo «movido» no exige dinero (zona aparte).
     const conAlmacen = pintar(pobre, 0, 0, LADO - 1, LADO - 1, 'almacen')
@@ -1371,26 +1398,24 @@ function colocarTres(e: EstadoJuego, i: number): EstadoJuego | undefined {
     return out
   }
   const orden: TipoEdificio[] = ['casa', 'cobertizo', 'caja-envio']
-  const elegidos: [TipoEdificio, number, number][] = []
-  const buscar = (j: number): boolean => {
+  // Ronda 2 (autorizado): cada candidato se confirma con comandos reales (pintar y construir) y
+  // se retrocede al siguiente hueco si el núcleo lo rechaza (p. ej. bloquea-paso).
+  const buscar = (j: number, s: EstadoJuego): EstadoJuego | undefined => {
     const t = orden[j]
-    if (!t) return true
+    if (!t) return s
+    const d = def(t)
     for (const [x, y] of pos(t)) {
       if (!cabe(t, x, y)) continue
+      const zona = t === 'casa' ? 'vivienda' : 'almacen'
+      const pintada = pintar(s, x, y, x + d.ancho - 1, y + d.alto - 1, zona)
+      const r = cmd(pintada, { tipo: 'Construir', tipoEdificio: t, x, y })
+      if (!r.ok) continue
       marcar(t, x, y, true)
-      elegidos.push([t, x, y])
-      if (buscar(j + 1)) return true
-      elegidos.pop()
+      const fin = buscar(j + 1, r.estado)
+      if (fin) return fin
       marcar(t, x, y, false)
     }
-    return false
+    return undefined
   }
-  if (!buscar(0)) return undefined
-  let s = e
-  for (const [t, x, y] of elegidos) {
-    const d = def(t)
-    s = pintar(s, x, y, x + d.ancho - 1, y + d.alto - 1, t === 'casa' ? 'vivienda' : 'almacen')
-    s = pasoOk(s, { tipo: 'Construir', tipoEdificio: t, x, y })
-  }
-  return s
+  return buscar(0, e)
 }
