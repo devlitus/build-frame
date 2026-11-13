@@ -10,7 +10,14 @@ import {
   textoZonas,
 } from './construirTextos'
 import { t, tp } from './textos'
-import { useConstruccion, useEstado, usePartida, usePincel, useSilueta } from './useEstado'
+import {
+  useConstruccion,
+  useEstado,
+  usePartida,
+  usePincel,
+  useSeleccion,
+  useSilueta,
+} from './useEstado'
 
 function devolverFoco(): void {
   document.getElementById('juego')?.focus({ preventScroll: true })
@@ -27,7 +34,9 @@ export function BotonConstruir() {
   const plano = useEstado((e) => e.modo === 'plano')
   const { abierto } = useConstruccion()
   const zonas = usePincel().abierto
-  if (!plano || abierto || zonas) return null
+  // Con el panel de una parcela abierto el botón quedaría bajo él en pantallas bajas: se pide cerrarlo antes.
+  const parcela = useSeleccion()
+  if (!plano || abierto || zonas || parcela !== undefined) return null
   return (
     <button
       type="button"

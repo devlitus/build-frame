@@ -313,8 +313,10 @@ test('construir convive con las zonas y la parcela: abrir uno cierra los otros',
   const errores = await abrir(page)
   await page.evaluate(() => window.__raices?.seleccionar(14))
   await expect(page.getByRole('region', { name: /^Parcela / })).toBeVisible()
+  // Con el panel de la parcela abierto el botón Construir no está (taparía el panel en pantallas bajas).
+  await expect(page.getByRole('button', { name: 'Construir', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: /^Cerrar/ }).click()
   await abrirCatalogo(page)
-  await expect(page.getByRole('region', { name: /^Parcela / })).toHaveCount(0)
   await panel(page).getByRole('button', { name: 'Listo' }).click()
   await expect(panel(page)).toHaveCount(0)
   await page.getByRole('button', { name: 'Zonas', exact: true }).click()
