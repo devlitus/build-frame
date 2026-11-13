@@ -1,8 +1,6 @@
 import type Phaser from 'phaser'
-import type { Decoracion, Valle } from '../../core'
+import type { Valle } from '../../core'
 import {
-  COLOR_ARBOL,
-  COLOR_ROCA,
   TAM_CASILLA,
   ESTILO_PLANO,
   ESTILO_RESALTE,
@@ -13,67 +11,11 @@ import type { EstadoVisualParcela } from './estadoVisual'
 import { rayasDiagonales, segmentosDiscontinuos } from './trazos'
 
 /*
- * Tres capas independientes (terreno, decoración, parcelas) para poder volcar
- * cada una a RenderTexture por trozos en M1-04.
+ * Dibujo de las parcelas y de los resaltes (el terreno y los objetos viven en `terrenoArte.ts`).
  */
 
 export function tamanoMundoPx(valle: Valle): number {
   return valle.parcelasPorLado * valle.casillasPorParcela * TAM_CASILLA
-}
-
-/** Rectángulo del mundo (px) al que se limita el dibujo al hornear un trozo. */
-export interface Region {
-  readonly x: number
-  readonly y: number
-  readonly ancho: number
-  readonly alto: number
-}
-
-function cruza(r: Region | undefined, x: number, y: number, ancho: number, alto: number): boolean {
-  return !r || (x < r.x + r.ancho && x + ancho > r.x && y < r.y + r.alto && y + alto > r.y)
-}
-
-/**
- * Decoración procedural (círculos, triángulos y polígonos que caben en su casilla). Desde M5-00 el
- * juego pinta árboles y rocas con el arte (`terrenoArte.ts`); esta función queda como dibujo de
- * reserva y porque la ejerce el test de rompedor «ninguna forma de la decoración se sale de su
- * casilla» (`tests/unit/valle-rompedor-m102.test.ts`).
- */
-export function dibujarDecoracion(
-  escena: Phaser.Scene,
-  decoracion: readonly Decoracion[],
-  region?: Region,
-): Phaser.GameObjects.Graphics {
-  const g = escena.add.graphics().setDepth(1)
-  for (const d of decoracion) {
-    // Cada objeto cabe en su casilla (ver abajo), así que basta con comprobar la casilla.
-    if (!cruza(region, d.x * TAM_CASILLA, d.y * TAM_CASILLA, TAM_CASILLA, TAM_CASILLA)) continue
-    const cx = d.x * TAM_CASILLA + TAM_CASILLA / 2
-    const cy = d.y * TAM_CASILLA + TAM_CASILLA / 2
-    if (d.tipo === 'arbol') {
-      const r = 8 + d.variante * 4
-      // Todo cabe en la casilla: vértice a cy-r-3 ≥ -15 y tronco hasta cy+0.4r+8 ≤ 13.
-      g.fillStyle(COLOR_ARBOL.tronco)
-      g.fillRect(cx - 2, cy + r * 0.4, 4, 8)
-      g.fillStyle(d.variante < 0.5 ? COLOR_ARBOL.copa : COLOR_ARBOL.copaClara)
-      if (d.variante < 0.5) g.fillCircle(cx, cy, r)
-      else g.fillTriangle(cx, cy - r - 3, cx - r, cy + r * 0.6, cx + r, cy + r * 0.6)
-    } else {
-      const r = 8 + d.variante * 6
-      const pts = [
-        { x: cx - r, y: cy + r * 0.5 },
-        { x: cx - r * 0.6, y: cy - r * 0.5 },
-        { x: cx + r * 0.2, y: cy - r * 0.8 },
-        { x: cx + r, y: cy - r * 0.1 },
-        { x: cx + r * 0.7, y: cy + r * 0.6 },
-      ]
-      g.fillStyle(COLOR_ROCA.relleno)
-      g.fillPoints(pts, true)
-      g.lineStyle(1.5, COLOR_ROCA.borde)
-      g.strokePoints(pts, true)
-    }
-  }
-  return g
 }
 
 /**

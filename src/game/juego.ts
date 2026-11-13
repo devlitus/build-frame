@@ -157,7 +157,14 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
     },
     objetosValle: () => {
       const e = g.scene.getScene('valle')
-      return e instanceof EscenaValle ? e.children.length : undefined
+      // Sin los árboles y rocas de la capa por profundidad: su número depende de la vista (`objetosCapa`).
+      return e instanceof EscenaValle
+        ? e.children.length - (e.objetosCapa()?.activos ?? 0)
+        : undefined
+    },
+    objetosCapa: () => {
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.objetosCapa() : undefined
     },
     graficosValle: () => {
       const e = g.scene.getScene('valle')

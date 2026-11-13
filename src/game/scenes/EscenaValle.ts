@@ -35,7 +35,8 @@ import {
 import { PintorZonas } from '../pintorZonas'
 import { dibujarResalte, dibujarResalteEdificio, tamanoMundoPx } from '../valle/dibujar'
 import { cargarArte } from '../valle/arte'
-import { ordenarDecoracion, pintarTrozoTerreno } from '../valle/terrenoArte'
+import { objetosDeDecoracion, pintarTrozoTerreno } from '../valle/terrenoArte'
+import { CapaObjetos } from '../valle/capaObjetos'
 import { mundoDePantalla, pantallaLogica, zoomLogico } from '../resolucion'
 import { medirReservasHud } from '../areaHud'
 import type { RectPantalla } from '../seleccion'
@@ -130,6 +131,7 @@ export class EscenaValle extends Phaser.Scene {
   private pintor: PintorZonas | undefined = undefined
   private desuscribirPincel: (() => void) | undefined = undefined
   private edificios: VistaEdificios | undefined = undefined
+  private capaObjetos: CapaObjetos | undefined = undefined
   private vistaSilueta: VistaSilueta | undefined = undefined
   private colocador: ColocadorEdificio | undefined = undefined
   private desuscribirConstruccion: (() => void) | undefined = undefined
@@ -225,14 +227,18 @@ export class EscenaValle extends Phaser.Scene {
     const vados = new Set(inicial.cauce.vados)
 
     // Terreno y decoración no cambian: se hornean a texturas por trozos (M1-04).
-    const decoracion = inicial.obstaculos
-    const ordenada = ordenarDecoracion(decoracion)
     const semilla = this.semilla
     this.hornear = () =>
       hornearCapaBase(this, this.mundoPx, (rt, trozo) =>
-        pintarTrozoTerreno(this, rt, trozo, { valle, rio, vados, decoracion, semilla }, ordenada),
+        pintarTrozoTerreno(this, rt, trozo, { valle, rio, vados, semilla }),
       )
     this.trozos = this.hornear()
+    // Árboles y rocas no se hornean: son objetos con profundidad por su base (como el personaje y los
+    // edificios), solo los de la vista de la cámara más un margen (`CapaObjetos`).
+    this.capaObjetos?.destruir()
+    this.capaObjetos = new CapaObjetos(this, this.mundoPx)
+    this.capaObjetos.reemplazar(objetosDeDecoracion(this, inicial.obstaculos))
+    this.actualizarCapaObjetos()
     // Al perder y recuperar el contexto WebGL las texturas quedan vacías (Phaser no las
     // restaura): se vuelven a hornear con los mismos datos.
     if (this.renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer) {
@@ -388,6 +394,7 @@ export class EscenaValle extends Phaser.Scene {
       posicion,
     )
     this.alCambiarHerramienta()
+    this.actualizarCapaObjetos()
     // Los márgenes de la cámara se fijan explícitamente al terminar de crear (Plano: los del panel y el HUD).
     this.actualizarMargenes()
     const sel = this.seleccionInicial
@@ -895,6 +902,7 @@ export class EscenaValle extends Phaser.Scene {
     this.zonas?.actualizar(partida.estado)
     this.vistaPincel?.actualizar(partida.pincel)
     this.edificios?.actualizar(partida.estado, zoomLogico(this))
+    this.actualizarCapaObjetos()
     this.vistaSilueta?.actualizar(partida.silueta())
     const destino = this.seguidor.destino
     if (destino) this.marca?.mostrar(destino.x * TAM_CASILLA, destino.y * TAM_CASILLA)
@@ -938,9 +946,27 @@ export class EscenaValle extends Phaser.Scene {
     this.actualizarMargenes()
   }
 
+  /** Pone al día los objetos con profundidad según lo que ve la cámara (con un poco de margen). */
+  private actualizarCapaObjetos(): void {
+    const v = this.cameras.main.worldView
+    this.capaObjetos?.actualizar({ x0: v.x, y0: v.y, x1: v.right, y1: v.bottom })
+  }
+
+  /** Objetos con profundidad (árboles y rocas) vivos y los que caen en la vista más el margen (ganchos de prueba). */
+  objetosCapa(): { activos: number; enVista: number } | undefined {
+    const c = this.capaObjetos
+    if (!c) return undefined
+    const v = this.cameras.main.worldView
+    return {
+      activos: c.cantidad,
+      enVista: c.contarEn({ x0: v.x, y0: v.y, x1: v.right, y1: v.bottom }),
+    }
+  }
+
   private rehornear(): void {
     for (const t of this.trozos) t.destroy()
     this.trozos = this.hornear()
+    this.capaObjetos?.invalidar()
     this.zonas?.invalidar()
     this.edificios?.invalidar()
   }
@@ -968,6 +994,8 @@ export class EscenaValle extends Phaser.Scene {
     this.vistaPincel = undefined
     this.edificios?.destruir()
     this.edificios = undefined
+    this.capaObjetos?.destruir()
+    this.capaObjetos = undefined
     this.vistaSilueta?.destruir()
     this.vistaSilueta = undefined
     this.desuscribirPincel?.()

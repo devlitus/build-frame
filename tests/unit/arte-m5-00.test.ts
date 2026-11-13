@@ -8,11 +8,7 @@ import {
   rutaTiraZona,
 } from '../../src/game/valle/arte'
 import { TAM_CASILLA } from '../../src/game/valle/estilo'
-import {
-  escalaDecoracion,
-  ordenarDecoracion,
-  rectDecoracion,
-} from '../../src/game/valle/terrenoArte'
+import { escalaDecoracion, rectDecoracion } from '../../src/game/valle/terrenoArte'
 import { bordesDeCasilla, zonaDeCasilla } from '../../src/game/valle/tramosZonas'
 import { CARACTER_ZONA, CARACTER_SIN_ZONA } from '../../src/core'
 
@@ -95,17 +91,6 @@ describe('decoración con arte', () => {
     expect(escalaDecoracion(1)).toBeCloseTo(1.1)
     expect(escalaDecoracion(-5)).toBeCloseTo(0.9)
     expect(escalaDecoracion(9)).toBeCloseTo(1.1)
-  })
-
-  it('se ordena de atrás adelante (fila de la base y luego columna) sin mutar la lista', () => {
-    const lista = [arbol(5, 9), arbol(3, 2), arbol(1, 9), arbol(7, 2)]
-    expect(ordenarDecoracion(lista).map((d) => `${d.x},${d.y}`)).toEqual([
-      '3,2',
-      '7,2',
-      '1,9',
-      '5,9',
-    ])
-    expect(lista[0]?.x).toBe(5)
   })
 })
 

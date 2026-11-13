@@ -14,6 +14,7 @@ import {
   escalaNominal,
 } from './arte'
 import { TAM_CASILLA as T } from './estilo'
+import type { ObjetoProfundo } from './capaObjetos'
 import type { Trozo } from './trozos'
 import { varianteDeCasilla } from './variantes'
 
@@ -22,7 +23,6 @@ export interface DatosTerreno {
   readonly valle: Valle
   readonly rio: readonly Casilla[]
   readonly vados: ReadonlySet<number>
-  readonly decoracion: readonly Decoracion[]
   readonly semilla: number
 }
 
@@ -48,23 +48,40 @@ export function rectDecoracion(d: Decoracion): { x0: number; y0: number; x1: num
   }
 }
 
-/** Decoración ordenada de atrás adelante (por fila de la base y luego por columna). */
-export function ordenarDecoracion(decoracion: readonly Decoracion[]): readonly Decoracion[] {
-  return [...decoracion].sort((a, b) => a.y - b.y || a.x - b.x)
+/**
+ * Objetos de la capa por profundidad (`capaObjetos.ts`) para los árboles y rocas: el `id` es el
+ * índice en la lista de obstáculos del estado y la profundidad la `y` de la base en px.
+ */
+export function objetosDeDecoracion(
+  escena: Phaser.Scene,
+  decoracion: readonly Decoracion[],
+): ObjetoProfundo[] {
+  return decoracion.map((d, id) => {
+    const clave = d.tipo === 'arbol' ? CLAVE_ARBOL : CLAVE_ROCA
+    const marco = d.tipo === 'arbol' ? MARCO_ARBOL : MARCO_ROCA
+    const base = (d.y + 1) * T
+    return {
+      id,
+      x: d.x * T + T / 2,
+      y: base,
+      profundidad: base,
+      textura: clave,
+      escala: escalaNominal(escena, clave, marco.ancho) * escalaDecoracion(d.variante),
+      rect: rectDecoracion(d),
+    }
+  })
 }
 
 /**
- * Pinta un trozo del terreno y la decoración con las texturas del arte, sobre la `RenderTexture`
- * del trozo (entre `beginDraw` y `endDraw`). Los tiles van en posiciones enteras del mundo y se
- * tocan sin hueco; la decoración se ordena de atrás adelante y entra también si solo sobresale
- * en el trozo (un árbol del trozo de abajo con la copa en este).
+ * Pinta un trozo del terreno con las texturas del arte, sobre la `RenderTexture` del trozo (entre
+ * `beginDraw` y `endDraw`). Los tiles van en posiciones enteras del mundo y se tocan sin hueco. Los
+ * árboles y rocas no se hornean: son objetos con profundidad (`objetosDeDecoracion`).
  */
 export function pintarTrozoTerreno(
   escena: Phaser.Scene,
   rt: Phaser.GameObjects.RenderTexture,
   t: Trozo,
   datos: DatosTerreno,
-  decoracionOrdenada: readonly Decoracion[],
 ): void {
   const sello = crearSello(escena)
   const { valle } = datos
@@ -89,16 +106,6 @@ export function pintarTrozoTerreno(
       sello.setTexture(claveTile(tile), varianteDeCasilla(datos.semilla, x, y, VARIANTES_TILE))
       rt.batchDraw(sello, x * T - t.x, y * T - t.y)
     }
-  }
-  sello.setOrigin(0.5, 1)
-  for (const d of decoracionOrdenada) {
-    const r = rectDecoracion(d)
-    if (r.x1 <= t.x || r.x0 >= t.x + t.ancho || r.y1 <= t.y || r.y0 >= t.y + t.alto) continue
-    const clave = d.tipo === 'arbol' ? CLAVE_ARBOL : CLAVE_ROCA
-    const marco = d.tipo === 'arbol' ? MARCO_ARBOL : MARCO_ROCA
-    sello.setTexture(clave)
-    sello.setScale(escalaNominal(escena, clave, marco.ancho) * escalaDecoracion(d.variante))
-    rt.batchDraw(sello, d.x * T + T / 2 - t.x, (d.y + 1) * T - t.y)
   }
   sello.destroy()
 }
