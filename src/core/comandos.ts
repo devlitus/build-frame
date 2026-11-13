@@ -1,6 +1,7 @@
 import { MODOS_JUEGO, tiempoDetenido, type EstadoJuego, type ModoJuego } from './estado'
 import { CONFIG_TIEMPO } from './datos/tiempo'
 import { parcelaComprable } from './parcelas'
+import { aplicarZonas, CARACTER_SIN_ZONA, CARACTER_ZONA, ZONAS, type Zona } from './zonas'
 import { moverPersonaje, personajeEnAparicion } from './personaje'
 
 /**
@@ -24,6 +25,26 @@ export type Comando =
   | { readonly tipo: 'CambiarVelocidad'; readonly velocidad: number }
   /** Compra la parcela `indice` (reglas en `parcelaComprable`); no depende del reloj. */
   | { readonly tipo: 'ComprarParcela'; readonly indice: number }
+  /**
+   * Pinta una zona en un rectángulo de casillas globales (esquinas inclusivas, cualquier orden).
+   * Solo casillas de parcelas propias que no sean río; planificación: no depende del modo ni del reloj.
+   */
+  | {
+      readonly tipo: 'PintarZona'
+      readonly x0: number
+      readonly y0: number
+      readonly x1: number
+      readonly y1: number
+      readonly zona: Zona
+    }
+  /** Quita la zona de las casillas del rectángulo (mismas reglas de validez que `PintarZona`). */
+  | {
+      readonly tipo: 'BorrarZona'
+      readonly x0: number
+      readonly y0: number
+      readonly x1: number
+      readonly y1: number
+    }
 
 /**
  * Hechos ocurridos al aplicar un comando, para que la capa de juego reaccione (avisos, efectos).
@@ -33,6 +54,8 @@ export type Comando =
 export type EventoJuego =
   | { readonly tipo: 'desmayo' }
   | { readonly tipo: 'parcela-comprada'; readonly indice: number; readonly precio: number }
+  /** Zona pintada o borrada; `casillas` es el número de casillas que cambiaron. */
+  | { readonly tipo: 'zona-pintada'; readonly casillas: number }
 
 export type ResultadoComando =
   | { readonly ok: true; readonly estado: EstadoJuego; readonly eventos: readonly EventoJuego[] }
@@ -46,6 +69,7 @@ export type ErrorComando =
   | 'ya-propia'
   | 'no-adyacente'
   | 'precio-invalido'
+  | 'sin-casillas-validas'
 
 const SIN_EVENTOS: readonly EventoJuego[] = Object.freeze([])
 
@@ -132,6 +156,24 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
           comprasHechas: estado.comprasHechas + 1,
           valle: { ...estado.valle, parcelas },
         },
+      }
+    }
+    case 'PintarZona':
+    case 'BorrarZona': {
+      const caracter =
+        comando.tipo === 'BorrarZona'
+          ? CARACTER_SIN_ZONA
+          : ZONAS.includes(comando.zona)
+            ? CARACTER_ZONA[comando.zona]
+            : undefined
+      if (caracter === undefined) return { ok: false, estado, error: 'parametro-invalido' }
+      const r = aplicarZonas(estado, comando, caracter)
+      if (!r.ok) return { ok: false, estado, error: r.error }
+      if (r.cambiadas === 0) return { ok: true, estado, eventos: SIN_EVENTOS }
+      return {
+        ok: true,
+        eventos: [{ tipo: 'zona-pintada', casillas: r.cambiadas }],
+        estado: { ...estado, zonas: r.zonas },
       }
     }
     default:

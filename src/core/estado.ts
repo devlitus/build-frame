@@ -5,7 +5,8 @@ import type { ConfigValle } from './datos/esquemas'
 import { generarValle, type Valle } from './valle'
 import { CONFIG_PERSONAJE } from './datos/personaje'
 import type { Obstaculo } from './decoracion'
-import { generarMundo, type Cauce } from './mapa'
+import { generarMundo, ladoValle, type Cauce } from './mapa'
+import { zonasVacias } from './zonas'
 import { personajeEnAparicion, type Personaje } from './personaje'
 
 /**
@@ -19,8 +20,10 @@ import { personajeEnAparicion, type Personaje } from './personaje'
  * v5 (M2-05): se añade `modo` (Vida o Plano). Sin migración: sigue sin haber partidas guardadas.
  * v6 (M3-01): se añade `comprasHechas` (parcelas compradas; sube el precio). Sin migración:
  * sigue sin haber partidas guardadas.
+ * v7 (M4-01): se añade `zonas` (cadena de `lado*lado` caracteres, una zona por casilla).
+ * Sin migración: sigue sin haber partidas guardadas.
  */
-export const VERSION_FORMATO = 6
+export const VERSION_FORMATO = 7
 
 /** Velocidad del tiempo al empezar una partida. */
 export const VELOCIDAD_INICIAL = 1
@@ -47,6 +50,8 @@ export interface EstadoJuego {
   /** Parcelas compradas hasta ahora; cada una encarece las siguientes (`precioParcela`). */
   readonly comprasHechas: number
   readonly valle: Valle
+  /** Zona pintada por casilla (índice y*lado+x): `.` ninguna, `c` cultivo, `h` huerto, `v` vivienda, `a` almacén. */
+  readonly zonas: string
   /** Ancho del río y vados (casillas de río transitables). */
   readonly cauce: Cauce
   /** Árboles y rocas: bloquean el paso. Se talarán en M5. */
@@ -104,6 +109,7 @@ export function crearEstadoInicial(opciones: OpcionesNuevaPartida): EstadoJuego 
     dinero,
     comprasHechas: 0,
     valle,
+    zonas: zonasVacias(ladoValle(valle)),
     ...mundo,
     personaje: personajeEnAparicion(mundo.aparicion),
   }
