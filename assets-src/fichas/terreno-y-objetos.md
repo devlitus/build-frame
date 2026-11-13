@@ -41,3 +41,14 @@ El fondo es lo claro y poco saturado conectado con el borde de la imagen (rellen
 - Los objetos se han hecho con ComfyUI y no en Blender a 45° (biblia §2): para el prototipo bastaba, pero sus huellas no están medidas en casillas.
 - Las transiciones entre terrenos (hierba con agua, etc.) quedan para el *autotiling* de M5.
 - El agua es estática (la biblia contempla 4 fotogramas en el futuro).
+
+## Limpieza del halo (M5-00)
+
+El árbol y la roca traían un halo de alfa casi transparente que sobre la hierba se veía como un rectángulo (informe arte-m4). Se limpia con `node scripts/limpiar-halo-objetos.mjs` (2026-11-14):
+
+- **Originales:** `assets-src/objetos/{arbol,roca}@{1x,2x}.webp`, tomados tal cual de `public/assets/objetos/` en el hito M5 (`hito/M5-cultivos-herramientas`, anterior a la limpieza). El script lee de ahí y escribe en `public/assets/objetos/`, así que se puede repetir con el mismo resultado.
+- **Umbral de sombra:** alfa ≤ 100 se considera halo; los píxeles más opacos no se tocan.
+- **Ruido:** alfa ≤ 3 pasa a 0.
+- **Fundido:** el halo se desvanece (smoothstep) hacia los bordes laterales e inferior del marco: 5 px @1x, 10 px @2x.
+- **WebP:** calidad 90, `alphaQuality` 100, `effort` 6.
+

@@ -2,7 +2,9 @@
 // por los bordes del marco y, sobre la hierba, dibujaba un rectángulo. Los píxeles casi
 // transparentes (alfa ≤ 100, que no son el objeto) se desvanecen hacia los bordes laterales e
 // inferior del marco y el alfa residual (≤ 3) se pone a 0. Los píxeles opacos no se tocan.
-// Uso: node scripts/limpiar-halo-objetos.mjs   (reescribe los .webp de public/assets/objetos)
+// Lee los originales de assets-src/objetos y escribe el resultado en public/assets/objetos, así que
+// es idempotente (siempre parte de los originales). Ver assets-src/fichas/terreno-y-objetos.md.
+// Uso: node scripts/limpiar-halo-objetos.mjs
 import sharp from 'sharp'
 import { readFileSync, writeFileSync } from 'node:fs'
 
@@ -13,8 +15,9 @@ const FUNDIDO = { '1x': 5, '2x': 10 }
 
 for (const objeto of ['arbol', 'roca']) {
   for (const escala of ['1x', '2x']) {
+    const origen = `assets-src/objetos/${objeto}@${escala}.webp`
     const ruta = `public/assets/objetos/${objeto}@${escala}.webp`
-    const { data, info } = await sharp(readFileSync(ruta))
+    const { data, info } = await sharp(readFileSync(origen))
       .ensureAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true })

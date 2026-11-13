@@ -71,7 +71,8 @@ de la huella, **encima** del edificio fantasma (su sprite `terminado` al 60 % de
 
 - **Defecto previo del prototipo:** `public/assets/objetos/arbol@{1,2}x.webp` tiene un halo casi
   transparente que, sobre la hierba, se ve como un rectángulo claro alrededor del árbol (se nota
-  en las escenas de muestra). Conviene limpiar el alfa antes de conectarlo en M5-00.
+  en las escenas de muestra). **Resuelto en M5-00:** limpieza reproducible con
+  `scripts/limpiar-halo-objetos.mjs` (ver la ficha `terreno-y-objetos.md`).
 - `comfy launch` falla en este equipo porque usa el Python del sistema, que no tiene `torch`.
   Hay que arrancar ComfyUI con el Python embebido del paquete portable (ver la ficha).
 - Cuando se aborde el issue #11 (DPR), estas texturas siguen la misma regla que el resto (biblia §8).
