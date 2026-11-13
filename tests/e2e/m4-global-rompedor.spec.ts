@@ -565,7 +565,7 @@ test.describe('M4 global · partida completa por la interfaz', () => {
     expect(errores).toEqual([])
   })
 
-  test('[S3] con la casa terminada, el aviso del desmayo dice «Despiertas en la entrada del valle» aunque despiertas en la casa', async ({
+  test('[S3] con la casa terminada, el aviso del desmayo dice «Despiertas en casa» y no menciona la entrada del valle', async ({
     page,
   }) => {
     const errores = await abrir(page, `?semilla=${SEMILLA}&debug&modo=plano&propias=${PARCELA}`)
@@ -591,6 +591,7 @@ test.describe('M4 global · partida completa por la interfaz', () => {
     const aviso = page.locator('.aviso')
     await expect(aviso).toBeVisible()
     await expect(aviso).toContainText('Te quedaste dormido')
+    await expect(aviso).toContainText('Despiertas en casa')
     await expect(aviso).not.toContainText('entrada del valle')
     expect(errores).toEqual([])
   })
@@ -933,7 +934,7 @@ test.describe('M4 global · la parcela de la aparición en móvil vertical', () 
     await page.waitForTimeout(400)
   }
 
-  test('[S3] móvil vertical, zoom inicial: con el panel Construir la parcela de la aparición queda bajo el panel y la cámara no baja más; solo asoman sus 4 últimas filas y la silueta nace fuera', async ({
+  test('[S3] móvil vertical, zoom inicial: con el panel Construir la cámara deja ver al menos 8 filas de la parcela de la aparición y la silueta nace dentro de ella', async ({
     page,
   }) => {
     test.skip(!esMovil(), 'móvil vertical')
@@ -1180,7 +1181,7 @@ test.describe('M4 global · solo teclado', () => {
     expect(errores).toEqual([])
   })
 
-  test('[S3] teclado, zoom del Plano: un edificio de la parcela de la aparición no se puede elegir con Enter (la vista no llega a centrarse en él)', async ({
+  test('[S3] teclado, zoom del Plano: un edificio de la parcela de la aparición se puede elegir con Enter (la vista llega a centrarse en él)', async ({
     page,
   }) => {
     test.skip(esMovil(), 'teclado: escritorio')

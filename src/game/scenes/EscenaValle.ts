@@ -385,6 +385,8 @@ export class EscenaValle extends Phaser.Scene {
       posicion,
     )
     this.alCambiarHerramienta()
+    // Los márgenes de la cámara se fijan explícitamente al terminar de crear (Plano: los del panel y el HUD).
+    this.actualizarMargenes()
     const sel = this.seleccionInicial
     if (sel !== undefined && !enVida && sel < valle.parcelas.length) {
       partida.seleccion.seleccionar(sel)
@@ -422,16 +424,22 @@ export class EscenaValle extends Phaser.Scene {
     return puntoDeToque(c.vista, pantalla, libre, rectParcela(g, i))
   }
 
-  /**
-   * Zona de pantalla que no tapan ni el HUD ni los paneles. De paso fija los márgenes de la
-   * cámara del Modo Plano: el valle puede pasar de su borde lo que tapa la interfaz, para ver
-   * lo que queda debajo (más un poco de aire). En Vida no hay márgenes.
-   */
+  /** Zona de pantalla que no tapan ni el HUD ni los paneles. Consulta pura. */
   private zonaLibre(pantalla: { ancho: number; alto: number }): RectPantalla {
-    const partida = this._partida
-    const libre = areaLibre(pantalla, partida?.seleccion.ocupado, medirReservasHud())
+    return areaLibre(pantalla, this._partida?.seleccion.ocupado, medirReservasHud())
+  }
+
+  /**
+   * Pone al día los márgenes de la cámara del Modo Plano: el valle puede pasar de su borde lo que
+   * tapa la interfaz, para ver lo que queda debajo (más un poco de aire). En Vida no hay márgenes.
+   * Se llama cuando cambian la selección, el modo, el tamaño o las guías (nunca desde una consulta).
+   */
+  private actualizarMargenes(): void {
+    if (!this.control) return
+    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const libre = this.zonaLibre(pantalla)
     const h = CONFIG_CAMARA.holguraBordePx
-    this.control?.fijarMargenes(
+    this.control.fijarMargenes(
       this.modoAplicado === 'plano'
         ? {
             arriba: libre.y + h,
@@ -441,7 +449,6 @@ export class EscenaValle extends Phaser.Scene {
           }
         : undefined,
     )
-    return libre
   }
 
   /** La cámara se desliza (guía o vuelta de la extensión): gancho de prueba. */
@@ -626,6 +633,7 @@ export class EscenaValle extends Phaser.Scene {
     const partida = this._partida
     const s = partida?.silueta()
     if (!partida || !s || !this.control) return
+    this.actualizarMargenes()
     const pantalla = { ancho: this.scale.width, alto: this.scale.height }
     const libre = this.zonaLibre(pantalla)
     const rect = {
@@ -643,6 +651,7 @@ export class EscenaValle extends Phaser.Scene {
     const partida = this._partida
     const c = partida?.pincel.cursor
     if (!partida || !c || !this.control) return
+    this.actualizarMargenes()
     const pantalla = { ancho: this.scale.width, alto: this.scale.height }
     const libre = this.zonaLibre(pantalla)
     const celda = {
@@ -733,6 +742,7 @@ export class EscenaValle extends Phaser.Scene {
 
   private alRedimensionar(): void {
     this.claveGuia = ''
+    this.actualizarMargenes()
     if (this.idFotograma !== undefined) cancelAnimationFrame(this.idFotograma)
     this.idFotograma = requestAnimationFrame(() => {
       this.idFotograma = undefined
@@ -746,7 +756,7 @@ export class EscenaValle extends Phaser.Scene {
     const g = this.geometria()
     if (!partida || !g) return
     // El panel o las reservas del HUD pueden haber cambiado: los márgenes de la cámara se ponen al día.
-    this.zonaLibre({ ancho: this.scale.width, alto: this.scale.height })
+    this.actualizarMargenes()
     const i = partida.seleccion.indice
     const idEdificio = partida.edificioSeleccionado.id
     const edificio =
@@ -922,7 +932,7 @@ export class EscenaValle extends Phaser.Scene {
     const enVida = modo === 'vida'
     this.control.arrastreActivo = !enVida || ARRASTRE_EN_MODO_VIDA
     this.control.seguirActivo = enVida
-    this.zonaLibre({ ancho: this.scale.width, alto: this.scale.height })
+    this.actualizarMargenes()
   }
 
   private rehornear(): void {

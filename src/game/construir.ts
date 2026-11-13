@@ -111,7 +111,11 @@ export function calcularSilueta(
   }
 }
 
-/** ¿Cae toda la huella de la silueta en parcelas propias? */
+/**
+ * ¿Cae toda la huella de la silueta en parcelas propias? Bastan las cuatro esquinas: ningún
+ * edificio es mayor que una parcela (ancho y alto <= casillasPorParcela), así que la huella toca
+ * como mucho dos parcelas por eje y las esquinas ya cubren todas las que pisa.
+ */
 function huellaEnPropia(estado: EstadoJuego, s: Silueta): boolean {
   const v = estado.valle
   const c = v.casillasPorParcela

@@ -4,6 +4,8 @@ import {
   aplicarComando,
   crearEstadoInicial,
   despiertaEnCasa,
+  personajeAlDespertar,
+  personajeEnAparicion,
   type EstadoJuego,
 } from '../../src/core'
 import { limitarEje, limitarVista } from '../../src/game/camara/matematica'
@@ -21,7 +23,7 @@ describe('límites de cámara con márgenes (Modo Plano)', () => {
     expect(limitarEje(-5000, 720, 0.6, 3072, undefined, 72, 72)).toBe(0)
   })
 
-  it('sin márgenes el centro no pasa del límite normal aunque haya extensión de otro eje', () => {
+  it('sin márgenes el centro no pasa del límite normal del eje', () => {
     const v = limitarVista({ zoom: 0.6, cx: 99999, cy: 99999 }, { ancho: 412, alto: 839 }, 3072)
     expect(v.cy).toBeCloseTo(3072 - 839 / 0.6 / 2, 6)
   })
@@ -62,6 +64,31 @@ describe('despiertaEnCasa', () => {
       ],
       siguienteIdEdificio: 2,
     }
+    expect(despiertaEnCasa(e)).toBe(true)
+  })
+  const ed = (id: number, tipo: string, x: number, y: number, obra: unknown) =>
+    ({
+      id,
+      tipo,
+      x,
+      y,
+      obra,
+      pagado: { dinero: 0, madera: 0, piedra: 0 },
+    }) as never
+  const con = (edificios: unknown[]): EstadoJuego =>
+    ({ ...base, obstaculos: [], edificios, siguienteIdEdificio: 9 }) as EstadoJuego
+  const enAparicion = (e: EstadoJuego) => personajeEnAparicion(e.aparicion)
+
+  it('con la casa aún en obra, no (despierta en la aparición)', () => {
+    const e = con([ed(1, 'casa', 34, 82, { diaInicio: 1, diaFin: 3 })])
+    expect(despiertaEnCasa(e)).toBe(false)
+    expect(personajeAlDespertar(e)).toEqual(enAparicion(e))
+  })
+  it('con la puerta bloqueada por otro edificio, sí: coincide con personajeAlDespertar', () => {
+    const e = con([ed(1, 'casa', 34, 82, null), ed(2, 'caja-envio', 36, 85, null)])
+    const p = personajeAlDespertar(e)
+    // La casilla libre más cercana a la puerta, no la aparición.
+    expect(p).not.toEqual(enAparicion(e))
     expect(despiertaEnCasa(e)).toBe(true)
   })
 })
