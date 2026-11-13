@@ -87,7 +87,8 @@ export function textoColocacion(
   tipo: TipoEdificio,
   estado: EstadoCatalogo,
 ): string {
-  const clave = `colocacion_${motivo}`
+  const propio = `errorEdificio_${motivo}`
+  const clave = existeTexto(propio) ? propio : `colocacion_${motivo}`
   const e = entradaCatalogo(estado, tipo)
   if (motivo === 'fondos-insuficientes' && e.faltan.dinero <= 0) return t('catalogoNoPagable')
   if (motivo === 'materiales-insuficientes' && e.faltan.madera <= 0 && e.faltan.piedra <= 0) {

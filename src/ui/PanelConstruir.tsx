@@ -247,7 +247,7 @@ function Colocando(props: { tipo: TipoEdificio }) {
 }
 
 /** Mover un edificio: la misma silueta y reglas que construir, sin coste; un botón confirma. */
-function Moviendo(props: { id: number; tipo: TipoEdificio }) {
+function Moviendo(props: { tipo: TipoEdificio }) {
   const partida = usePartida()
   const { tipo } = props
   const silueta = useSilueta()
@@ -441,7 +441,7 @@ export function PanelConstruir() {
         aria-label={t(origen === undefined ? 'construirPanel' : 'moverPanel')}
       >
         {origen !== undefined && tipo !== undefined ? (
-          <Moviendo id={origen} tipo={tipo} />
+          <Moviendo tipo={tipo} />
         ) : tipo === undefined ? (
           <Catalogo guarda={guarda} />
         ) : confirmando ? (

@@ -270,8 +270,8 @@ export class EscenaValle extends Phaser.Scene {
     this.desmayoVisto = false
     this.desuscribir?.()
     this.desuscribir = partida.suscribir((cambio) => {
-      // Zonas y edificios se redibujan en cuanto cambian (no esperan al siguiente fotograma): con un
-      // dispositivo lento la vista y el estado no se desfasan.
+      // Zonas y edificios se redibujan en cuanto cambian (no esperan al siguiente fotograma): así la
+      // vista y los ganchos de prueba no se desfasan del estado de la partida.
       if (cambio.eventos.length > 0) {
         this.zonas?.actualizar(partida.estado)
         this.edificios?.actualizar(partida.estado, this.cameras.main.zoom)
@@ -421,9 +421,16 @@ export class EscenaValle extends Phaser.Scene {
     return puntoDeToque(c.vista, pantalla, libre, rectParcela(g, i))
   }
 
+  /** La cámara se desliza (guía o vuelta de la extensión): gancho de prueba. */
+  guiando(): boolean {
+    return this.control?.guiando ?? false
+  }
+
   /** Centra la cámara en la casilla (cx, cy) (ganchos de prueba). */
   centrarCamaraEn(cx: number, cy: number): void {
     if (!Number.isFinite(cx) || !Number.isFinite(cy)) return
+    // Un centrado explícito gana al salto pendiente del desmayo.
+    this.desmayoVisto = false
     this.control?.centrarEn({ x: (cx + 0.5) * TAM_CASILLA, y: (cy + 0.5) * TAM_CASILLA })
   }
 

@@ -39,6 +39,7 @@ async function abrir(page: Page): Promise<string[]> {
  * lejos del centro del valle. `lejos` salta las primeras casillas para no pegarse a otro edificio.
  */
 async function sitios(page: Page, tipo: string, min = 1): Promise<Sitio[]> {
+  await camaraQuieta(page)
   const lista = await page.evaluate(
     ({ tipo }) => {
       const r = window.__raices
@@ -60,6 +61,13 @@ async function sitios(page: Page, tipo: string, min = 1): Promise<Sitio[]> {
   )
   if (lista.length < min) throw new Error(`Faltan sitios válidos para ${tipo}`)
   return lista
+}
+
+/** Espera a que la cámara termine de deslizarse (guía o vuelta de la extensión). */
+async function camaraQuieta(page: Page): Promise<void> {
+  await expect
+    .poll(() => page.evaluate(() => window.__raices?.camara()?.guiando), { timeout: 15_000 })
+    .toBe(false)
 }
 
 const edificios = (page: Page) => page.evaluate(() => window.__raices?.edificios() ?? [])
@@ -135,9 +143,19 @@ async function arrastrarDedo(page: Page, a: Punto, b: Punto): Promise<void> {
 
 /** Selecciona el edificio tocándolo de verdad. */
 async function tocarEdificio(page: Page, id: number): Promise<void> {
-  const punto = await page.evaluate((id) => window.__raices?.puntoClicEdificio(id), id)
-  if (!punto) throw new Error(`El edificio ${id} no se ve`)
-  await pulsar(page, punto)
+  await camaraQuieta(page)
+  // El punto se recalcula hasta que el edificio se vea (la cámara puede estar asentándose).
+  let punto: Punto | undefined
+  await expect
+    .poll(
+      async () => {
+        punto = await page.evaluate((id) => window.__raices?.puntoClicEdificio(id), id)
+        return punto
+      },
+      { message: `El edificio ${id} no se ve` },
+    )
+    .toBeDefined()
+  await pulsar(page, punto as Punto)
   await expect.poll(() => page.evaluate(() => window.__raices?.edificioSeleccionado()?.id)).toBe(id)
 }
 
@@ -455,6 +473,30 @@ test('teclado: Enter elige el edificio del centro, Tab llega al panel y Demoler 
   await page.keyboard.up('Enter')
   await expect.poll(() => dinero(page)).toBe(d1 + 25)
   expect(await edificios(page)).toEqual([])
+  expect(errores).toEqual([])
+})
+
+test('teclado: con una parcela elegida, Enter sobre un edificio del centro cambia la selección a ese edificio', async ({
+  page,
+}) => {
+  test.skip(esMovil(), 'el teclado es de escritorio')
+  const errores = await abrir(page)
+  const v = await page.evaluate(() => window.__raices?.colocacion('caja-envio', 48, 48))
+  test.skip(!v?.valida, 'la casilla central no admite una caja con esta semilla')
+  const caja = await levantar(page, 'caja-envio', { x: 48, y: 48 }, true)
+  await page.evaluate(() => window.__raices?.seleccionar(14))
+  await expect.poll(() => page.evaluate(() => window.__raices?.seleccionada())).toBe(14)
+  // Elegir la parcela lleva la vista a ella: se vuelve al centro del valle, donde está la caja.
+  await camaraQuieta(page)
+  await page.evaluate(() => window.__raices?.centrarCamara(48, 48))
+  await camaraQuieta(page)
+  await page.locator('#juego').focus()
+  await page.keyboard.press('Enter')
+  await expect
+    .poll(() => page.evaluate(() => window.__raices?.edificioSeleccionado()?.id))
+    .toBe(caja.id)
+  expect(await page.evaluate(() => window.__raices?.seleccionada())).toBeUndefined()
+  await expect(panel(page, 'Caja de envío')).toBeVisible()
   expect(errores).toEqual([])
 })
 

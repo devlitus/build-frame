@@ -332,6 +332,7 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
         scrollY: c.scrollY,
         ancho: c.width,
         alto: c.height,
+        guiando: e.guiando(),
       }
     },
   }

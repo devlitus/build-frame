@@ -133,6 +133,14 @@ interface Window {
     ): { valida: boolean; motivo: string | undefined } | undefined
     /** Cámara del valle; scrollX/Y es la esquina superior izquierda de la vista sin zoom. */
     camara():
-      { zoom: number; scrollX: number; scrollY: number; ancho: number; alto: number } | undefined
+      | {
+          zoom: number
+          scrollX: number
+          scrollY: number
+          ancho: number
+          alto: number
+          guiando: boolean
+        }
+      | undefined
   }
 }

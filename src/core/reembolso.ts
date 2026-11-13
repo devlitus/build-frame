@@ -33,8 +33,18 @@ export function pagadoDe(
 }
 
 /** Fracción `f` de `n`, redondeada como dicen los datos (`abajo`) y sin pasar nunca de `n`. */
-function parte(n: number, f: number): number {
-  return Math.min(n, Math.max(0, Math.floor(n * f)))
+function parte(n: number, f: number, redondeo: typeof CONFIG_EDIFICIOS.redondeoReembolso): number {
+  let r: number
+  switch (redondeo) {
+    case 'abajo':
+      r = Math.floor(n * f)
+      break
+    default: {
+      const inalcanzable: never = redondeo
+      throw new Error(`Redondeo desconocido: ${String(inalcanzable)}`)
+    }
+  }
+  return Math.min(n, Math.max(0, r))
 }
 
 /**
@@ -56,12 +66,13 @@ export function reembolso(
   if (e.obra !== null) return { accion: 'cancelar', coste: pagado }
   if (!def.demolible) return undefined
   const f = CONFIG_EDIFICIOS.reembolsoDemolicion
+  const r = CONFIG_EDIFICIOS.redondeoReembolso
   return {
     accion: 'demoler',
     coste: {
-      dinero: parte(pagado.dinero, f),
-      madera: parte(pagado.madera, f),
-      piedra: parte(pagado.piedra, f),
+      dinero: parte(pagado.dinero, f, r),
+      madera: parte(pagado.madera, f, r),
+      piedra: parte(pagado.piedra, f, r),
     },
   }
 }
