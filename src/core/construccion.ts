@@ -1,4 +1,5 @@
 import { CONFIG_PERSONAJE } from './datos/personaje'
+import type { DefEdificio } from './datos/esquemas'
 import { casillasOcupadas, defEdificio, huellaDe } from './edificios'
 import type { EstadoJuego } from './estado'
 import { aguaBloqueada, ladoValle } from './mapa'
@@ -198,6 +199,32 @@ function bloqueaPaso(
   return recorrer(lado, bloqueada, base.inicio, new Uint8Array(lado * lado), objetivo) < objetivo
 }
 
+/** ¿El edificio es único y ya hay uno (obra incluida), sin contar `ignorarId`? */
+export function unicoYaExiste(
+  estado: Pick<EstadoColocacion, 'edificios'>,
+  tipo: string,
+  def: Pick<DefEdificio, 'unico'>,
+  ignorarId?: number,
+): boolean {
+  return def.unico && estado.edificios.some((e) => e.tipo === tipo && e.id !== ignorarId)
+}
+
+/**
+ * Por qué no se puede pagar el coste de `def`: `fondos-insuficientes` (gana si faltan los dos) o
+ * `materiales-insuficientes`; `undefined` si se puede pagar. Es la regla de pago de
+ * `colocacionValida`, que el catálogo reutiliza para avisar sin tener que elegir un sitio.
+ */
+export function faltaPagar(
+  estado: Pick<EstadoColocacion, 'dinero' | 'materiales'>,
+  def: Pick<DefEdificio, 'coste'>,
+): 'fondos-insuficientes' | 'materiales-insuficientes' | undefined {
+  const { dinero, madera, piedra } = def.coste
+  if (!Number.isSafeInteger(estado.dinero) || estado.dinero < dinero) return 'fondos-insuficientes'
+  const mat = estado.materiales
+  if (!(mat.madera >= madera) || !(mat.piedra >= piedra)) return 'materiales-insuficientes'
+  return undefined
+}
+
 /**
  * Única fuente de las reglas de colocación de edificios (GDD §6.3–6.5). Pura; nunca lanza con
  * un estado coherente. `(x, y)` es la esquina superior izquierda de la huella. Orden de los
@@ -213,9 +240,7 @@ export function colocacionValida(
   const no = (motivo: MotivoColocacion): ResultadoColocacion => ({ valida: false, motivo })
   const def = defEdificio(tipo)
   if (!def) return no('tipo-desconocido')
-  if (def.unico && estado.edificios.some((e) => e.tipo === tipo && e.id !== opciones.ignorarId)) {
-    return no('unico-ya-existe')
-  }
+  if (unicoYaExiste(estado, tipo as string, def, opciones.ignorarId)) return no('unico-ya-existe')
   const { valle } = estado
   const lado = ladoValle(valle)
   if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y)) return no('fuera-del-valle')
@@ -271,12 +296,8 @@ export function colocacionValida(
   }
   if (bloqueaPaso(estado, lado, h, opciones.ignorarId)) return no('bloquea-paso')
   if (!opciones.ignorarCostes) {
-    const { dinero, madera, piedra } = def.coste
-    if (!Number.isSafeInteger(estado.dinero) || estado.dinero < dinero) {
-      return no('fondos-insuficientes')
-    }
-    const mat = estado.materiales
-    if (!(mat.madera >= madera) || !(mat.piedra >= piedra)) return no('materiales-insuficientes')
+    const falta = faltaPagar(estado, def)
+    if (falta) return no(falta)
   }
   return { valida: true }
 }
