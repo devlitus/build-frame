@@ -70,25 +70,23 @@ function dibujarTramos(
  * En el Modo Plano se ve con colores y patrones; en Vida, con la opacidad bajada (tono suave).
  */
 export class VistaZonas {
-  private readonly trozos: { rt: Phaser.GameObjects.RenderTexture; t: Trozo; firma: string }[]
+  /** Una textura por trozo, creada solo cuando el trozo tiene zonas (sin zonas no hay objetos extra). */
+  private readonly trozos: {
+    rt: Phaser.GameObjects.RenderTexture | undefined
+    t: Trozo
+    firma: string
+  }[]
   private zonas: string | undefined = undefined
   private modo: ModoJuego | undefined = undefined
   private _horneados = 0
+  private alfa = 1
 
   constructor(
     private readonly escena: Phaser.Scene,
     mundoPx: number,
     private readonly lado: number,
   ) {
-    this.trozos = rejillaTrozos(mundoPx).map((t) => ({
-      rt: escena.add
-        .renderTexture(t.x, t.y, t.ancho, t.alto)
-        .setOrigin(0, 0)
-        .setDepth(PROFUNDIDAD_ZONAS)
-        .setVisible(false),
-      t,
-      firma: '',
-    }))
+    this.trozos = rejillaTrozos(mundoPx).map((t) => ({ rt: undefined, t, firma: '' }))
   }
 
   /** Trozos que se han vuelto a hornear (ganchos de prueba y rendimiento). */
@@ -106,7 +104,8 @@ export class VistaZonas {
     if (e.modo !== this.modo) {
       this.modo = e.modo
       const alfa = e.modo === 'plano' ? 1 : ALFA_ZONAS_VIDA
-      for (const { rt } of this.trozos) rt.setAlpha(alfa)
+      this.alfa = alfa
+      for (const { rt } of this.trozos) rt?.setAlpha(alfa)
     }
   }
 
@@ -120,7 +119,7 @@ export class VistaZonas {
   }
 
   private hornearTrozo(
-    tr: { rt: Phaser.GameObjects.RenderTexture; t: Trozo; firma: string },
+    tr: { rt: Phaser.GameObjects.RenderTexture | undefined; t: Trozo; firma: string },
     zonas: string,
   ): void {
     const v: VentanaCasillas = {
@@ -133,23 +132,29 @@ export class VistaZonas {
     if (firma === tr.firma) return
     tr.firma = firma
     this._horneados++
-    tr.rt.clear()
     const tramos = tramosPorZona(zonas, this.lado, v)
     if (ZONAS.every((z) => tramos[z].length === 0)) {
-      tr.rt.setVisible(false)
+      tr.rt?.destroy()
+      tr.rt = undefined
       return
     }
+    tr.rt ??= this.escena.add
+      .renderTexture(tr.t.x, tr.t.y, tr.t.ancho, tr.t.alto)
+      .setOrigin(0, 0)
+      .setDepth(PROFUNDIDAD_ZONAS)
+      .setAlpha(this.alfa)
+    const rt = tr.rt
+    rt.clear()
     const g = this.escena.add.graphics()
     for (const z of ZONAS as readonly Zona[]) dibujarTramos(g, ESTILO_ZONAS[z], tramos[z])
-    tr.rt.beginDraw()
-    tr.rt.batchDraw(g, -tr.t.x, -tr.t.y)
-    tr.rt.endDraw()
+    rt.beginDraw()
+    rt.batchDraw(g, -tr.t.x, -tr.t.y)
+    rt.endDraw()
     g.destroy()
-    tr.rt.setVisible(true)
   }
 
   destruir(): void {
-    for (const { rt } of this.trozos) rt.destroy()
+    for (const { rt } of this.trozos) rt?.destroy()
     this.trozos.length = 0
   }
 }
