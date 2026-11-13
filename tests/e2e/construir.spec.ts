@@ -1,4 +1,4 @@
-import { expect, test, type CDPSession, type Page } from '@playwright/test'
+import { expect, test, type CDPSession, type Locator, type Page } from '@playwright/test'
 
 /**
  * M4-05 · Construir: catálogo, silueta, confirmación y obra visible. Valen en escritorio (ratón y
@@ -344,12 +344,17 @@ test('la zona requerida de cada edificio se ve en pantallas apaisadas bajas y lo
     await page.setViewportSize(vp)
     const errores = await abrir(page)
     // Botones inferiores: dentro de la pantalla.
-    for (const nombre of ['Construir', 'Zonas']) {
-      const b = await page.getByRole('button', { name: nombre, exact: true }).boundingBox()
+    const botones: [string, Locator][] = [
+      ['Construir', page.getByRole('button', { name: 'Construir', exact: true })],
+      ['Zonas', page.getByRole('button', { name: 'Zonas', exact: true })],
+      ['modo', page.locator('button', { hasText: /^(Plano|Vida)$/ })],
+    ]
+    for (const [nombre, boton] of botones) {
+      const b = await boton.boundingBox()
       expect(b, `${nombre} ${vp.width}×${vp.height}`).not.toBeNull()
       if (!b) continue
-      expect.soft(b.x, `${nombre} ${vp.width}×${vp.height} izquierda`).toBeGreaterThanOrEqual(0)
-      expect.soft(b.x + b.width, `${nombre} derecha`).toBeLessThanOrEqual(vp.width)
+      expect(b.x, `${nombre} ${vp.width}×${vp.height} izquierda`).toBeGreaterThanOrEqual(0)
+      expect(b.x + b.width, `${nombre} derecha`).toBeLessThanOrEqual(vp.width)
     }
     await abrirCatalogo(page)
     for (const [nombre, zona] of [

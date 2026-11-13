@@ -34,6 +34,8 @@ interface Cartel {
   readonly g: Phaser.GameObjects.Graphics
   readonly texto: Phaser.GameObjects.Text
   forma: FormaCartel
+  /** Resolución con la que se ha rasterizado el texto. */
+  resolucion: number
 }
 
 interface Dibujo {
@@ -190,6 +192,11 @@ const dibujar: Readonly<Record<TipoEdificio, (g: G, r: Rect) => void>> = {
   cobertizo: dibujarCobertizo,
 }
 
+/** Resolución del texto del cartel: 2 como mínimo y, con zoom bajo, la siguiente potencia de 2 de 2/zoom (tope 8). */
+function resolucionTexto(zoom: number): number {
+  return Math.min(8, Math.max(2, 2 ** Math.ceil(Math.log2(2 / zoom))))
+}
+
 /**
  * Capa de edificios y obras (M4-05). Un `Graphics` por edificio, con `depth` = borde inferior de
  * la huella en px (como el personaje, ADR 0003: lo que está más al sur tapa a lo que está más al
@@ -244,6 +251,8 @@ export class VistaEdificios {
         this.dibujos.set(ed.id, this.crear(ed, clave, dias, def, z))
       }
       for (const id of [...this.dibujos.keys()]) if (!vivos.has(id)) this.quitar(id)
+      // Si el zoom también cambió, las obras que se conservan reescalan su cartel.
+      if (z !== this.zoom) for (const d of this.dibujos.values()) this.ajustarCartel(d, z)
       this.zoom = z
       return
     }
@@ -279,7 +288,7 @@ export class VistaEdificios {
         .setResolution(2)
       const fondo = this.escena.add.graphics()
       const caja = this.escena.add.container(0, 0, [fondo, texto]).setDepth(profundidad + 0.1)
-      cartel = { caja, g: fondo, texto, forma: 'tablon' }
+      cartel = { caja, g: fondo, texto, forma: 'tablon', resolucion: 2 }
     }
     const d: Dibujo = {
       clave,
@@ -332,6 +341,12 @@ export class VistaEdificios {
     }
     // El cartel se apoya en el borde inferior de la huella, sin salirse por abajo más de un poco.
     const k = 1 / zoom
+    // El texto se rasteriza con más resolución cuanto menor es el zoom (por escalones, para no rehacerlo).
+    const res = resolucionTexto(zoom)
+    if (cartel.resolucion !== res) {
+      cartel.resolucion = res
+      cartel.texto.setResolution(res)
+    }
     const cx = rect.x + rect.w / 2
     const cy = rect.y + rect.h - Math.min((alto * k) / 2, rect.h / 2) - 2 * k
     cartel.caja.setPosition(cx, cy).setScale(k)
