@@ -1,4 +1,5 @@
 import { CONFIG_VALLE } from './datos/valle'
+import { CONFIG_ECONOMIA } from './datos/economia'
 import { CONFIG_TIEMPO } from './datos/tiempo'
 import type { ConfigValle } from './datos/esquemas'
 import { generarValle, type Valle } from './valle'
@@ -16,8 +17,10 @@ import { personajeEnAparicion, type Personaje } from './personaje'
  * v4 (M2-02): se añaden `cauce` (ancho y vados del río), `obstaculos` (árboles y rocas),
  * `aparicion` y `personaje`. Sin migración: sigue sin haber partidas guardadas.
  * v5 (M2-05): se añade `modo` (Vida o Plano). Sin migración: sigue sin haber partidas guardadas.
+ * v6 (M3-01): se añade `comprasHechas` (parcelas compradas; sube el precio). Sin migración:
+ * sigue sin haber partidas guardadas.
  */
-export const VERSION_FORMATO = 5
+export const VERSION_FORMATO = 6
 
 /** Velocidad del tiempo al empezar una partida. */
 export const VELOCIDAD_INICIAL = 1
@@ -41,6 +44,8 @@ export interface EstadoJuego {
   /** Velocidad del tiempo (una de `CONFIG_TIEMPO.velocidades`). */
   readonly velocidad: number
   readonly dinero: number
+  /** Parcelas compradas hasta ahora; cada una encarece las siguientes (`precioParcela`). */
+  readonly comprasHechas: number
   readonly valle: Valle
   /** Ancho del río y vados (casillas de río transitables). */
   readonly cauce: Cauce
@@ -59,7 +64,8 @@ export function tiempoDetenido(estado: Pick<EstadoJuego, 'pausado' | 'modo'>): b
 
 export interface OpcionesNuevaPartida {
   readonly semilla: number
-  readonly dineroInicial: number
+  /** Ahorros iniciales; por defecto `CONFIG_ECONOMIA.dineroInicial` (data/economia.json). */
+  readonly dineroInicial?: number
   /** Configuración del valle; por defecto `CONFIG_VALLE` (data/valle.json). */
   readonly configValle?: ConfigValle
   /**
@@ -81,6 +87,10 @@ export function crearEstadoInicial(opciones: OpcionesNuevaPartida): EstadoJuego 
   ) {
     throw new RangeError(`minutoInicial fuera de la jornada: ${minuto}`)
   }
+  const dinero = opciones.dineroInicial ?? CONFIG_ECONOMIA.dineroInicial
+  if (!Number.isSafeInteger(dinero) || dinero < 0) {
+    throw new RangeError(`dineroInicial inválido: ${dinero}`)
+  }
   const mundo = generarMundo(valle, semilla, config, CONFIG_PERSONAJE)
   return {
     versionFormato: VERSION_FORMATO,
@@ -91,7 +101,8 @@ export function crearEstadoInicial(opciones: OpcionesNuevaPartida): EstadoJuego 
     pausado: false,
     modo: 'vida',
     velocidad: VELOCIDAD_INICIAL,
-    dinero: opciones.dineroInicial,
+    dinero,
+    comprasHechas: 0,
     valle,
     ...mundo,
     personaje: personajeEnAparicion(mundo.aparicion),

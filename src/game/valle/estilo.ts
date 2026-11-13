@@ -1,4 +1,5 @@
 import type { EstadoParcela, Terreno } from '../../core'
+import type { EstadoVisualParcela } from './estadoVisual'
 
 /**
  * Valores VISUALES provisionales (arte definitivo en M9): colores, tamaños y estilos.
@@ -33,6 +34,63 @@ const ESTILO_PARCELA: Readonly<Record<EstadoParcela, EstiloParcela>> = {
 export function estiloParcela(estado: EstadoParcela): EstiloParcela {
   return ESTILO_PARCELA[estado]
 }
+
+/**
+ * Parcelas en el Modo Plano: tres estados que se distinguen sin depender del color.
+ * - propia: tinte y borde dorados gruesos y continuos;
+ * - comprable: borde crema DISCONTINUO y una moneda de «se vende» en el centro;
+ * - no-comprable: velo oscuro, rayado diagonal y borde fino apagado.
+ * En el Modo Vida se mantiene `estiloParcela` (la información de compra no hace falta mientras
+ * se juega y así el valle se ve limpio).
+ */
+export interface EstiloParcelaPlano {
+  readonly tinte: number
+  readonly alfaTinte: number
+  readonly borde: number
+  readonly grosorBorde: number
+  /** Trazo y hueco (px) del borde discontinuo; sin él, el borde es continuo. */
+  readonly discontinuo?: { readonly trazo: number; readonly hueco: number }
+  /** Rayado diagonal sobre la parcela. */
+  readonly rayado?: {
+    readonly color: number
+    readonly alfa: number
+    readonly paso: number
+    readonly grosor: number
+  }
+  /** Moneda de «se vende» en el centro de la parcela. */
+  readonly moneda?: { readonly radio: number; readonly relleno: number; readonly borde: number }
+}
+
+export const ESTILO_PLANO: Readonly<Record<EstadoVisualParcela, EstiloParcelaPlano>> = {
+  propia: { tinte: 0xffe27a, alfaTinte: 0.22, borde: 0xffc93c, grosorBorde: 5 },
+  comprable: {
+    tinte: 0xffffff,
+    alfaTinte: 0.1,
+    borde: 0xfff3c4,
+    grosorBorde: 8,
+    discontinuo: { trazo: 72, hueco: 44 },
+    moneda: { radio: 46, relleno: 0xffd34d, borde: 0x6b4a00 },
+  },
+  'no-comprable': {
+    tinte: 0x14141c,
+    alfaTinte: 0.45,
+    borde: 0x2a2a33,
+    grosorBorde: 3,
+    rayado: { color: 0x000000, alfa: 0.3, paso: 96, grosor: 7 },
+  },
+}
+
+/**
+ * Resaltado de la parcela seleccionada: doble trazo (tinta por fuera, crema por dentro) a
+ * propósito distinto del dorado de las propias; se lee sobre terreno claro y oscuro.
+ */
+export const ESTILO_RESALTE = {
+  tinta: 0x3b2a1a,
+  crema: 0xfff3c4,
+  grosorTinta: 14,
+  grosorCrema: 6,
+  alfaRelleno: 0.18,
+} as const
 
 export const COLOR_ARBOL = { copa: 0x2f6b2f, copaClara: 0x3f8a3a, tronco: 0x6b4a2b } as const
 export const COLOR_ROCA = { relleno: 0x8a8a8a, borde: 0x5e5e5e } as const

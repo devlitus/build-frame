@@ -116,3 +116,37 @@ test('un día acelerado pasa al día siguiente con el aviso', HUMO, async ({ pag
   await expect.poll(() => page.evaluate(() => window.__raices?.reloj()?.dia), LENTO).toBe(2)
   await expect(page.getByText(/Día 2 de Primavera/)).toBeVisible()
 })
+
+test('seleccionar una parcela en el Modo Plano abre el panel', HUMO, async ({ page, isMobile }) => {
+  await abrirValle(page, '?semilla=42&debug&modo=plano')
+  await expect.poll(() => page.evaluate(() => window.__raices?.modo()), LENTO).toBe('plano')
+  // Sin depender de los fps: se pulsa el punto de una parcela visible en el primer fotograma.
+  await expect
+    .poll(() => page.evaluate(() => window.__raices?.puntoClicParcela(14) !== undefined), LENTO)
+    .toBe(true)
+  const punto = await page.evaluate(() => window.__raices?.puntoClicParcela(14))
+  if (!punto) throw new Error('la parcela 14 no está visible')
+  if (isMobile) await page.touchscreen.tap(punto.x, punto.y)
+  else await page.mouse.click(punto.x, punto.y)
+  await expect(page.getByRole('region', { name: /^Parcela / })).toBeVisible(LENTO)
+})
+
+test('comprar la primera parcela baja el dinero del HUD', HUMO, async ({ page }) => {
+  await abrirValle(page, '?semilla=42&debug&modo=plano')
+  const hud = page.locator('.dinero')
+  await expect(hud).toContainText('1.100', LENTO)
+  const i = await page.evaluate(() => {
+    for (let n = 0; n < 36; n++) if (window.__raices?.parcelaInfo(n)?.comprable) return n
+    return -1
+  })
+  expect(i).toBeGreaterThanOrEqual(0)
+  const precio = await page.evaluate((n) => window.__raices?.parcelaInfo(n)?.precio, i)
+  if (precio === undefined) throw new Error('sin precio')
+  await page.evaluate((n) => window.__raices?.seleccionar(n), i)
+  const panel = page.getByRole('region', { name: /^Parcela / })
+  await panel.getByRole('button', { name: /^Comprar por / }).click(LENTO)
+  await panel.getByRole('button', { name: 'Comprar', exact: true }).click(LENTO)
+  const resto = String(1100 - precio).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  await expect(hud).toContainText(resto, LENTO)
+  expect(await page.evaluate(() => window.__raices?.dinero())).toBe(1100 - precio)
+})

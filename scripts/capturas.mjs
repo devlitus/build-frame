@@ -10,7 +10,8 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 
-const PUERTO = 4175
+// Puerto propio con PUERTO_CAPTURAS=NNNN si otra sesión ya usa el 4175.
+const PUERTO = Number(process.env.PUERTO_CAPTURAS ?? 4175)
 const args = process.argv.slice(2).map((r) => r.replaceAll(';', '&'))
 const rutas = args.length ? args : ['/']
 const vistas = [
@@ -44,7 +45,7 @@ try {
       const errores = []
       pagina.on('pageerror', (e) => errores.push(e.message))
       await pagina.goto(`http://localhost:${PUERTO}${ruta}`)
-      await pagina.waitForTimeout(1500)
+      await pagina.waitForTimeout(3000)
       const archivo = `capturas/${nombreRuta}--${nombre}.png`
       await pagina.screenshot({ path: archivo })
       console.log(archivo, errores.length ? `ERRORES: ${errores.join(' | ')}` : '')

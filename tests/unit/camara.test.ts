@@ -169,3 +169,28 @@ describe('configuración de la cámara', () => {
     expect(zoomInicial(p, MUNDO)).toBeCloseTo(8000 / MUNDO, 6)
   })
 })
+
+describe('extensión de la vista (parcela de borde con panel abierto)', () => {
+  const zoom = 1
+  // Centro fuera del rango normal (el mínimo en x es 400): la extensión lo permite.
+  const fuera: Vista = { zoom, cx: 100, cy: 1000 }
+  const ext = { x: fuera.cx, y: fuera.cy }
+  const c = { x: 400, y: 300 }
+
+  it('con la extensión encogida al centro, 1 px de gesto mueve la vista como mucho 1 px', () => {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      const v = transformar(fuera, pantalla, c, { x: c.x + dx, y: c.y + dy }, 1, lim, MUNDO, ext)
+      expect(Math.hypot(v.cx - fuera.cx, v.cy - fuera.cy)).toBeLessThanOrEqual(1 / zoom + 1e-9)
+    }
+  })
+
+  it('sin extensión, el mismo gesto salta a los límites normales', () => {
+    const v = transformar(fuera, pantalla, c, { x: c.x + 1, y: c.y }, 1, lim, MUNDO)
+    expect(Math.abs(v.cx - fuera.cx)).toBeGreaterThan(100)
+  })
+})

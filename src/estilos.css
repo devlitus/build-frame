@@ -35,6 +35,14 @@ body {
   inset: 0;
 }
 
+/* Foco visible del lienzo en Plano (se llega con Tab): anillo doble, visible sobre claro y oscuro. */
+#juego canvas:focus-visible,
+#juego[data-modo='plano']:focus-visible {
+  outline: 4px solid var(--crema);
+  outline-offset: -8px;
+  box-shadow: inset 0 0 0 4px var(--tinta);
+}
+
 #ui {
   pointer-events: none;
   display: grid;
@@ -263,6 +271,50 @@ body {
   text-align: center;
   box-shadow: 0 4px 12px var(--sombra);
 }
+/* === M3-04 · Dinero en el HUD === */
+.hud-izquierda {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.dinero {
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: var(--tierra);
+  color: var(--crema);
+  box-shadow: 0 2px 8px var(--sombra);
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.solo-lector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Horizontal: el aviso se alinea a la izquierda para no pisar el panel de parcela de la derecha. */
+@media (orientation: landscape) {
+  .aviso-zona {
+    justify-content: flex-start;
+  }
+
+  .aviso {
+    max-width: min(28rem, calc(100vw - 360px));
+  }
+}
+/* === Fin dinero === */
+
 /* === Controles táctiles (M2-04): joystick virtual === */
 .joystick-base {
   position: absolute;
@@ -291,3 +343,292 @@ body {
   transform: translate(-50%, -50%);
 }
 /* === Fin controles táctiles === */
+
+/* === M3-03 · Panel de detalle de la parcela seleccionada === */
+/* Escritorio y móvil horizontal: tarjeta a la derecha, entre el HUD de arriba y el botón de modo. */
+.panel-parcela {
+  position: absolute;
+  top: 72px;
+  right: 12px;
+  width: min(320px, 42%);
+  max-height: calc(100% - 148px);
+  overflow-y: auto;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-radius: 14px;
+  background: rgb(246 236 214 / 96%);
+  color: var(--tinta);
+  box-shadow: 0 4px 16px var(--sombra);
+  border: 2px solid var(--tierra);
+  touch-action: pan-y;
+  user-select: none;
+}
+
+/* Con el contador de fps (?debug) el HUD de arriba baja 32 px. */
+.hud-debug .panel-parcela {
+  top: 104px;
+  max-height: calc(100% - 180px);
+}
+
+.panel-parcela-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.panel-parcela h2 {
+  margin: 0;
+  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.boton-cerrar {
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.8rem;
+  border: 0;
+  border-radius: 12px;
+  background: var(--tierra);
+  color: var(--crema);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.boton-cerrar:focus-visible {
+  outline: 3px solid var(--tinta);
+  outline-offset: 2px;
+}
+
+.parcela-atributos {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.parcela-atributo {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 28px;
+  padding: 2px 0;
+  border-bottom: 1px dotted rgb(138 90 59 / 55%);
+}
+
+.parcela-atributo dt {
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.parcela-atributo dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.parcela-simbolo {
+  display: inline-block;
+  min-width: 1.6em;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+.parcela-compra {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  background: rgb(138 90 59 / 14%);
+  border: 2px solid var(--tierra);
+}
+
+.parcela-compra-ok {
+  /* Etiqueta, no botón: fondo verde claro, borde fino y sin relleno oscuro. */
+  background: rgb(63 93 58 / 14%);
+  color: var(--tinta);
+  border: 1px solid #3f5d3a;
+  font-weight: 600;
+}
+
+.parcela-compra-propia {
+  background: rgb(255 201 60 / 35%);
+  border-color: #b8860b;
+}
+
+/* Hueco para el botón Comprar y su confirmación (M3-04). */
+.panel-parcela-acciones:empty {
+  display: none;
+}
+
+.panel-parcela:focus {
+  outline: none;
+}
+
+.panel-parcela:focus-visible {
+  outline: 3px solid var(--tinta);
+  outline-offset: -5px;
+}
+
+.panel-parcela-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* Los botones de acción siempre a la vista: si el panel desplaza, se quedan al pie. */
+  position: sticky;
+  bottom: -8px;
+  padding-bottom: 8px;
+  margin-bottom: -8px;
+  background: rgb(246 236 214 / 100%);
+}
+
+.compra-confirmacion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgb(255 201 60 / 30%);
+  border: 2px solid #b8860b;
+}
+
+.compra-confirmar-texto {
+  margin: 0;
+  font-weight: 700;
+}
+
+.compra-botones {
+  display: flex;
+  /* «Comprar» a la izquierda y «Cancelar» a la derecha (mismo orden en el DOM y en pantalla): la
+     mitad derecha del botón «Comprar por N» queda sobre «Cancelar», así que un doble toque acaba
+     en Cancelar y no compra sin leer la pregunta. El foco inicial está en «Cancelar». */
+  gap: 8px;
+}
+
+.boton-compra {
+  flex: 1;
+  font: inherit;
+  font-weight: 700;
+  min-height: 48px;
+  padding: 0 0.9rem;
+  border: 2px solid var(--tinta);
+  border-radius: 12px;
+  background: var(--tinta);
+  color: var(--crema);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.boton-compra-cancelar {
+  background: var(--crema);
+  color: var(--tinta);
+}
+
+.boton-compra:focus-visible {
+  outline: 3px solid var(--tinta);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--crema);
+}
+
+/* Desactivado: se queda enfocable (el motivo está justo encima) pero no se activa. */
+.boton-compra[aria-disabled='true'] {
+  background: transparent;
+  color: rgb(59 42 26 / 70%);
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.parcela-error {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  background: #8a2b1c;
+  color: var(--crema);
+}
+
+/* Móvil horizontal (poca altura): panel compacto para que «Comprar» quepa sin desplazarse. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .panel-parcela {
+    width: min(400px, 52%);
+    gap: 4px;
+    padding: 6px 10px 8px;
+    max-height: calc(100% - 140px);
+  }
+
+  .hud-debug .panel-parcela {
+    max-height: calc(100% - 172px);
+  }
+
+  .panel-parcela h2 {
+    font-size: 1.15rem;
+  }
+
+  .parcela-atributos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 14px;
+  }
+
+  .parcela-atributo {
+    min-height: 24px;
+    flex-wrap: wrap;
+    gap: 0 6px;
+    font-size: 0.9rem;
+  }
+
+  .parcela-compra {
+    padding: 3px 8px;
+    font-size: 0.9rem;
+  }
+
+  .boton-compra {
+    min-height: 44px;
+  }
+
+  /* Con la confirmación abierta lo único que importa es la pregunta y sus dos botones. */
+  .panel-confirmando .parcela-atributos,
+  .panel-confirmando .parcela-compra {
+    display: none;
+  }
+}
+
+/* Móviles bajos (hasta 400 px): el panel se aparta del botón de modo para tener toda la altura. */
+@media (orientation: landscape) and (max-height: 400px) {
+  .panel-parcela {
+    right: 128px;
+    max-height: calc(100% - 84px);
+  }
+
+  .hud-debug .panel-parcela {
+    max-height: calc(100% - 116px);
+  }
+}
+
+/* Móvil vertical: hoja inferior, por encima del botón de modo. */
+@media (orientation: portrait) and (max-width: 700px) {
+  .panel-parcela,
+  .hud-debug .panel-parcela {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: 72px;
+    width: auto;
+    max-height: 55%;
+    border-radius: 18px 18px 14px 14px;
+  }
+}
+/* === Fin panel de parcela === */

@@ -7,6 +7,8 @@ import {
   crearEstadoInicial,
   ladoValle,
   mapaTransitabilidad,
+  parcelaComprable,
+  precioParcela,
   type Comando,
 } from '../core'
 import { Partida } from './partida'
@@ -22,7 +24,7 @@ let partida: Partida | undefined
 function datosPartida(): DatosEscenaValle {
   const p = leerParametros(window.location.search)
   const semilla = p.semilla ?? semillaNueva()
-  partida ??= new Partida(crearEstadoInicial({ semilla, dineroInicial: 0 }))
+  partida ??= new Partida(crearEstadoInicial({ semilla }))
   return {
     semilla,
     partida,
@@ -31,6 +33,8 @@ function datosPartida(): DatosEscenaValle {
     ...(p.en === undefined ? {} : { en: p.en }),
     ...(p.acelerar === undefined ? {} : { acelerar: p.acelerar }),
     ...(p.hora === undefined ? {} : { hora: p.hora }),
+    ...(p.seleccion === undefined ? {} : { seleccion: p.seleccion }),
+    ...(p.dinero === undefined ? {} : { dinero: p.dinero }),
   }
 }
 
@@ -171,6 +175,51 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
       const e = g.scene.getScene('valle')
       const s = e instanceof EscenaValle ? e.estado : undefined
       return s && { lado: ladoValle(s.valle), claves: [...s.cauce.vados] }
+    },
+    dinero: () => partida?.estado.dinero,
+    estadoVisual: (indice) => {
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.estadoVisual(indice) : undefined
+    },
+    repintadosParcelas: () => {
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.repintadosParcelas : undefined
+    },
+    seleccionada: () => partida?.seleccion.indice,
+    seleccionar: (indice) => {
+      // Solo con `?debug`; en Vida no hay selección.
+      if (!leerParametros(window.location.search).debug) return
+      if (partida?.estado.modo !== 'plano') return
+      if (!Number.isInteger(indice) || indice < 0 || indice >= partida.estado.valle.parcelas.length)
+        return
+      partida.seleccion.seleccionar(indice)
+    },
+    parcelaInfo: (indice) => {
+      // Solo con `?debug`: atributos, precio y comprabilidad de una parcela, según el estado.
+      if (!leerParametros(window.location.search).debug) return undefined
+      const e = g.scene.getScene('valle')
+      const s = e instanceof EscenaValle ? e.estado : undefined
+      const p = s?.valle.parcelas[indice]
+      if (!s || !p) return undefined
+      const c = parcelaComprable(s, indice)
+      return {
+        fila: p.fila,
+        columna: p.columna,
+        terreno: p.terreno,
+        fertilidad: p.fertilidad,
+        agua: p.agua,
+        estado: p.estado,
+        precio: precioParcela(s, indice),
+        comprable: c.comprable,
+        motivo: c.comprable ? undefined : c.motivo,
+        dinero: s.dinero,
+      }
+    },
+    puntoClicParcela: (indice) => {
+      // Solo con `?debug`: dónde pulsar (px de pantalla) para tocar una parcela de verdad.
+      if (!leerParametros(window.location.search).debug) return undefined
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.puntoClic(indice) : undefined
     },
     camara: () => {
       const e = g.scene.getScene('valle')

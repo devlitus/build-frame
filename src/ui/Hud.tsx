@@ -2,6 +2,8 @@ import type { ModoJuego } from '../core'
 import type { Partida } from '../game/partida'
 import { Aviso } from './Aviso'
 import { ControlesTiempo } from './ControlesTiempo'
+import { Dinero } from './Dinero'
+import { PanelParcela } from './PanelParcela'
 import { Reloj } from './Reloj'
 import { t } from './textos'
 import { ContextoPartida, useEstado, usePartida } from './useEstado'
@@ -34,6 +36,16 @@ export function BotonModo() {
   )
 }
 
+/** Ayuda de teclado del Modo Plano para lectores de pantalla (la enlaza el lienzo con `aria-describedby`). */
+function AyudaPlano() {
+  const plano = useEstado((e) => e.modo === 'plano')
+  return plano ? (
+    <p id="ayuda-plano" class="solo-lector">
+      {t('ayudaPlano')}
+    </p>
+  ) : null
+}
+
 /**
  * Interfaz de partida: arriba hora, fecha, controles de tiempo y aviso (en columna, sin
  * solaparse); abajo a la derecha el modo. Con `debug` el contador de fps ocupa la esquina
@@ -42,14 +54,19 @@ export function BotonModo() {
 export function Hud({ partida, debug = false }: { partida: Partida; debug?: boolean }) {
   return (
     <ContextoPartida.Provider value={partida}>
-      <div class="hud">
+      <div class={debug ? 'hud hud-debug' : 'hud'}>
         <div class={debug ? 'hud-arriba hud-arriba-debug' : 'hud-arriba'}>
           <div class="hud-superior">
-            <Reloj />
+            <div class="hud-izquierda">
+              <Reloj />
+              <Dinero />
+            </div>
             <ControlesTiempo />
           </div>
           <Aviso />
         </div>
+        <AyudaPlano />
+        <PanelParcela />
         <BotonModo />
       </div>
     </ContextoPartida.Provider>
