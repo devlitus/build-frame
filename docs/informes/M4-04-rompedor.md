@@ -37,3 +37,9 @@ Revisadas las nueve: `zonas-plano--*`, `zonas-barra--*`, `zonas-vida--*` en escr
 
 - Esc con la barra abierta y nada marcado solo deselecciona parcela: no cierra la barra. Es una decisión de diseño, no un fallo.
 - `capturas/` no se versiona; los PNG se regeneran lanzando el spec.
+
+## Resolución (orquestador)
+- **Fallo 1 (foco con Listo):** resuelto en `4d52bb9`. «Listo» enfoca el lienzo antes de cerrar la barra.
+- **Fallo 2 (rendimiento):** resuelto en `4d52bb9`. Ahora se estampan texturas de patrón por casilla con `batchDrawFrame`: de unos 225–271 ms a 79 ms de media por pincelada de valle entero. Desde `315b91c`, el test corre solo, en la tanda `SOLO`.
+- **S3 visual (Vivienda y río):** resuelto en `4d52bb9`. «Vivienda» pasa a verde azulado Okabe-Ito (`0x009e73`), comprobado en capturas.
+- **Nota de Esc:** queda desfasada. Desde `4d52bb9`, Escape sin nada marcado cierra la barra y devuelve el foco al lienzo.
