@@ -75,6 +75,9 @@ export class Seleccion {
     this._indice = undefined
     this._cancelarConfirmacion = undefined
     // Sin selección no hay panel: la zona ocupada se libera con él.
+    // Acoplamiento con la barra de zonas: la barra también fija `ocupado`, y este borrado solo es
+    // correcto porque, con la barra abierta, no se puede seleccionar parcela: así `deseleccionar()`
+    // nunca se ejecuta con una selección viva que dependa de la barra.
     this._ocupado = undefined
     this.avisar()
   }

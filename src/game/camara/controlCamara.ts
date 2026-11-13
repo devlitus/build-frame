@@ -32,6 +32,8 @@ export interface OpcionesCamara {
  */
 export class ControlCamara {
   private readonly opciones: OpcionesCamara
+  /** Punteros necesarios para desplazar la vista: 2 mientras el pincel de zonas pinta con uno. */
+  private _dedosParaArrastrar: 1 | 2 = 1
   private previa: Medida | undefined = undefined
   private objetivo: Punto | undefined = undefined
   private persiguiendo = false
@@ -87,6 +89,10 @@ export class ControlCamara {
     if (!v) this.previa = undefined
   }
 
+  set dedosParaArrastrar(n: 1 | 2) {
+    this._dedosParaArrastrar = n
+  }
+
   /**
    * Seguimiento suave hacia `objetivo` (px del mundo); se llama cada fotograma. Persigue solo
    * mientras el objetivo se mueve y hasta alcanzarlo, para no deshacer un desplazamiento
@@ -123,9 +129,9 @@ export class ControlCamara {
   }
 
   /** Desliza la vista hasta centrarla en `punto` (se avanza con `avanzarGuia`). */
-  guiarA(punto: Punto): void {
+  guiarA(punto: Punto, conExtension = true): void {
     this.guia = { ...punto }
-    this.extension = { ...punto }
+    if (conExtension) this.extension = { ...punto }
     this.soltando = false
     this.persiguiendo = false
   }
@@ -227,6 +233,8 @@ export class ControlCamara {
       }
       return
     }
+    // Con el pincel de zonas un solo puntero pinta: la cámara solo se mueve con dos.
+    if (ahora.ids.length < this._dedosParaArrastrar) return
     this.persiguiendo = false
     this.mover(antes.medio, ahora.medio, factor)
   }

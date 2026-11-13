@@ -9,6 +9,7 @@ import {
   mapaTransitabilidad,
   parcelaComprable,
   precioParcela,
+  zonaEn,
   type Comando,
 } from '../core'
 import { Partida } from './partida'
@@ -220,6 +221,36 @@ export function crearJuego(padre: HTMLElement): Phaser.Game {
       if (!leerParametros(window.location.search).debug) return undefined
       const e = g.scene.getScene('valle')
       return e instanceof EscenaValle ? e.puntoClic(indice) : undefined
+    },
+    zonaDe: (cx, cy) => {
+      // Solo con `?debug`: zona pintada en la casilla (cx, cy), o undefined.
+      if (!leerParametros(window.location.search).debug) return undefined
+      const s = partida?.estado
+      return s && zonaEn(s, cx, cy)
+    },
+    puntoClicCasilla: (cx, cy) => {
+      // Solo con `?debug`: dónde pulsar (px de pantalla) para tocar la casilla de verdad.
+      if (!leerParametros(window.location.search).debug) return undefined
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.puntoClicCasilla(cx, cy) : undefined
+    },
+    alfaZonas: () => {
+      // Solo con `?debug`: opacidad de la capa de zonas.
+      if (!leerParametros(window.location.search).debug) return undefined
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.alfaZonas() : undefined
+    },
+    pincel: () => {
+      const p = partida?.pincel
+      return (
+        p && {
+          abierto: p.abierto,
+          herramienta: p.herramienta,
+          cursor: p.cursor,
+          ancla: p.ancla,
+          rectangulo: p.rectanguloPrevio,
+        }
+      )
     },
     camara: () => {
       const e = g.scene.getScene('valle')

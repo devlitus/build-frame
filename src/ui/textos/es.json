@@ -60,5 +60,17 @@
   "errorCompra_otro": "No se pudo comprar la parcela",
   "ayudaPlano": "Modo Plano. Enter o Espacio eligen la parcela del centro de la vista. Con una parcela elegida, las flechas pasan a la parcela vecina, Tab llega al panel para comprarla y Escape la suelta. Sin parcela elegida, las flechas mueven la cámara.",
   "dineroAria": "Dinero",
-  "dineroMonedas": "monedas"
+  "dineroMonedas": "monedas",
+  "zonasBoton": "Zonas",
+  "zonasBotonAyuda": "Pintar zonas sobre tus parcelas",
+  "zonasBarra": "Pincel de zonas",
+  "zonasListo": "Listo",
+  "zonasListoAyuda": "Cerrar el pincel de zonas",
+  "zonasBorrar": "Borrar",
+  "zona_cultivo": "Cultivo",
+  "zona_huerto": "Huerto",
+  "zona_vivienda": "Vivienda",
+  "zona_almacen": "Almacén",
+  "avisoZonaSinCasillas": "Ahí no se puede pintar: elige casillas libres de tus parcelas",
+  "ayudaZonas": "Pincel de zonas abierto. Con una zona o el borrador elegidos, Enter o Espacio colocan el cursor de casilla en el centro de la vista; las flechas lo mueven; Enter marca la primera esquina y otro Enter aplica el rectángulo. Escape suelta la esquina y luego el cursor. Sin nada marcado, Escape cierra la barra. Sin cursor, las flechas y las teclas W, A, S y D mueven la cámara."
 }

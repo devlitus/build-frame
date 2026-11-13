@@ -9,7 +9,7 @@ const MS_AVISO = 6000
 const MS_REANUNCIO = 80
 
 /**
- * Aviso breve (no bloquea el juego) al recibir el evento `desmayo` o `parcela-comprada`; es una
+ * Aviso breve (no bloquea el juego) al recibir el evento `desmayo` o `parcela-comprada` (o un aviso de interfaz de la partida); es una
  * región `status`. Si llega otro con el aviso visible, el texto se quita y se vuelve a poner (se
  * reanuncia) y se reinician los 6 s.
  */
@@ -19,6 +19,15 @@ export function Aviso() {
   useEffect(() => {
     let mostrar: ReturnType<typeof setTimeout> | undefined
     let ocultar: ReturnType<typeof setTimeout> | undefined
+    const mostrarAviso = (nuevo: string): void => {
+      clearTimeout(mostrar)
+      clearTimeout(ocultar)
+      setTexto(undefined)
+      mostrar = setTimeout(() => {
+        setTexto(nuevo)
+        ocultar = setTimeout(() => setTexto(undefined), MS_AVISO)
+      }, MS_REANUNCIO)
+    }
     const baja = partida.suscribir(({ eventos, estado }) => {
       let nuevo: string | undefined
       for (const ev of eventos) {
@@ -31,17 +40,14 @@ export function Aviso() {
           })
         }
       }
-      if (nuevo === undefined) return
-      clearTimeout(mostrar)
-      clearTimeout(ocultar)
-      setTexto(undefined)
-      mostrar = setTimeout(() => {
-        setTexto(nuevo)
-        ocultar = setTimeout(() => setTexto(undefined), MS_AVISO)
-      }, MS_REANUNCIO)
+      if (nuevo !== undefined) mostrarAviso(nuevo)
+    })
+    const bajaUi = partida.suscribirAvisos((aviso) => {
+      if (aviso === 'zona-sin-casillas') mostrarAviso(t('avisoZonaSinCasillas'))
     })
     return () => {
       baja()
+      bajaUi()
       clearTimeout(mostrar)
       clearTimeout(ocultar)
     }

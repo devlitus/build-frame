@@ -5,6 +5,7 @@ import {
   type EventoJuego,
   type ResultadoComando,
 } from '../core'
+import { Pincel } from './pincel'
 import { Seleccion } from './seleccion'
 
 /** Aviso a los suscriptores: el estado vigente y los eventos del comando que lo provocó. */
@@ -14,6 +15,9 @@ export interface CambioPartida {
 }
 
 export type Suscriptor = (cambio: CambioPartida) => void
+
+/** Avisos de interfaz que no nacen de un evento del núcleo (un comando rechazado, por ejemplo). */
+export type AvisoInterfaz = 'zona-sin-casillas'
 
 /**
  * Contenedor de la partida en la capa de juego: guarda el `EstadoJuego`, aplica comandos con
@@ -25,6 +29,9 @@ export class Partida {
   private readonly suscriptores = new Set<Suscriptor>()
   /** Parcela seleccionada: estado de interfaz, no del núcleo ni de lo que se guarda. */
   readonly seleccion = new Seleccion()
+  /** Pincel de zonas (barra, herramienta, arrastre y cursor): también estado de interfaz. */
+  readonly pincel = new Pincel()
+  private readonly suscriptoresAviso = new Set<(aviso: AvisoInterfaz) => void>()
 
   constructor(estado: EstadoJuego) {
     this._estado = estado
@@ -41,7 +48,10 @@ export class Partida {
     const cambio = r.estado !== this._estado
     this._estado = r.estado
     // La selección solo existe en el Modo Plano: al volver a Vida se suelta (y el panel se cierra).
-    if (r.estado.modo !== 'plano') this.seleccion.deseleccionar()
+    if (r.estado.modo !== 'plano') {
+      this.seleccion.deseleccionar()
+      this.pincel.cerrar()
+    }
     if (cambio || r.eventos.length > 0) this.avisar({ estado: r.estado, eventos: r.eventos })
     return r
   }
@@ -50,6 +60,7 @@ export class Partida {
   reemplazar(estado: EstadoJuego): void {
     this._estado = estado
     this.seleccion.deseleccionar()
+    this.pincel.cerrar()
     this.avisar({ estado, eventos: [] })
   }
 
@@ -58,6 +69,24 @@ export class Partida {
     this.suscriptores.add(f)
     return () => {
       this.suscriptores.delete(f)
+    }
+  }
+
+  /** Pide a la interfaz un aviso breve (lo muestra `Aviso`). */
+  avisarInterfaz(aviso: AvisoInterfaz): void {
+    for (const f of [...this.suscriptoresAviso]) {
+      try {
+        f(aviso)
+      } catch (error) {
+        console.error(error)
+      }
+    }
+  }
+
+  suscribirAvisos(f: (aviso: AvisoInterfaz) => void): () => void {
+    this.suscriptoresAviso.add(f)
+    return () => {
+      this.suscriptoresAviso.delete(f)
     }
   }
 

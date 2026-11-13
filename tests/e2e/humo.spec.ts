@@ -150,3 +150,51 @@ test('comprar la primera parcela baja el dinero del HUD', HUMO, async ({ page })
   await expect(hud).toContainText(resto, LENTO)
   expect(await page.evaluate(() => window.__raices?.dinero())).toBe(1100 - precio)
 })
+
+test('pintar una zona con el pincel y borrarla', HUMO, async ({ page, isMobile }) => {
+  await abrirValle(page, '?semilla=42&debug&modo=plano&propias=14,15,20,21')
+  await page.getByRole('button', { name: 'Zonas', exact: true }).click(LENTO)
+  const barra = page.getByRole('group', { name: 'Pincel de zonas' })
+  await expect(barra).toBeVisible(LENTO)
+  const casilla = async (cx: number, cy: number) => {
+    await expect
+      .poll(
+        () =>
+          page.evaluate((c) => window.__raices?.puntoClicCasilla(c.x, c.y) !== undefined, {
+            x: cx,
+            y: cy,
+          }),
+        LENTO,
+      )
+      .toBe(true)
+    const p = await page.evaluate((c) => window.__raices?.puntoClicCasilla(c.x, c.y), {
+      x: cx,
+      y: cy,
+    })
+    if (!p) throw new Error('casilla no visible')
+    return p
+  }
+  // Un toque o clic pinta una casilla; se prueban varias por si el río corta alguna.
+  const pintadas = async () =>
+    page.evaluate(() => {
+      let n = 0
+      for (let x = 44; x <= 52; x++) if (window.__raices?.zonaDe(x, 46) === 'cultivo') n++
+      return n
+    })
+  await barra.getByRole('button', { name: 'Cultivo' }).click()
+  for (let x = 44; x <= 52; x++) {
+    const p = await casilla(x, 46)
+    if (isMobile) await page.touchscreen.tap(p.x, p.y)
+    else await page.mouse.click(p.x, p.y)
+  }
+  await expect.poll(pintadas, LENTO).toBeGreaterThan(0)
+  await barra.getByRole('button', { name: 'Borrar' }).click()
+  for (let x = 44; x <= 52; x++) {
+    const p = await casilla(x, 46)
+    if (isMobile) await page.touchscreen.tap(p.x, p.y)
+    else await page.mouse.click(p.x, p.y)
+  }
+  await expect.poll(pintadas, LENTO).toBe(0)
+  await barra.getByRole('button', { name: 'Listo' }).click()
+  await expect(barra).toHaveCount(0)
+})
