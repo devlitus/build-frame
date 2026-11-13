@@ -36,13 +36,13 @@ export class VistaSilueta {
     const alto = s.alto * T
     g.fillStyle(valida ? E.valida : E.invalida, E.alfaRelleno)
     g.fillRect(x, y, ancho, alto)
-    const m = E.grosorTinta / 2
+    // Contorno centrado en el borde de la huella: gana grosor sin comerse el relleno de una casilla.
     g.lineStyle(E.grosorTinta, E.tinta, 1)
-    g.strokeRect(x + m, y + m, ancho - E.grosorTinta, alto - E.grosorTinta)
+    g.strokeRect(x, y, ancho, alto)
     g.lineStyle(E.grosorCrema, E.crema, 1)
-    g.strokeRect(x + m, y + m, ancho - E.grosorTinta, alto - E.grosorTinta)
+    g.strokeRect(x, y, ancho, alto)
     if (!valida) {
-      const a = E.grosorTinta + 4
+      const a = Math.max(E.grosorTinta / 2 + 2, Math.min(ancho, alto) * 0.22)
       const aspa = (grosor: number, color: number): void => {
         g.lineStyle(grosor, color, 1)
         g.beginPath()

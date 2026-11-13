@@ -939,23 +939,71 @@ body {
   gap: 8px;
 }
 
-/* Móvil horizontal (y cualquier pantalla baja): el panel se aprieta para dejar ver el valle. */
-@media (max-height: 520px) {
+/*
+ * Pantalla apaisada y baja: el panel pasa a una tarjeta a la izquierda, bajo el HUD, y deja libre el
+ * resto del valle (la cámara coloca la silueta en lo que queda a su derecha). El catálogo se
+ * compacta para que quepan los tres edificios sin desplazar.
+ */
+@media (orientation: landscape) and (max-height: 520px) {
   .panel-construir {
-    bottom: 68px;
+    top: auto;
+    right: auto;
+    left: 8px;
+    bottom: 8px;
+    width: min(360px, 56vw);
+    justify-content: flex-start;
   }
 
   .panel-construir-caja {
+    width: 100%;
+    max-height: calc(100vh - 106px);
     gap: 4px;
     padding: 6px 8px 8px;
+    border-radius: 14px;
   }
 
   .construir-ayuda {
     display: none;
   }
 
+  .catalogo {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
   .edificio-opcion {
-    padding: 4px 10px;
+    padding: 2px 10px;
+    min-height: 44px;
+    gap: 0;
+    line-height: 1.15;
+  }
+
+  .construir-cabecera .boton-listo {
+    min-height: 44px;
+  }
+
+  .edificio-nombre {
+    font-size: 1rem;
+  }
+
+  .edificio-detalle {
+    display: none;
+  }
+
+  .edificio-coste,
+  .edificio-motivo {
+    font-size: 0.76rem;
+  }
+}
+
+/* Móvil vertical: el panel sigue siendo una hoja inferior sobre el botón de modo. */
+@media (orientation: portrait) and (max-height: 520px) {
+  .panel-construir {
+    bottom: 68px;
+  }
+
+  .construir-ayuda {
+    display: none;
   }
 }
 /* === Fin M4-05 === */

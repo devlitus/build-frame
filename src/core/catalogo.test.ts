@@ -96,3 +96,16 @@ describe('diasRestantes', () => {
     expect(diasRestantes(obra, 9)).toBe(0)
   })
 })
+
+describe('entradaCatalogo con dinero corrupto', () => {
+  it('si el motivo es de pago, faltan no sale a cero', () => {
+    for (const dinero of [100.5, 2 ** 60, Number.NaN]) {
+      const e = entradaCatalogo(
+        { edificios: [], dinero, materiales: { madera: 100, piedra: 100 } },
+        'caja-envio',
+      )
+      expect(e.motivo).toBe('fondos-insuficientes')
+      expect(e.faltan.dinero).toBeGreaterThan(0)
+    }
+  })
+})

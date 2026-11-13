@@ -177,20 +177,6 @@ function dibujarAndamio(g: G, { x, y, w, h }: Rect): void {
   }
 }
 
-/** Cartel de la obra: tablón crema con contorno, en el borde inferior de la huella. */
-function dibujarCartel(g: G, { x, y, w, h }: Rect): Rect {
-  const o = E.obra
-  const cx = x + w / 2
-  const cartel = {
-    x: cx - o.anchoCartel / 2,
-    y: y + h - o.altoCartel / 2 - 2,
-    w: o.anchoCartel,
-    h: o.altoCartel,
-  }
-  rectangulo(g, o.cartel, cartel.x, cartel.y, cartel.w, cartel.h)
-  return cartel
-}
-
 const dibujar: Readonly<Record<TipoEdificio, (g: G, r: Rect) => void>> = {
   casa: dibujarCasa,
   'caja-envio': dibujarCaja,
@@ -209,6 +195,8 @@ export class VistaEdificios {
   private readonly dibujos = new Map<number, Dibujo>()
   private lista: readonly Edificio[] | undefined = undefined
   private dia = -1
+  /** Zoom de cámara (cuantizado) con el que se dibujaron los carteles: tienen tamaño fijo en pantalla. */
+  private zoom = -1
   private _repintados = 0
 
   constructor(private readonly escena: Phaser.Scene) {}
@@ -223,21 +211,27 @@ export class VistaEdificios {
     return [...this.dibujos.values()].map((d) => d.visible).sort((a, b) => a.id - b.id)
   }
 
-  actualizar(e: Pick<EstadoJuego, 'edificios' | 'dia'>): void {
-    if (e.edificios === this.lista && e.dia === this.dia) return
+  /**
+   * `zoom` es el de la cámara: el cartel de una obra mide lo mismo en pantalla con cualquier zoom,
+   * así que se rehace (solo las obras) cuando el zoom cambia un par de puntos.
+   */
+  actualizar(e: Pick<EstadoJuego, 'edificios' | 'dia'>, zoom = 1): void {
+    const z = Math.round(Math.min(Math.max(zoom, 0.1), 8) * 50) / 50
+    if (e.edificios === this.lista && e.dia === this.dia && z === this.zoom) return
     this.lista = e.edificios
     this.dia = e.dia
+    this.zoom = z
     const vivos = new Set<number>()
     for (const ed of e.edificios) {
       const def = defEdificio(ed.tipo)
       if (!def) continue
       vivos.add(ed.id)
       const dias = ed.obra ? diasRestantes(ed.obra, e.dia) : undefined
-      const clave = `${ed.tipo}|${ed.x},${ed.y}|${dias ?? 'ok'}`
+      const clave = `${ed.tipo}|${ed.x},${ed.y}|${dias ?? 'ok'}${dias === undefined ? '' : `|${z}`}`
       const actual = this.dibujos.get(ed.id)
       if (actual?.clave === clave) continue
       this.quitar(ed.id)
-      this.dibujos.set(ed.id, this.crear(ed, clave, dias, def))
+      this.dibujos.set(ed.id, this.crear(ed, clave, dias, def, z))
     }
     for (const id of [...this.dibujos.keys()]) if (!vivos.has(id)) this.quitar(id)
   }
@@ -247,6 +241,7 @@ export class VistaEdificios {
     clave: string,
     dias: number | undefined,
     def: { readonly ancho: number; readonly alto: number },
+    zoom: number,
   ): Dibujo {
     this._repintados++
     const h = huellaDe(def, ed.x, ed.y)
@@ -257,17 +252,7 @@ export class VistaEdificios {
     if (dias === undefined) dibujar[ed.tipo](g, r)
     else {
       dibujarAndamio(g, r)
-      const cartel = dibujarCartel(g, r)
-      texto = this.escena.add
-        .text(cartel.x + cartel.w / 2, cartel.y + cartel.h / 2, textoCartel(dias), {
-          fontFamily: 'system-ui, sans-serif',
-          fontSize: '14px',
-          fontStyle: 'bold',
-          color: E.obra.colorTexto,
-        })
-        .setOrigin(0.5)
-        .setResolution(2)
-        .setDepth(profundidad + 0.1)
+      texto = this.dibujarCartel(g, r, dias, zoom, profundidad)
     }
     return {
       clave,
@@ -287,6 +272,48 @@ export class VistaEdificios {
     }
   }
 
+  /**
+   * Cartel de la obra con tamaño fijo en pantalla (compensa el zoom de la cámara). Una obra
+   * estrecha en pantalla lleva solo el número en un círculo; una ancha, «N días» en un tablón.
+   */
+  private dibujarCartel(
+    g: G,
+    { x, y, w, h }: Rect,
+    dias: number,
+    zoom: number,
+    profundidad: number,
+  ): Phaser.GameObjects.Text {
+    const o = E.obra
+    const k = 1 / zoom
+    const compacto = w * zoom < o.anchoMinimoTablonPx
+    const texto = this.escena.add
+      .text(0, 0, compacto ? String(dias) : textoCartel(dias), {
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: `${o.textoPx * k}px`,
+        fontStyle: 'bold',
+        color: o.colorTexto,
+      })
+      .setOrigin(0.5)
+      .setResolution(2)
+      .setDepth(profundidad + 0.1)
+    const cx = x + w / 2
+    // El cartel se apoya en el borde inferior de la huella, sin salirse por abajo más de un poco.
+    const alto = (o.textoPx + 8) * k
+    const ancho = compacto ? alto : texto.width + 12 * k
+    const cy = y + h - Math.min(alto / 2, h / 2) - 2 * k
+    texto.setPosition(cx, cy)
+    g.fillStyle(o.cartel, 1)
+    g.lineStyle(E.grosor * k, E.contorno, 1)
+    if (compacto) {
+      g.fillCircle(cx, cy, alto / 2)
+      g.strokeCircle(cx, cy, alto / 2)
+    } else {
+      g.fillRect(cx - ancho / 2, cy - alto / 2, ancho, alto)
+      g.strokeRect(cx - ancho / 2, cy - alto / 2, ancho, alto)
+    }
+    return texto
+  }
+
   private quitar(id: number): void {
     const d = this.dibujos.get(id)
     if (!d) return
@@ -300,9 +327,10 @@ export class VistaEdificios {
     const lista = this.lista
     const dia = this.dia
     this.destruir()
+    const zoom = this.zoom
     this.lista = undefined
     this.dia = -1
-    if (lista) this.actualizar({ edificios: lista, dia })
+    if (lista) this.actualizar({ edificios: lista, dia }, zoom)
   }
 
   destruir(): void {

@@ -1,9 +1,9 @@
 import {
-  colocacionValida,
+  comprobarConstruir,
   defEdificio,
   ladoValle,
   type EstadoJuego,
-  type ResultadoColocacion,
+  type ErrorComando,
   type TipoEdificio,
 } from '../core'
 import { casillaVecina, type Casilla, type DireccionCasilla } from './pincel'
@@ -15,6 +15,10 @@ import { casillaVecina, type Casilla, type DireccionCasilla } from './pincel'
  * QUÉ se está intentando colocar y dónde.
  */
 
+/** Veredicto de `Construir` para la silueta: mismo comprobador que el comando. */
+export type ResultadoSilueta =
+  { readonly valida: true } | { readonly valida: false; readonly motivo: ErrorComando }
+
 /** Silueta de un edificio sobre el valle: su huella y si se puede colocar (con el motivo si no). */
 export interface Silueta {
   readonly tipo: TipoEdificio
@@ -23,7 +27,7 @@ export interface Silueta {
   readonly y: number
   readonly ancho: number
   readonly alto: number
-  readonly resultado: ResultadoColocacion
+  readonly resultado: ResultadoSilueta
 }
 
 /**
@@ -43,6 +47,16 @@ export function esquinaDeSilueta(
   }
 }
 
+function veredicto(
+  estado: EstadoJuego,
+  tipo: TipoEdificio,
+  x: number,
+  y: number,
+): ResultadoSilueta {
+  const motivo = comprobarConstruir(estado, tipo, x, y)
+  return motivo ? { valida: false, motivo } : { valida: true }
+}
+
 /** Silueta de `tipo` centrada en la casilla `centro`, con el veredicto del núcleo; undefined si el tipo no existe. */
 export function calcularSilueta(
   estado: EstadoJuego,
@@ -58,7 +72,7 @@ export function calcularSilueta(
     y,
     ancho: def.ancho,
     alto: def.alto,
-    resultado: colocacionValida(estado, tipo, x, y),
+    resultado: veredicto(estado, tipo, x, y),
   }
 }
 

@@ -192,8 +192,10 @@ export const ESTILO_EDIFICIOS = {
     alfaSuelo: 0.7,
     madera: 0xd8b36a,
     cartel: 0xf6ecd6,
-    anchoCartel: 54,
-    altoCartel: 22,
+    /** Tamaño del texto del cartel en píxeles de PANTALLA (se compensa el zoom). */
+    textoPx: 12,
+    /** Obras más estrechas que esto en pantalla llevan solo el número en un círculo. */
+    anchoMinimoTablonPx: 56,
     colorTexto: '#4A3426',
   },
 } as const
@@ -205,6 +207,6 @@ export const ESTILO_SILUETA = {
   alfaRelleno: 0.45,
   tinta: 0x3b2a1a,
   crema: 0xfff3c4,
-  grosorTinta: 8,
-  grosorCrema: 4,
+  grosorTinta: 12,
+  grosorCrema: 5,
 } as const

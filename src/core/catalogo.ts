@@ -24,7 +24,7 @@ export function entradaCatalogo(estado: EstadoCatalogo, tipo: TipoEdificio): Ent
   if (!def) throw new RangeError(`tipo de edificio desconocido: ${tipo}`)
   const { coste } = def
   const falta = (necesita: number, tiene: number): number =>
-    Number.isFinite(tiene) ? Math.max(0, necesita - tiene) : necesita
+    Number.isSafeInteger(tiene) ? Math.max(0, necesita - tiene) : necesita
   const motivo = unicoYaExiste(estado, tipo, def) ? 'unico-ya-existe' : faltaPagar(estado, def)
   return {
     tipo,

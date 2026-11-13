@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { catalogo, restoTrasPagar, type EntradaCatalogo, type TipoEdificio } from '../core'
 import {
   nombreEdificio,
@@ -18,6 +18,26 @@ import {
   useSeleccion,
   useSilueta,
 } from './useEstado'
+
+/** ¿Se usa un puntero táctil? Parte de `(pointer: coarse)` y sigue al último puntero que tocó la pantalla (sin depender del hover). */
+function useTactil(): boolean {
+  const [tactil, fijar] = useState(
+    () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches,
+  )
+  useEffect(() => {
+    const alPuntero = (ev: PointerEvent) => {
+      if (ev.pointerType === 'touch' || ev.pointerType === 'pen') fijar(true)
+      else if (ev.pointerType === 'mouse') fijar(false)
+    }
+    window.addEventListener('pointerdown', alPuntero, true)
+    return () => window.removeEventListener('pointerdown', alPuntero, true)
+  }, [])
+  return tactil
+}
+
+/** Instante (ms) en que se confirmó la última obra: el catálogo recién pintado ignora el segundo toque de un doble toque. */
+let ultimaConfirmacion = Number.NEGATIVE_INFINITY
+const GUARDA_TRAS_CONFIRMAR_MS = 400
 
 function devolverFoco(): void {
   document.getElementById('juego')?.focus({ preventScroll: true })
@@ -64,6 +84,7 @@ function Opcion(props: { entrada: EntradaCatalogo }) {
       data-tipo={tipo}
       data-motivo={entrada.motivo}
       onClick={() => {
+        if (performance.now() - ultimaConfirmacion < GUARDA_TRAS_CONFIRMAR_MS) return
         partida.construccion.elegir(tipo)
         // Con puntero o con teclado: lo siguiente es mover la silueta, que escucha el lienzo.
         devolverFoco()
@@ -127,6 +148,7 @@ function Colocando(props: { tipo: TipoEdificio }) {
   const partida = usePartida()
   const { tipo } = props
   const silueta = useSilueta()
+  const tactil = useTactil()
   const estado = useEstado((e) => e)
   const entrada = useMemo(() => catalogo(estado).find((e) => e.tipo === tipo), [estado, tipo])
   const resultado = silueta?.resultado
@@ -164,7 +186,9 @@ function Colocando(props: { tipo: TipoEdificio }) {
         <span aria-hidden="true">{valida ? '✓ ' : '✕ '}</span>
         {texto}
       </p>
-      <p class="construir-ayuda">{t('construirAyudaSilueta')}</p>
+      <p class="construir-ayuda">
+        {t(tactil ? 'construirAyudaSilueta' : 'construirAyudaSiluetaTeclado')}
+      </p>
       <div class="construir-acciones">
         <button
           type="button"
@@ -228,7 +252,13 @@ function Confirmacion(props: { tipo: TipoEdificio; origen: 'puntero' | 'teclado'
           type="button"
           class="boton-compra"
           ref={refConstruir}
+          onKeyDown={(ev) => {
+            // La repetición automática de Enter o Espacio no construye: hace falta una pulsación nueva.
+            // (El clic de Enter nace en el keydown; cancelarlo aquí evita ese clic.)
+            if (ev.repeat) ev.preventDefault()
+          }}
           onClick={() => {
+            ultimaConfirmacion = performance.now()
             devolverFoco()
             partida.construirAqui()
           }}

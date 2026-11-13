@@ -238,7 +238,7 @@ export class EscenaValle extends Phaser.Scene {
     // Edificios y obras (M4-05): un Graphics por edificio, ordenados por Y como el personaje.
     this.edificios?.destruir()
     this.edificios = new VistaEdificios(this)
-    this.edificios.actualizar(inicial)
+    this.edificios.actualizar(inicial, this.cameras.main.zoom)
     this.vistaSilueta?.destruir()
     this.vistaSilueta = new VistaSilueta(this)
     // Contorno de la parcela seleccionada (estado de interfaz): por encima del personaje y del
@@ -736,7 +736,7 @@ export class EscenaValle extends Phaser.Scene {
     this.parcelas?.repintar(partida.estado)
     this.zonas?.actualizar(partida.estado)
     this.vistaPincel?.actualizar(partida.pincel)
-    this.edificios?.actualizar(partida.estado)
+    this.edificios?.actualizar(partida.estado, this.cameras.main.zoom)
     this.vistaSilueta?.actualizar(partida.silueta())
     const destino = this.seguidor.destino
     if (destino) this.marca?.mostrar(destino.x * TAM_CASILLA, destino.y * TAM_CASILLA)
