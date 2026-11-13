@@ -1200,14 +1200,22 @@ test.describe('M4 global · solo teclado', () => {
       s,
     )
     await expect.poll(async () => (await edificios(page)).length).toBe(1)
-    // El jugador lleva la vista hacia la casa con las flechas (sin selección, mueven la cámara).
+    // El jugador lleva la vista hacia la casa con las flechas (sin selección, mueven la cámara): parte de más
+    // arriba y mantiene la flecha hasta que el centro de la vista llega a la casa (con el zoom del Plano
+    // la cámara ya puede centrarse en cualquier casilla del valle, pero no se queda sola en la casa).
+    await centrar(page, 36, 66)
     await page.locator('#juego').focus()
     await page.keyboard.down('ArrowDown')
-    await page.waitForTimeout(2500)
+    await expect
+      .poll(
+        async () => {
+          const c = await page.evaluate(() => window.__raices?.camara())
+          return ((c?.scrollY ?? 0) + (c?.alto ?? 0) / 2) / 32
+        },
+        { intervals: [10] },
+      )
+      .toBeGreaterThanOrEqual(s.y + 1)
     await page.keyboard.up('ArrowDown')
-    await page.keyboard.down('ArrowLeft')
-    await page.waitForTimeout(400)
-    await page.keyboard.up('ArrowLeft')
     const cam = await page.evaluate(() => window.__raices?.camara())
     const centroY = ((cam?.scrollY ?? 0) + (cam?.alto ?? 0) / 2) / 32
     test.info().annotations.push({

@@ -22,7 +22,7 @@ import { CLAVE_TEXTOS_LIENZO, type TextosLienzo } from '../textosLienzo'
 import { VistaEdificios, type EdificioVisible } from '../valle/vistaEdificios'
 import { VistaSilueta } from '../valle/vistaSilueta'
 import { ColocadorEdificio } from '../colocador'
-import { sePuedeColocar, type Construccion } from '../construir'
+import { casillaInicialSilueta, sePuedeColocar, type Construccion } from '../construir'
 import { VistaZonas } from '../valle/vistaZonas'
 import {
   casillaEnCentroDeVista,
@@ -41,6 +41,7 @@ import {
   tamanoMundoPx,
 } from '../valle/dibujar'
 import { medirReservasHud } from '../areaHud'
+import type { RectPantalla } from '../seleccion'
 import { areaLibre, centroParaVer, parcelaEnPunto, puntoDeToque, rectParcela } from '../picking'
 import { parcelaEnCentroDeVista, parcelaVecina, type DireccionParcela } from '../cursorParcela'
 import { SelectorParcela } from '../selectorParcela'
@@ -417,8 +418,30 @@ export class EscenaValle extends Phaser.Scene {
     const c = this.control
     if (!g || !c || !this._partida || !Number.isInteger(i)) return undefined
     const pantalla = { ancho: this.scale.width, alto: this.scale.height }
-    const libre = areaLibre(pantalla, this._partida.seleccion.ocupado, medirReservasHud())
+    const libre = this.zonaLibre(pantalla)
     return puntoDeToque(c.vista, pantalla, libre, rectParcela(g, i))
+  }
+
+  /**
+   * Zona de pantalla que no tapan ni el HUD ni los paneles. De paso fija los márgenes de la
+   * cámara del Modo Plano: el valle puede pasar de su borde lo que tapa la interfaz, para ver
+   * lo que queda debajo (más un poco de aire). En Vida no hay márgenes.
+   */
+  private zonaLibre(pantalla: { ancho: number; alto: number }): RectPantalla {
+    const partida = this._partida
+    const libre = areaLibre(pantalla, partida?.seleccion.ocupado, medirReservasHud())
+    const h = CONFIG_CAMARA.holguraBordePx
+    this.control?.fijarMargenes(
+      this.modoAplicado === 'plano'
+        ? {
+            arriba: libre.y + h,
+            abajo: Math.max(0, pantalla.alto - libre.y - libre.alto) + h,
+            izq: libre.x + h,
+            der: Math.max(0, pantalla.ancho - libre.x - libre.ancho) + h,
+          }
+        : undefined,
+    )
+    return libre
   }
 
   /** La cámara se desliza (guía o vuelta de la extensión): gancho de prueba. */
@@ -439,7 +462,7 @@ export class EscenaValle extends Phaser.Scene {
     const c = this.control
     if (!c || !this._partida || !Number.isInteger(cx) || !Number.isInteger(cy)) return undefined
     const pantalla = { ancho: this.scale.width, alto: this.scale.height }
-    const libre = areaLibre(pantalla, this._partida.seleccion.ocupado, medirReservasHud())
+    const libre = this.zonaLibre(pantalla)
     const celda = {
       x: cx * TAM_CASILLA,
       y: cy * TAM_CASILLA,
@@ -586,7 +609,7 @@ export class EscenaValle extends Phaser.Scene {
     if (!partida || !this.control) return { x: 0, y: 0 }
     const lado = ladoValle(partida.estado.valle)
     const pantalla = { ancho: this.scale.width, alto: this.scale.height }
-    const libre = areaLibre(pantalla, partida.seleccion.ocupado, medirReservasHud())
+    const libre = this.zonaLibre(pantalla)
     const m = this.cameras.main.getWorldPoint(libre.x + libre.ancho / 2, libre.y + libre.alto / 2)
     return casillaMasCercana(lado, TAM_CASILLA, m.x, m.y) ?? { x: 0, y: 0 }
   }
@@ -594,7 +617,8 @@ export class EscenaValle extends Phaser.Scene {
   /** Al elegir un edificio la silueta aparece en el centro de la zona libre. */
   private situarSilueta(): void {
     const c = this._partida?.construccion
-    if (c?.activo && !c.centro) c.colocar(this.casillaCentroLibre())
+    if (!c?.activo || c.centro || !this._partida || c.tipo === undefined) return
+    c.colocar(casillaInicialSilueta(this._partida.estado, c.tipo, this.casillaCentroLibre()))
   }
 
   /** Si la silueta queda fuera de la zona libre (o bajo el panel), la cámara la busca. */
@@ -603,7 +627,7 @@ export class EscenaValle extends Phaser.Scene {
     const s = partida?.silueta()
     if (!partida || !s || !this.control) return
     const pantalla = { ancho: this.scale.width, alto: this.scale.height }
-    const libre = areaLibre(pantalla, partida.seleccion.ocupado, medirReservasHud())
+    const libre = this.zonaLibre(pantalla)
     const rect = {
       x: s.x * TAM_CASILLA,
       y: s.y * TAM_CASILLA,
@@ -620,7 +644,7 @@ export class EscenaValle extends Phaser.Scene {
     const c = partida?.pincel.cursor
     if (!partida || !c || !this.control) return
     const pantalla = { ancho: this.scale.width, alto: this.scale.height }
-    const libre = areaLibre(pantalla, partida.seleccion.ocupado, medirReservasHud())
+    const libre = this.zonaLibre(pantalla)
     const celda = {
       x: c.x * TAM_CASILLA,
       y: c.y * TAM_CASILLA,
@@ -721,6 +745,8 @@ export class EscenaValle extends Phaser.Scene {
     const partida = this._partida
     const g = this.geometria()
     if (!partida || !g) return
+    // El panel o las reservas del HUD pueden haber cambiado: los márgenes de la cámara se ponen al día.
+    this.zonaLibre({ ancho: this.scale.width, alto: this.scale.height })
     const i = partida.seleccion.indice
     const idEdificio = partida.edificioSeleccionado.id
     const edificio =
@@ -735,9 +761,12 @@ export class EscenaValle extends Phaser.Scene {
     }
     // Al mover, la silueta empieza donde está el edificio: si queda tapada por el panel, la cámara la busca.
     const moviendo = partida.construccion.origen
-    if (moviendo !== undefined && partida.construccion.activo) {
+    if (partida.construccion.activo && partida.construccion.centro) {
       const o = partida.seleccion.ocupado
-      const clave = 'm' + moviendo + '|' + (o ? `${o.x},${o.y},${o.ancho},${o.alto}` : '')
+      const clave =
+        (moviendo !== undefined ? 'm' + moviendo : 'c' + partida.construccion.tipo) +
+        '|' +
+        (o ? `${o.x},${o.y},${o.ancho},${o.alto}` : '')
       if (clave !== this.claveGuia) {
         this.claveGuia = clave
         this.verSilueta()
@@ -893,6 +922,7 @@ export class EscenaValle extends Phaser.Scene {
     const enVida = modo === 'vida'
     this.control.arrastreActivo = !enVida || ARRASTRE_EN_MODO_VIDA
     this.control.seguirActivo = enVida
+    this.zonaLibre({ ancho: this.scale.width, alto: this.scale.height })
   }
 
   private rehornear(): void {

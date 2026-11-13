@@ -427,6 +427,8 @@ test.describe('pantallas bajas', () => {
         p ?? { x: 0, y: 0 },
       )
       expect.soft(enLienzo, 'silueta inicial bajo el panel o el HUD').toBe('CANVAS')
+      // Con la silueta elegida el panel crece y la cámara la busca: se espera a que termine el deslizamiento.
+      await expect.poll(() => page.evaluate(() => window.__raices?.camara()?.guiando)).toBe(false)
       const sitio = await buscarSitio(page, 'caja-envio', true)
       await apuntar(page, sitio.punto)
       await expect.poll(async () => (await silueta(page))?.valida).toBe(true)

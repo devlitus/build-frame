@@ -49,8 +49,21 @@ export function zoomEncuadrado(pantalla: Pantalla, mundo: number): number {
  * del centro hasta incluirlo, aunque quede fuera de los límites normales del valle.
  */
 export interface Extension {
-  readonly x?: number
-  readonly y?: number
+  readonly x?: number | undefined
+  readonly y?: number | undefined
+  /** Márgenes permanentes del Modo Plano (ver `Margenes`). */
+  readonly margenes?: Margenes | undefined
+}
+
+/**
+ * Lo que la interfaz tapa en cada lado de la pantalla (px de pantalla). Permite que el borde del
+ * valle llegue hasta el borde de la zona libre y que cualquier casilla pueda quedar en el centro.
+ */
+export interface Margenes {
+  readonly arriba: number
+  readonly abajo: number
+  readonly izq: number
+  readonly der: number
 }
 
 export function limitarEje(
@@ -59,10 +72,18 @@ export function limitarEje(
   zoom: number,
   mundo: number,
   extension?: number,
+  margenLo = 0,
+  margenHi = 0,
 ): number {
   const visible = pantalla / zoom
   let lo = visible >= mundo ? mundo / 2 : visible / 2
   let hi = visible >= mundo ? mundo / 2 : mundo - visible / 2
+  if (visible < mundo && (margenLo > 0 || margenHi > 0)) {
+    // El borde del valle llega al borde de la zona libre (se ve lo que tapan HUD y paneles) y
+    // cualquier casilla del valle puede quedar en el centro.
+    lo = Math.min(lo - Math.max(0, margenLo) / zoom, 0)
+    hi = Math.max(hi + Math.max(0, margenHi) / zoom, mundo)
+  }
   if (extension !== undefined) {
     lo = Math.min(lo, extension)
     hi = Math.max(hi, extension)
@@ -82,8 +103,24 @@ export function limitarVista(
 ): Vista {
   return {
     zoom: v.zoom,
-    cx: limitarEje(v.cx, pantalla.ancho, v.zoom, mundo, extension?.x),
-    cy: limitarEje(v.cy, pantalla.alto, v.zoom, mundo, extension?.y),
+    cx: limitarEje(
+      v.cx,
+      pantalla.ancho,
+      v.zoom,
+      mundo,
+      extension?.x,
+      extension?.margenes?.izq,
+      extension?.margenes?.der,
+    ),
+    cy: limitarEje(
+      v.cy,
+      pantalla.alto,
+      v.zoom,
+      mundo,
+      extension?.y,
+      extension?.margenes?.arriba,
+      extension?.margenes?.abajo,
+    ),
   }
 }
 
