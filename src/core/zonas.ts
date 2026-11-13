@@ -52,6 +52,20 @@ export type ResultadoZonas =
   | { readonly ok: true; readonly zonas: string; readonly cambiadas: number }
   | { readonly ok: false; readonly error: 'parametro-invalido' | 'sin-casillas-validas' }
 
+const cacheAgua = new WeakMap<object, Map<number, ReadonlySet<number>>>()
+
+/** Índices de casillas de río; memoizado por referencia de valle y ancho de cauce (puro). */
+function aguaDe(valle: EstadoJuego['valle'], ancho: number, lado: number): ReadonlySet<number> {
+  let porAncho = cacheAgua.get(valle)
+  if (!porAncho) cacheAgua.set(valle, (porAncho = new Map()))
+  let agua = porAncho.get(ancho)
+  if (!agua) {
+    agua = new Set(casillasRio(valle, ancho).map((k) => k.y * lado + k.x))
+    porAncho.set(ancho, agua)
+  }
+  return agua
+}
+
 /**
  * Aplica `caracter` a las casillas válidas del rectángulo (esquinas inclusivas, en cualquier
  * orden, recortado al valle). Válida = en parcela propia, no es río (vados incluidos) y sin
@@ -68,12 +82,16 @@ export function aplicarZonas(
   }
   const { valle } = estado
   const lado = ladoValle(valle)
+  // Estado corrupto: `zonas` debe ser una cadena de exactamente lado² caracteres.
+  if (typeof estado.zonas !== 'string' || estado.zonas.length !== lado * lado) {
+    return { ok: false, error: 'parametro-invalido' }
+  }
   const c = valle.casillasPorParcela
   const xa = Math.max(0, Math.min(x0, x1))
   const xb = Math.min(lado - 1, Math.max(x0, x1))
   const ya = Math.max(0, Math.min(y0, y1))
   const yb = Math.min(lado - 1, Math.max(y0, y1))
-  const agua = new Set(casillasRio(valle, estado.cauce.ancho).map((k) => k.y * lado + k.x))
+  const agua = aguaDe(valle, estado.cauce.ancho, lado)
   const celdas = estado.zonas.split('')
   let validas = 0
   let cambiadas = 0
