@@ -273,29 +273,26 @@ describe('M5-05 · guardados manipulados', () => {
   // S3 (M5-05): con un inventario corrupto, cosechar responde `inventario-lleno` (conCosecha
   // devuelve undefined) en vez de `estado-invalido`, que es lo que hace la azada/semillas en M5-01.
   // Mensaje engañoso al jugador; `comprobarUsarHerramienta` solo valida el inventario con semillas.
-  it.fails(
-    'inventario inválido con una madura: se rechaza como estado inválido, no como «inventario lleno»',
-    () => {
-      const invalidos: unknown[] = [
-        [{ objeto: 'patata', cantidad: 0 }],
-        [{ objeto: 'patata', cantidad: 100 }],
-        [
-          { objeto: 'patata', cantidad: 3 },
-          { objeto: 'patata', cantidad: 4 },
-        ],
-        [{ objeto: 'nada', cantidad: 1 }],
-        'x',
-      ]
-      const fallos: string[] = []
-      for (const inv of invalidos) {
-        const e = conPlanta(planta(i, 'patata', mad), 'a', { inventario: inv as never })
-        const r = uso(e, 'mano', 50, 50)
-        if (r.ok) fallos.push(`${JSON.stringify(inv)} -> ok`)
-        else if (r.error !== 'estado-invalido') fallos.push(`${JSON.stringify(inv)} -> ${r.error}`)
-      }
-      expect(fallos).toEqual([])
-    },
-  )
+  it('inventario inválido con una madura: se rechaza como estado inválido, no como «inventario lleno»', () => {
+    const invalidos: unknown[] = [
+      [{ objeto: 'patata', cantidad: 0 }],
+      [{ objeto: 'patata', cantidad: 100 }],
+      [
+        { objeto: 'patata', cantidad: 3 },
+        { objeto: 'patata', cantidad: 4 },
+      ],
+      [{ objeto: 'nada', cantidad: 1 }],
+      'x',
+    ]
+    const fallos: string[] = []
+    for (const inv of invalidos) {
+      const e = conPlanta(planta(i, 'patata', mad), 'a', { inventario: inv as never })
+      const r = uso(e, 'mano', 50, 50)
+      if (r.ok) fallos.push(`${JSON.stringify(inv)} -> ok`)
+      else if (r.error !== 'estado-invalido') fallos.push(`${JSON.stringify(inv)} -> ${r.error}`)
+    }
+    expect(fallos).toEqual([])
+  })
 })
 
 describe('M5-05 · invariantes en partidas simuladas', () => {

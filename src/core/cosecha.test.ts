@@ -12,6 +12,7 @@ import {
   faseDe,
   plantaEn,
   plantaNueva,
+  puedeCosechar,
   tierraValida,
   type EstadoJuego,
   type Herramienta,
@@ -174,6 +175,71 @@ describe('propiedades de cosechar', () => {
         expect(cantidadDe(r2.estado.inventario, def.cosecha.producto)).toBe(def.cosecha.cantidad)
       }),
     )
+  })
+})
+
+const OBJETOS: readonly ObjetoId[] = [
+  'semilla-rabano',
+  'semilla-zanahoria',
+  'semilla-lechuga',
+  'semilla-fresa',
+  'semilla-patata',
+  'patata',
+  'zanahoria',
+  'lechuga',
+  'rabano',
+  'fresa',
+  'planton',
+]
+
+describe('propiedad del criterio 5: la mano y el total de objetos', () => {
+  const total = (e: EstadoJuego) => e.inventario.reduce((a, s) => a + s.cantidad, 0)
+  const inventarios = fc
+    .uniqueArray(fc.constantFrom(...OBJETOS), { minLength: 1, maxLength: 5 })
+    .chain((ids) =>
+      fc.tuple(
+        ...ids.map((objeto) =>
+          fc.integer({ min: 1, max: 98 }).map((cantidad) => ({ objeto, cantidad })),
+        ),
+      ),
+    )
+  it('sube exactamente la cosecha si había madura viva; si no, no cambia (salvo el plantón gastado)', () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(...CULTIVOS),
+        fc.constantFrom('vacia', 'sin-madurar', 'marchita', 'madura'),
+        fc.integer({ min: 0, max: 3 }),
+        inventarios,
+        (c, caso, extra, inv) => {
+          const def = CONFIG_CULTIVOS.cultivos[c]
+          let e = conPlanta(
+            c,
+            caso === 'madura' ? madura(c) + extra : Math.max(0, madura(c) - 1 - extra),
+          )
+          if (caso === 'vacia') e = { ...e, plantas: [] }
+          if (caso === 'marchita') e = conPlanta(c, madura(c) - extra, 1)
+          e = { ...e, inventario: inv }
+          const viva = caso === 'madura'
+          expect(puedeCosechar(e, SUELO.x, SUELO.y)).toBe(viva)
+          const r = ok(e)
+          const plantado = r.eventos.filter((v) => v.tipo === 'planton-plantado').length
+          expect(total(r.estado) - total(e) + plantado).toBe(viva ? def.cosecha.cantidad : 0)
+        },
+      ),
+    )
+  })
+})
+
+describe('datos: cultivos que rebrotan', () => {
+  it('tras rebrotar la fase es 2 y los días de rebrote cuadran con diasPorFase', () => {
+    for (const c of CULTIVOS) {
+      const def = CONFIG_CULTIVOS.cultivos[c]
+      if (!def.rebrota) continue
+      const r = ok(conPlanta(c, madura(c)))
+      const dias = plantaEn(r.estado, SUELO.x, SUELO.y)?.[2] ?? -1
+      expect(faseDe(def, dias)).toBe(2)
+      expect(madura(c) - dias).toBe(def.rebrota.dias)
+    }
   })
 })
 

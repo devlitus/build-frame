@@ -20,6 +20,9 @@ export const CARACTER_REGADA = 'A'
 /** Máximo de días secos que cabe en un carácter (`1`..`9`). */
 export const MAX_DIAS_SECA = 9
 
+/** Convierte -0 (p. ej. de `Math.floor(-0.5) + 1`) en 0 para que los eventos sean estables. */
+export const sinCeroNegativo = (n: number): number => n + 0
+
 /** ¿Es el carácter de una casilla arada (seca, con días secos o regada)? */
 export const esCaracterArada = (c: string | undefined): boolean =>
   c === CARACTER_ARADA || c === CARACTER_REGADA || (c !== undefined && /^[1-9]$/.test(c))

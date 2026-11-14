@@ -191,6 +191,7 @@
   "herramientaActivaSemilla": "Herramienta activa: {herramienta} ({semilla})",
   "herramientaSinSemilla": "sin semilla elegida",
   "accionBoton": "Usar {herramienta}",
+  "accionBotonCosechar": "Cosechar",
   "accionBotonAyuda": "Usar la herramienta en la casilla de enfrente (E o Espacio)",
   "inventarioBoton": "Inventario",
   "inventarioBotonAyuda": "Abrir el inventario (I)",

@@ -4,7 +4,13 @@ import type { EfectoHerramienta, ErrorUsoHerramienta, ResultadoEfecto } from './
 import { anadirObjeto, capacidadInventario, inventarioValido, type ObjetoId } from './inventario'
 import { ladoValle } from './mapa'
 import { defCultivo, diasHastaMadurar, type Cultivo } from './cultivos'
-import { CARACTER_ARADA, CARACTER_REGADA, tierraValida, type Planta } from './tierra'
+import {
+  CARACTER_ARADA,
+  CARACTER_REGADA,
+  sinCeroNegativo,
+  tierraValida,
+  type Planta,
+} from './tierra'
 import { limpiarMarchita, hayMarchita } from './riego'
 
 /*
@@ -34,6 +40,11 @@ function maduraEn(estado: EstadoJuego, x: number, y: number): Planta | undefined
   return def && p[2] >= diasHastaMadurar(def) ? p : undefined
 }
 
+/** ¿Hay en (x, y) una planta madura y viva que la mano pueda cosechar? (la UI lo usa para el botón) */
+export function puedeCosechar(estado: EstadoJuego, x: number, y: number): boolean {
+  return maduraEn(estado, x, y) !== undefined
+}
+
 /** Inventario tras guardar la cosecha de `p`, o `undefined` si no cabe o el estado no vale. */
 function conCosecha(estado: EstadoJuego, p: Planta) {
   const def = defCultivo(CULTIVOS[p[1]])
@@ -51,6 +62,7 @@ export const efectoCosechar: EfectoHerramienta = {
   comprobar: (estado, x, y): ErrorUsoHerramienta | undefined => {
     const p = maduraEn(estado, x, y)
     if (!p) return undefined
+    if (!inventarioValido(estado.inventario)) return 'estado-invalido'
     return conCosecha(estado, p) ? undefined : 'inventario-lleno'
   },
   aplicar: (estado, x, y): ResultadoEfecto => {
@@ -61,8 +73,8 @@ export const efectoCosechar: EfectoHerramienta = {
     const def = defCultivo(cultivo)
     if (!inventario || !def || !cultivo) return { ok: false, error: 'inventario-lleno' }
     const i = p[0]
-    // Rebrota: vuelve a madurar en `rebrota.dias` días (nunca antes de empezar de cero).
-    const dias = def.rebrota ? Math.max(0, diasHastaMadurar(def) - def.rebrota.dias) : 0
+    // Rebrota: vuelve a madurar en `rebrota.dias` días (los datos garantizan que cae en la fase 2).
+    const dias = def.rebrota ? diasHastaMadurar(def) - def.rebrota.dias : 0
     const plantas = def.rebrota
       ? estado.plantas.map((q): Planta => (q === p ? [i, p[1], dias, 0, 0, 0] : q))
       : estado.plantas.filter((q) => q !== p)
@@ -78,8 +90,8 @@ export const efectoCosechar: EfectoHerramienta = {
       eventos: [
         {
           tipo: 'planta-cosechada',
-          x: x + 0,
-          y: y + 0,
+          x: sinCeroNegativo(x),
+          y: sinCeroNegativo(y),
           cultivo,
           producto: def.cosecha.producto,
           cantidad: def.cosecha.cantidad,

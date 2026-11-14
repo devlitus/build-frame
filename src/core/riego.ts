@@ -11,6 +11,7 @@ import {
   caracterSeca,
   diasSecaDe,
   esCaracterArada,
+  sinCeroNegativo,
   tierraValida,
   type Planta,
 } from './tierra'
@@ -87,7 +88,7 @@ export function regar(estado: EstadoJuego, x: number, y: number): ResultadoRiego
       ...estado,
       tierra: estado.tierra.slice(0, i) + CARACTER_REGADA + estado.tierra.slice(i + 1),
     },
-    eventos: [{ tipo: 'tierra-regada', x: x + 0, y: y + 0 }],
+    eventos: [{ tipo: 'tierra-regada', x: sinCeroNegativo(x), y: sinCeroNegativo(y) }],
   }
 }
 
@@ -120,7 +121,7 @@ export function limpiarMarchita(
       plantas: estado.plantas.filter((p) => p[0] !== i),
       tierra: estado.tierra.slice(0, i) + CARACTER_ARADA + estado.tierra.slice(i + 1),
     },
-    eventos: [{ tipo: 'marchita-limpiada', x: x + 0, y: y + 0 }],
+    eventos: [{ tipo: 'marchita-limpiada', x: sinCeroNegativo(x), y: sinCeroNegativo(y) }],
   }
 }
 
