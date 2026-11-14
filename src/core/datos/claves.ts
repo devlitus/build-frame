@@ -17,7 +17,9 @@ export const MATERIALES = ['madera', 'piedra'] as const
  * No ocupan ranuras del inventario.
  */
 export const HERRAMIENTAS = ['azada', 'regadera', 'semillas', 'mano', 'hacha', 'pico'] as const
-/** Cultivos del juego; M5-03 define sus datos (crecimiento, precio...). */
+/** Estaciones del calendario (claves de `data/tiempo.json`); los cultivos declaran en cuáles crecen. */
+export const ESTACIONES = ['primavera', 'verano', 'otono', 'invierno'] as const
+/** Cultivos del juego; sus datos (crecimiento, precio...) están en `data/cultivos.json`. */
 export const CULTIVOS = ['patata', 'zanahoria', 'lechuga', 'rabano', 'fresa'] as const
 /**
  * Objetos que pueden ir en el inventario (catálogo en `data/inventario.json`): la semilla y el

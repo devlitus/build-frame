@@ -19,6 +19,7 @@ import {
   type Edificio,
   type EstadoJuego,
 } from '../../src/core'
+import { conTierraLabrable } from '../unit/fixtures/labranza'
 
 const base = crearEstadoInicial({ semilla: 42, dineroInicial: 100_000 })
 const LADO = ladoValle(base.valle)
@@ -210,13 +211,15 @@ describe('Dormir: tiempo y rechazos', () => {
 })
 
 describe('energía y herramientas', () => {
+  // Tierra labrable (propia, zona cultivo, sin obstáculos) bajo el personaje: la azada puede arar.
+  const labrable = en(conTierraLabrable(limpio, 50, 50), 50, 50)
   const apunta = (e: EstadoJuego) => ({
     tipo: 'UsarHerramienta' as const,
     x: Math.floor(e.personaje.x),
     y: Math.floor(e.personaje.y),
   })
   it('coste exacto vale (queda 0) y coste − 1 no; con 0, semillas y mano sí', () => {
-    const base2 = con(limpio, { semillaElegida: 'semilla-patata', inventario: [] })
+    const base2 = con(labrable, { semillaElegida: 'semilla-patata', inventario: [] })
     for (const [h, c] of [
       ['azada', 2],
       ['regadera', 2],
@@ -257,9 +260,11 @@ describe('energía y herramientas', () => {
       fc.property(
         fc.array(fc.constantFrom('azada', 'regadera', 'hacha', 'pico', 'mano'), { maxLength: 120 }),
         (hs) => {
-          let e = limpio
+          let e = labrable
           let esperado = ENERGIA_MAXIMA
           for (const h of hs) {
+            // La tierra vuelve a estar sin arar: así la azada nunca choca con «ya-arada».
+            e = { ...e, tierra: labrable.tierra }
             e = aplicarComando(e, { tipo: 'ElegirHerramienta', herramienta: h as never }).estado
             const r = aplicarComando(e, apunta(e))
             if (esperado >= coste[h]!) esperado -= coste[h]!

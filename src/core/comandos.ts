@@ -6,7 +6,9 @@ import { moverPersonaje } from './personaje'
 import { empezarDiaSiguiente, type ObraTerminada } from './obras'
 import { comprobarDormir, type ErrorDormir } from './dormir'
 import { colocacionValida, type MotivoColocacion } from './construccion'
-import { defEdificio, edificiosValidos, type Coste, type TipoEdificio } from './edificios'
+import { defEdificio, edificiosValidos, huellaDe, type Coste, type TipoEdificio } from './edificios'
+import { ladoValle } from './mapa'
+import { sinLabrar } from './tierra'
 import { reembolso } from './reembolso'
 import {
   cantidadDe,
@@ -148,7 +150,7 @@ export type EventoJuego =
       readonly reembolso: Coste
     }
 
-  /** La herramienta activa se aceptó sobre la casilla (x, y); los efectos concretos llegan con M5-03 a M5-06. */
+  /** La herramienta activa se aceptó sobre la casilla (x, y); sus efectos traen sus propios eventos (`tierra-arada`, `planta-sembrada`). */
   | EventoHerramienta
   /** El personaje durmió: empieza el día siguiente (las obras que tocan traen su `obra-terminada`). */
   | { readonly tipo: 'dormido' }
@@ -282,6 +284,22 @@ function comprobarQuitar(
   return undefined
 }
 
+/** `tierra` sin labrar bajo la huella de un edificio con esquina (x, y) (la misma cadena si no hay arada). */
+function tierraSinHuella(
+  estado: EstadoJuego,
+  def: ReturnType<typeof defEdificio>,
+  x: number,
+  y: number,
+): string {
+  if (!def || typeof estado.tierra !== 'string') return estado.tierra
+  const lado = ladoValle(estado.valle)
+  const h = huellaDe(def, x, y)
+  const indices: number[] = []
+  for (let cy = h.y0; cy <= h.y1; cy++)
+    for (let cx = h.x0; cx <= h.x1; cx++) indices.push(cy * lado + cx)
+  return sinLabrar(estado.tierra, indices)
+}
+
 const SIN_EVENTOS: readonly EventoJuego[] = Object.freeze([])
 
 /** Función pura: mismo estado + mismo comando ⇒ mismo resultado. Nunca muta `estado`. */
@@ -382,7 +400,7 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
       return {
         ok: true,
         eventos: [{ tipo: 'zonas-cambiadas', casillas: r.cambiadas }],
-        estado: { ...estado, zonas: r.zonas },
+        estado: { ...estado, zonas: r.zonas, tierra: r.tierra },
       }
     }
     case 'Construir': {
@@ -402,6 +420,8 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
         eventos: [{ tipo: 'obra-iniciada', id, tipoEdificio, x: nx, y: ny }],
         estado: {
           ...estado,
+          // Construir sobre tierra arada vacía la limpia (sobre una planta no se llega: `ocupada`).
+          tierra: tierraSinHuella(estado, def, nx, ny),
           dinero: estado.dinero - def.coste.dinero,
           materiales: {
             madera: estado.materiales.madera - def.coste.madera,
@@ -437,6 +457,7 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
         eventos: [{ tipo: 'edificio-movido', id, tipoEdificio: e.tipo, x: nx, y: ny }],
         estado: {
           ...estado,
+          tierra: tierraSinHuella(estado, defEdificio(e.tipo), nx, ny),
           edificios: estado.edificios.map((b) => (b.id === id ? { ...b, x: nx, y: ny } : b)),
         },
       }

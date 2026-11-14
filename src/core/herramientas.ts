@@ -9,6 +9,15 @@ import {
   inventarioValido,
   type Herramienta,
 } from './inventario'
+import {
+  arar,
+  motivoNoArar,
+  motivoNoSembrar,
+  plantar,
+  type ErrorLabranza,
+  type EventoPlantaSembrada,
+  type EventoTierraArada,
+} from './labranza'
 
 /** Motivos por los que `UsarHerramienta` se rechaza (los textos están en `src/ui/textos/es.json`). */
 export type ErrorUsoHerramienta =
@@ -27,8 +36,10 @@ export type ErrorUsoHerramienta =
   | 'sin-semillas'
   /** No queda energía para el coste de la herramienta (nunca bloquea moverse ni cambiar de modo). */
   | 'sin-energia'
+  /** Motivos propios de la azada y las semillas (`labranza.ts`). */
+  | ErrorLabranza
 
-/** Hecho que anuncia que la herramienta se aceptó (aún sin efecto en el mundo; lo darán M5-03 a M5-06). */
+/** Hecho que anuncia que la herramienta se aceptó (el efecto concreto llega con sus propios eventos). */
 export interface EventoHerramientaUsada {
   readonly tipo: 'herramienta-usada'
   readonly herramienta: Herramienta
@@ -36,7 +47,7 @@ export interface EventoHerramientaUsada {
   readonly y: number
 }
 
-export type EventoHerramienta = EventoHerramientaUsada
+export type EventoHerramienta = EventoHerramientaUsada | EventoTierraArada | EventoPlantaSembrada
 
 export type ResultadoEfecto =
   | {
@@ -47,24 +58,31 @@ export type ResultadoEfecto =
   | { readonly ok: false; readonly error: ErrorUsoHerramienta }
 
 /**
- * Efecto de una herramienta sobre la casilla (x, y), que ya pasó `comprobarUsarHerramienta`
- * (modo Vida, alcance y semilla elegida). Función pura: devuelve el estado nuevo y los eventos
- * propios, o el motivo del rechazo (el estado no cambia).
+ * Efecto de una herramienta sobre la casilla (x, y). `comprobar` dice, sin aplicar nada, por qué
+ * el efecto se rechazaría (`undefined` si no): se consulta tras las comprobaciones comunes y antes
+ * de la energía. `aplicar` solo se llama con `comprobar` en `undefined`; es una función pura que
+ * devuelve el estado nuevo y los eventos propios (sin gastar energía: eso lo hace `usarHerramienta`).
  */
-export type EfectoHerramienta = (estado: EstadoJuego, x: number, y: number) => ResultadoEfecto
+export interface EfectoHerramienta {
+  readonly comprobar: (estado: EstadoJuego, x: number, y: number) => ErrorUsoHerramienta | undefined
+  readonly aplicar: (estado: EstadoJuego, x: number, y: number) => ResultadoEfecto
+}
 
 /** Efecto vacío: la herramienta se acepta pero no hace nada (hasta que su historia lo implemente). */
-const sinEfecto: EfectoHerramienta = (estado) => ({ ok: true, estado, eventos: [] })
+const sinEfecto: EfectoHerramienta = {
+  comprobar: () => undefined,
+  aplicar: (estado) => ({ ok: true, estado, eventos: [] }),
+}
 
 /**
  * PUNTO DE ENGANCHE de los efectos de las herramientas. Cada historia sustituye aquí su entrada:
- * M5-03 azada (arar), M5-04 regadera, M5-05 semillas
- * (plantar) y mano (cosechar), M5-06 hacha y pico (talar y picar).
+ * M5-03 azada (arar) y semillas (plantar) ya están; faltan M5-04 regadera, M5-05 mano
+ * (cosechar) y M5-06 hacha y pico (talar y picar).
  */
 export const EFECTOS_HERRAMIENTA: Readonly<Record<Herramienta, EfectoHerramienta>> = {
-  azada: sinEfecto,
+  azada: { comprobar: motivoNoArar, aplicar: arar },
   regadera: sinEfecto,
-  semillas: sinEfecto,
+  semillas: { comprobar: motivoNoSembrar, aplicar: plantar },
   mano: sinEfecto,
   hacha: sinEfecto,
   pico: sinEfecto,
@@ -111,21 +129,22 @@ export function comprobarUsarHerramienta(
       return 'sin-semillas'
     }
   }
-  // La energía se mira la última: cualquier otro rechazo gana y nunca gasta.
+  // Orden: comunes, motivo propio del efecto y, la última, la energía; un rechazo nunca gasta.
+  const motivo = EFECTOS_HERRAMIENTA[estado.herramienta].comprobar(estado, x, y)
+  if (motivo) return motivo
   if (estado.energia < costeEnergia(estado.herramienta)) return 'sin-energia'
   return undefined
 }
 
 /**
  * Despacha el uso de la herramienta activa sobre (x, y) tras validar (incluida la energía). Un uso
- * aceptado gasta el coste de la herramienta aunque su efecto esté vacío o no llegue a talar del
- * todo; un rechazo (de cualquier motivo) deja el estado intacto. Cada historia posterior enchufa
+ * aceptado gasta el coste de la herramienta aunque su efecto esté vacío; un rechazo (de cualquier motivo) deja el estado intacto. Cada historia posterior enchufa
  * su efecto en `EFECTOS_HERRAMIENTA`.
  */
 export function usarHerramienta(estado: EstadoJuego, x: number, y: number): ResultadoEfecto {
   const error = comprobarUsarHerramienta(estado, x, y)
   if (error) return { ok: false, error }
-  const r = EFECTOS_HERRAMIENTA[estado.herramienta](estado, x, y)
+  const r = EFECTOS_HERRAMIENTA[estado.herramienta].aplicar(estado, x, y)
   if (!r.ok) return r
   const nx = x + 0 // -0 se normaliza a 0
   const ny = y + 0

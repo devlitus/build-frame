@@ -1,7 +1,9 @@
 import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
+import { conTierraLabrable } from '../../tests/unit/fixtures/labranza'
 import {
   aplicarComando,
+  arar,
   casillaDeCama,
   casillaBloqueada,
   CONFIG_ENERGIA,
@@ -24,9 +26,19 @@ import {
 const base = crearEstadoInicial({ semilla: 42, dineroInicial: 100_000 })
 const LADO = ladoValle(base.valle)
 const limpio: EstadoJuego = { ...base, obstaculos: [] }
-const e0: EstadoJuego = { ...limpio, personaje: { x: 50.5, y: 50.5, orientacion: 'sur' } }
+const e0: EstadoJuego = conTierraLabrable(
+  { ...limpio, personaje: { x: 50.5, y: 50.5, orientacion: 'sur' } },
+  50,
+  50,
+)
 const ejecutar = (e: EstadoJuego, c: Comando) => aplicarComando(e, c)
 const usar = (e: EstadoJuego, x = 51, y = 50) => ejecutar(e, { tipo: 'UsarHerramienta', x, y })
+/** e0 con la casilla (51, 50) ya arada: para que las semillas se puedan sembrar. */
+const aradoE0: EstadoJuego = (() => {
+  const r = arar(e0, 51, 50)
+  if (!r.ok) throw new Error('no ara')
+  return r.estado
+})()
 const con = (e: EstadoJuego, patch: Partial<EstadoJuego>): EstadoJuego => ({ ...e, ...patch })
 const error = (r: ReturnType<typeof aplicarComando>) => (r.ok ? undefined : r.error)
 
@@ -84,7 +96,10 @@ describe('datos de energía', () => {
 
 describe('UsarHerramienta y energía', () => {
   it.each(HERRAMIENTAS)('un uso válido de %s gasta su coste (aunque el efecto esté vacío)', (h) => {
-    const e = con(e0, { herramienta: h, semillaElegida: 'semilla-patata' })
+    const e = con(h === 'semillas' ? aradoE0 : e0, {
+      herramienta: h,
+      semillaElegida: 'semilla-patata',
+    })
     const r = usar(e)
     expect(r.ok).toBe(true)
     expect(r.estado.energia).toBe(ENERGIA_MAXIMA - costeEnergia(h))
@@ -103,7 +118,7 @@ describe('UsarHerramienta y energía', () => {
   })
   it('con 0 de energía las herramientas gratuitas siguen funcionando', () => {
     for (const h of ['mano', 'semillas'] as const) {
-      const r = usar(con(e0, { herramienta: h, energia: 0, semillaElegida: 'semilla-patata' }))
+      const r = usar(con(aradoE0, { herramienta: h, energia: 0, semillaElegida: 'semilla-patata' }))
       expect(r.ok).toBe(true)
       expect(r.estado.energia).toBe(0)
     }

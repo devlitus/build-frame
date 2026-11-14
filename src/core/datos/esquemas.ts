@@ -3,6 +3,8 @@ import {
   AGUAS,
   AGUAS_SIN_RIO,
   CATEGORIAS_OBJETO,
+  CULTIVOS,
+  ESTACIONES,
   FERTILIDADES,
   HERRAMIENTAS,
   LADOS,
@@ -262,3 +264,48 @@ export const EsquemaConfigEnergia = v.pipe(
 )
 
 export type ConfigEnergia = v.InferOutput<typeof EsquemaConfigEnergia>
+
+/** Nº de fases de crecimiento con días propios (0 sembrado, 1 brote, 2 joven); la 3 es «maduro». */
+export const FASES_CRECIMIENTO = 3
+
+const diasEnteros = v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(365))
+
+export const EsquemaCultivo = v.strictObject({
+  /** Estaciones en las que se puede sembrar (al menos una, sin repetir). */
+  estaciones: v.pipe(
+    v.array(v.picklist(ESTACIONES)),
+    v.minLength(1),
+    v.check((e) => new Set(e).size === e.length, 'Estaciones repetidas'),
+  ),
+  /** Días que pasa en cada una de las fases 0, 1 y 2; su suma es el crecimiento total (enteros >= 1). */
+  diasPorFase: v.pipe(v.array(diasEnteros), v.length(FASES_CRECIMIENTO)),
+  /** `null` si se cosecha una sola vez; si rebrota, días hasta volver a madurar tras cosechar (vuelve a la fase 2). */
+  rebrota: v.nullable(v.strictObject({ dias: diasEnteros })),
+  cosecha: v.strictObject({
+    /** Producto que se recoge (un cultivo del catálogo de objetos, categoría `producto`). */
+    producto: v.picklist(CULTIVOS),
+    cantidad: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(99)),
+  }),
+  /** Precio base de venta del producto (lo usa M6). */
+  precioBase: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(1_000_000)),
+  /** Zonas en las que se puede plantar (en M5, cultivo y huerto). */
+  zonas: v.pipe(
+    v.array(v.picklist(['cultivo', 'huerto'] as const)),
+    v.minLength(1),
+    v.check((z) => new Set(z).size === z.length, 'Zonas repetidas'),
+  ),
+})
+
+export type DefCultivo = v.InferOutput<typeof EsquemaCultivo>
+
+export const EsquemaConfigCultivos = v.strictObject({
+  /** Catálogo: exactamente un registro por cada cultivo de `CULTIVOS`. */
+  cultivos: v.strictObject(
+    Object.fromEntries(CULTIVOS.map((c) => [c, EsquemaCultivo])) as Record<
+      (typeof CULTIVOS)[number],
+      typeof EsquemaCultivo
+    >,
+  ),
+})
+
+export type ConfigCultivos = v.InferOutput<typeof EsquemaConfigCultivos>

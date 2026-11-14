@@ -16,11 +16,19 @@ import {
   aplicarComando,
   cantidadDe,
   capacidadInventario,
+  aguaDe,
+  CARACTER_ARADA,
+  casillaConEdificio,
+  CONFIG_CULTIVOS,
   CONFIG_INVENTARIO,
   crearEstadoInicial,
+  CULTIVOS,
+  cultivoDeEstacion,
+  cultivoDeSemilla,
   defObjeto,
   HERRAMIENTAS,
   inventarioValido,
+  ENERGIA_MAXIMA,
   ladoValle,
   OBJETOS,
   quitarObjeto,
@@ -64,13 +72,137 @@ function esperado(e: EstadoJuego, x: unknown, y: unknown): string | undefined {
     if (e.semillaElegida === null) return 'sin-semilla-elegida'
     if (cantidadDe(e.inventario, e.semillaElegida) < 1) return 'sin-semillas'
   }
+  const motivo = motivoEfecto(e, nx, ny)
+  if (motivo) return motivo
+  if (e.energia < costeEnergia(e.herramienta)) return 'sin-energia'
   return undefined
+}
+
+/** Oráculo de las reglas de M5-03 (azada y semillas) sobre una casilla ya validada. */
+function motivoEfecto(e: EstadoJuego, x: number, y: number): string | undefined {
+  const c = e.valle.casillasPorParcela
+  const i = y * LADO + x
+  const propia = e.valle.parcelas[Math.floor(y / c) * e.valle.parcelasPorLado + Math.floor(x / c)]
+  const agua = aguaDe(e.valle, e.cauce.ancho, LADO).has(i)
+  const obstaculo = e.obstaculos.some((o) => o.x === x && o.y === y)
+  const edificio = casillaConEdificio(e, x, y)
+  const zona = e.zonas[i]
+  if (e.herramienta === 'azada') {
+    if (propia?.estado !== 'propia') return 'no-propia'
+    if (agua) return 'agua'
+    if (obstaculo) return 'obstaculo'
+    if (edificio) return 'ocupada'
+    if (zona !== 'c' && zona !== 'h') return 'zona'
+    if (e.tierra[i] === CARACTER_ARADA) return 'ya-arada'
+  } else if (e.herramienta === 'semillas') {
+    const cultivo = cultivoDeSemilla(e.semillaElegida)
+    if (!cultivo) return 'semilla-invalida'
+    if (e.tierra[i] !== CARACTER_ARADA) return 'no-arada'
+    if (e.plantas.some((pl) => pl[0] === i) || edificio || obstaculo || agua) return 'ocupada'
+    const letra: Record<string, string> = { cultivo: 'c', huerto: 'h' }
+    if (!CONFIG_CULTIVOS.cultivos[cultivo].zonas.some((z) => letra[z] === zona)) return 'zona'
+    if (!cultivoDeEstacion(cultivo, e)) return 'fuera-de-estacion'
+  }
+  return undefined
+}
+
+/** Cómo se deja la casilla de destino antes de usar la herramienta (para cubrir todos los motivos). */
+interface Preparacion {
+  propia: boolean
+  zona: string
+  arada: boolean
+  planta: boolean
+  obstaculo: boolean
+  dia: number
+  energia: number
+  /** Deja la semilla elegida en el inventario y el día en su estación (si se puede). */
+  facilita: boolean
+}
+const preparacion: fc.Arbitrary<Preparacion> = fc.record({
+  propia: fc.oneof({ weight: 2, arbitrary: fc.constant(true) }, fc.boolean()),
+  zona: fc.constantFrom('c', 'c', 'h', 'h', 'v', 'a', '.'),
+  arada: fc.oneof({ weight: 3, arbitrary: fc.constant(true) }, fc.boolean()),
+  planta: fc.oneof({ weight: 4, arbitrary: fc.constant(false) }, fc.boolean()),
+  obstaculo: fc.oneof({ weight: 2, arbitrary: fc.constant(false) }, fc.boolean()),
+  facilita: fc.boolean(),
+  dia: fc.integer({ min: 1, max: 120 }),
+  energia: fc.oneof(
+    { weight: 4, arbitrary: fc.constant(ENERGIA_MAXIMA) },
+    { weight: 2, arbitrary: fc.integer({ min: 0, max: 3 }) },
+    fc.integer({ min: 0, max: ENERGIA_MAXIMA }),
+  ),
+})
+const NO_PROPIA = base.valle.parcelas.find((q) => q.estado !== 'propia')!.estado
+
+/** Deja la casilla (x, y) como pide la preparación (si no es del valle, solo día y energía). */
+function preparar(e: EstadoJuego, x: unknown, y: unknown, q0: Preparacion): EstadoJuego {
+  // «facilita» con la azada: casilla propia, de cultivo, libre y sin arar, con energía de sobra.
+  const q: Preparacion =
+    q0.facilita && e.herramienta === 'azada'
+      ? {
+          ...q0,
+          propia: true,
+          zona: 'c',
+          arada: false,
+          planta: false,
+          obstaculo: false,
+          energia: ENERGIA_MAXIMA,
+        }
+      : q0
+  const fuera =
+    !Number.isSafeInteger(x) ||
+    !Number.isSafeInteger(y) ||
+    (x as number) < 0 ||
+    (y as number) < 0 ||
+    (x as number) >= LADO ||
+    (y as number) >= LADO
+  let dia: EstadoJuego = { ...e, dia: q.dia, energia: q.energia }
+  const cultivo = cultivoDeSemilla(e.semillaElegida)
+  if (q.facilita && cultivo) {
+    const hay = cantidadDe(e.inventario, e.semillaElegida!) >= 1
+    const dias = Array.from({ length: 120 }, (_, k) => k + 1)
+    const d = dias.find((k) => cultivoDeEstacion(cultivo, { dia: k }))
+    dia = {
+      ...dia,
+      dia: d ?? q.dia,
+      inventario: hay
+        ? e.inventario
+        : (anadirObjeto(e.inventario, e.semillaElegida!, 1, 1000) ?? e.inventario),
+    }
+  }
+  if (fuera) return dia
+  const cx = x as number
+  const cy = y as number
+  const i = cy * LADO + cx
+  const c = e.valle.casillasPorParcela
+  const ip = Math.floor(cy / c) * e.valle.parcelasPorLado + Math.floor(cx / c)
+  const reemplaza = (t: string, car: string) => t.slice(0, i) + car + t.slice(i + 1)
+  const arada = q.arada || q.planta
+  return {
+    ...dia,
+    valle: {
+      ...e.valle,
+      parcelas: e.valle.parcelas.map((pa, k) =>
+        k === ip ? { ...pa, estado: q.propia ? ('propia' as const) : NO_PROPIA } : pa,
+      ),
+    },
+    zonas: reemplaza(e.zonas, q.zona),
+    tierra: reemplaza(e.tierra, arada ? CARACTER_ARADA : '.'),
+    plantas: q.planta ? [[i, CULTIVOS.indexOf('patata'), 0, 0, 0, 0]] : [],
+    obstaculos: [
+      ...e.obstaculos.filter((o) => o.x !== cx || o.y !== cy),
+      ...(q.obstaculo ? [{ tipo: 'roca' as const, x: cx, y: cy, variante: 0 }] : []),
+    ],
+  }
 }
 
 const estado: fc.Arbitrary<EstadoJuego> = fc
   .record({
-    modo: fc.constantFrom('vida' as const, 'plano' as const),
-    pausado: fc.boolean(),
+    modo: fc.oneof(
+      { weight: 5, arbitrary: fc.constant('vida' as const) },
+      fc.constant('plano' as const),
+    ),
+    pausado: fc.oneof({ weight: 5, arbitrary: fc.constant(false) }, fc.boolean()),
     px: fc.oneof(
       fc.double({ min: 0.3, max: LADO - 0.3, noNaN: true }),
       fc.constantFrom(0.3, LADO - 0.3, 0.5, LADO - 0.5),
@@ -79,7 +211,11 @@ const estado: fc.Arbitrary<EstadoJuego> = fc
       fc.double({ min: 0.3, max: LADO - 0.3, noNaN: true }),
       fc.constantFrom(0.3, LADO - 0.3, 0.5, LADO - 0.5),
     ),
-    herramienta: fc.oneof(fc.constant('semillas' as const), fc.constantFrom(...HERRAMIENTAS)),
+    herramienta: fc.oneof(
+      fc.constant('semillas' as const),
+      fc.constant('azada' as const),
+      fc.constantFrom(...HERRAMIENTAS),
+    ),
     semilla: fc.option(fc.constantFrom(...SEMILLAS), { nil: null }),
     inventario,
   })
@@ -124,20 +260,55 @@ describe('M5-01 · rompedor del núcleo', () => {
     const vistos = new Map<string, number>()
     fc.assert(
       fc.property(
-        estado.chain((e) => fc.tuple(fc.constant(e), coord(e.personaje.x), coord(e.personaje.y))),
-        ([e, x, y]) => {
+        estado.chain((e0) =>
+          fc.tuple(fc.constant(e0), coord(e0.personaje.x), coord(e0.personaje.y), preparacion),
+        ),
+        ([e0, x, y, q]) => {
+          const e = preparar(e0, x, y, q)
           const copia = JSON.stringify(e)
           const r1 = aplicarComando(e, { tipo: 'UsarHerramienta', x: x as number, y: y as number })
           const r2 = aplicarComando(e, { tipo: 'UsarHerramienta', x: x as number, y: y as number })
           expect(r1).toEqual(r2)
           const esp = esperado(e, x, y)
-          vistos.set(esp ?? 'ok', (vistos.get(esp ?? 'ok') ?? 0) + 1)
+          const clave = esp ?? `ok:${e.herramienta}`
+          vistos.set(clave, (vistos.get(clave) ?? 0) + 1)
           if (esp === undefined) {
             expect(r1.ok, JSON.stringify(r1.ok ? null : r1.error)).toBe(true)
             if (r1.ok) {
-              // Orquestador (M5-02): un uso aceptado gasta energía; el resto del estado no cambia.
-              expect({ ...r1.estado, energia: e.energia }).toEqual(e)
+              // Un uso aceptado gasta energía (nunca baja de 0) y solo cambia lo que su efecto dice.
+              const i = (y as number) * LADO + (x as number)
+              let previsto: EstadoJuego = e
+              const eventosPropios: unknown[] = []
+              if (e.herramienta === 'azada') {
+                previsto = {
+                  ...e,
+                  tierra: e.tierra.slice(0, i) + CARACTER_ARADA + e.tierra.slice(i + 1),
+                }
+                eventosPropios.push({
+                  tipo: 'tierra-arada',
+                  x: (x as number) + 0,
+                  y: (y as number) + 0,
+                })
+              } else if (e.herramienta === 'semillas') {
+                const cultivo = cultivoDeSemilla(e.semillaElegida)!
+                previsto = {
+                  ...e,
+                  inventario: quitarObjeto(e.inventario, e.semillaElegida!, 1)!,
+                  plantas: [...e.plantas, [i, CULTIVOS.indexOf(cultivo), 0, 0, 0, 0] as const].sort(
+                    (a, b) => a[0] - b[0],
+                  ),
+                }
+                eventosPropios.push({
+                  tipo: 'planta-sembrada',
+                  x: (x as number) + 0,
+                  y: (y as number) + 0,
+                  cultivo,
+                })
+              }
+              expect({ ...r1.estado, energia: e.energia }).toEqual(previsto)
               expect(r1.estado.energia).toBe(e.energia - costeEnergia(e.herramienta))
+              expect(r1.estado.energia).toBeGreaterThanOrEqual(0)
+              expect(r1.eventos.slice(1)).toEqual(eventosPropios)
               expect(r1.eventos[0]).toEqual({
                 tipo: 'herramienta-usada',
                 herramienta: e.herramienta,
@@ -156,11 +327,13 @@ describe('M5-01 · rompedor del núcleo', () => {
           expect(JSON.stringify(e)).toBe(copia)
         },
       ),
-      { numRuns: 3000 },
+      { numRuns: 8000 },
     )
     // Que la muestra cubra de verdad cada veredicto (no solo rechazos).
     for (const v of [
-      'ok',
+      'ok:azada',
+      'ok:semillas',
+      'ok:mano',
       'parametro-invalido',
       'solo-en-vida',
       'en-pausa',
@@ -170,6 +343,18 @@ describe('M5-01 · rompedor del núcleo', () => {
       'sin-semillas',
     ])
       expect(vistos.get(v) ?? 0, v).toBeGreaterThan(5)
+    // Los motivos de M5-03 son más raros (hay que acertar varias condiciones a la vez): al menos 1.
+    for (const v of [
+      'no-propia',
+      'zona',
+      'ocupada',
+      'ya-arada',
+      'obstaculo',
+      'no-arada',
+      'fuera-de-estacion',
+      'sin-energia',
+    ])
+      expect(vistos.get(v) ?? 0, v).toBeGreaterThan(0)
   })
 
   it('ElegirHerramienta y ElegirSemilla: rechazo = mismo objeto; éxito solo cambia su campo', () => {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { conTierraLabrable } from '../../tests/unit/fixtures/labranza'
 import {
   aplicarComando,
+  arar,
   comprobarUsarHerramienta,
   costeEnergia,
   crearEstadoInicial,
@@ -12,7 +14,11 @@ import {
 
 const base = crearEstadoInicial({ semilla: 42 })
 /** Personaje en el centro de la casilla (50, 50): lejos de cualquier borde del valle. */
-const e0: EstadoJuego = { ...base, personaje: { x: 50.5, y: 50.5, orientacion: 'sur' } }
+const e0: EstadoJuego = conTierraLabrable(
+  { ...base, personaje: { x: 50.5, y: 50.5, orientacion: 'sur' } },
+  50,
+  50,
+)
 const usar = (e: EstadoJuego, x: number, y: number) =>
   aplicarComando(e, { tipo: 'UsarHerramienta', x, y })
 const error = (r: ReturnType<typeof aplicarComando>) => (r.ok ? undefined : r.error)
@@ -74,15 +80,21 @@ describe('ElegirSemilla', () => {
 })
 
 describe('UsarHerramienta: validación', () => {
-  it('se acepta sobre la casilla del personaje y sus 8 vecinas; solo gasta la energía', () => {
+  it('se acepta sobre la casilla del personaje y sus 8 vecinas; ara y gasta la energía', () => {
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         const r = usar(e0, 50 + dx, 50 + dy)
         expect(r).toMatchObject({
           ok: true,
-          eventos: [{ tipo: 'herramienta-usada', herramienta: 'azada', x: 50 + dx, y: 50 + dy }],
+          eventos: [
+            { tipo: 'herramienta-usada', herramienta: 'azada', x: 50 + dx, y: 50 + dy },
+            { tipo: 'tierra-arada', x: 50 + dx, y: 50 + dy },
+          ],
         })
-        expect(r.estado).toEqual({ ...e0, energia: e0.energia - costeEnergia('azada') })
+        // La azada ara la casilla (M5-03) y gasta su energía; nada más cambia.
+        expect(r.estado.energia).toBe(e0.energia - costeEnergia('azada'))
+        expect(r.estado.tierra).not.toBe(e0.tierra)
+        expect(r.estado).toEqual({ ...e0, energia: r.estado.energia, tierra: r.estado.tierra })
       }
     }
   })
@@ -127,10 +139,15 @@ describe('UsarHerramienta: validación', () => {
   it('«semillas» exige una semilla elegida y con existencias', () => {
     const e1 = { ...e0, herramienta: 'semillas' as const }
     expect(error(usar(e1, 50, 50))).toBe('sin-semilla-elegida')
-    const e2 = { ...e1, semillaElegida: 'semilla-patata' as const }
+    const arada = arar(e1, 50, 51)
+    if (!arada.ok) throw new Error('no ara')
+    const e2 = { ...arada.estado, semillaElegida: 'semilla-patata' as const }
     expect(usar(e2, 50, 51)).toMatchObject({
       ok: true,
-      eventos: [{ tipo: 'herramienta-usada', herramienta: 'semillas' }],
+      eventos: [
+        { tipo: 'herramienta-usada', herramienta: 'semillas', x: 50, y: 51 },
+        { tipo: 'planta-sembrada', x: 50, y: 51, cultivo: 'patata' },
+      ],
     })
     const e3 = { ...e1, semillaElegida: 'semilla-lechuga' as const }
     expect(error(usar(e3, 50, 50))).toBe('sin-semillas')

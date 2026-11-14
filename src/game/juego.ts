@@ -315,6 +315,12 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
       const e = g.scene.getScene('valle')
       return e instanceof EscenaValle ? e.alfaZonas() : undefined
     },
+    cultivosVisibles: () => {
+      // Solo con `?debug`: lo que dibuja la vista de cultivos.
+      if (!leerParametros(window.location.search).debug) return undefined
+      const e = g.scene.getScene('valle')
+      return e instanceof EscenaValle ? e.cultivosVisibles() : undefined
+    },
     pincel: () => {
       const p = partida?.pincel
       return (

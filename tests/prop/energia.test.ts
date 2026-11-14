@@ -8,11 +8,18 @@ import {
   crearEstadoInicial,
   ENERGIA_MAXIMA,
   HERRAMIENTAS,
+  ladoValle,
   type Comando,
   type EstadoJuego,
 } from '../../src/core'
+import { conTierraLabrable } from '../unit/fixtures/labranza'
 
 const inicial = crearEstadoInicial({ semilla: 7 })
+const labrable = conTierraLabrable(
+  { ...crearEstadoInicial({ semilla: 42 }), personaje: { x: 50.5, y: 50.5, orientacion: 'sur' } },
+  50,
+  50,
+)
 
 const comando: fc.Arbitrary<Comando> = fc.oneof(
   fc.record({
@@ -94,7 +101,7 @@ describe('propiedades de la energía', () => {
     )
   })
 
-  it('un comando rechazado deja el estado intacto (misma referencia)', () => {
+  it('cualquier comando rechazado (herramientas incluidas) devuelve el mismo estado (misma referencia)', () => {
     fc.assert(
       fc.property(secuencia, (cs) => {
         for (const { estado, comando: c } of correr(cs)) {
@@ -105,24 +112,35 @@ describe('propiedades de la energía', () => {
     )
   })
 
-  it('un uso aceptado gasta exactamente su coste; uno rechazado no gasta nada', () => {
+  it('un uso aceptado gasta exactamente su coste; uno rechazado por falta de energía no gasta nada', () => {
     fc.assert(
       fc.property(
         fc.constantFrom(...HERRAMIENTAS),
         fc.integer({ min: 0, max: ENERGIA_MAXIMA }),
         (herramienta, energia) => {
+          // Casilla del personaje lista para arar (y ya arada si se va a sembrar).
+          const x = Math.floor(labrable.personaje.x)
+          const y = Math.floor(labrable.personaje.y)
+          const i = y * ladoValle(labrable.valle) + x
+          const tierra =
+            herramienta === 'semillas'
+              ? labrable.tierra.slice(0, i) + 'a' + labrable.tierra.slice(i + 1)
+              : labrable.tierra
           const e: EstadoJuego = {
-            ...inicial,
+            ...labrable,
+            tierra,
             herramienta,
             energia,
             semillaElegida: 'semilla-patata',
           }
-          const x = Math.floor(e.personaje.x)
-          const y = Math.floor(e.personaje.y)
           const r = aplicarComando(e, { tipo: 'UsarHerramienta', x, y })
-          if (r.ok) expect(r.estado.energia).toBe(energia - costeEnergia(herramienta))
-          else {
+          if (r.ok) {
+            expect(energia).toBeGreaterThanOrEqual(costeEnergia(herramienta))
+            expect(r.estado.energia).toBe(energia - costeEnergia(herramienta))
+          } else {
+            // Con la casilla labrable, el único rechazo posible es la falta de energía.
             expect(r.estado).toBe(e)
+            expect(r.error).toBe('sin-energia')
             expect(energia).toBeLessThan(costeEnergia(herramienta))
           }
         },

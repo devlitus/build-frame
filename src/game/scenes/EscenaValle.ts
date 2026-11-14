@@ -27,6 +27,7 @@ import { VistaSilueta } from '../valle/vistaSilueta'
 import { ColocadorEdificio } from '../colocador'
 import { casillaInicialSilueta, sePuedeColocar, type Construccion } from '../construir'
 import { VistaZonas } from '../valle/vistaZonas'
+import { VistaCultivos } from '../valle/vistaCultivos'
 import {
   casillaEnCentroDeVista,
   casillaMasCercana,
@@ -134,6 +135,7 @@ export class EscenaValle extends Phaser.Scene {
   private resalte: Phaser.GameObjects.Graphics | undefined = undefined
   private selector: SelectorParcela | undefined = undefined
   private zonas: VistaZonas | undefined = undefined
+  private cultivos: VistaCultivos | undefined = undefined
   private vistaPincel: VistaPincel | undefined = undefined
   private pintor: PintorZonas | undefined = undefined
   private desuscribirPincel: (() => void) | undefined = undefined
@@ -265,6 +267,9 @@ export class EscenaValle extends Phaser.Scene {
     this.zonas?.destruir()
     this.zonas = new VistaZonas(this, this.mundoPx, ladoValle(valle), this.semilla)
     this.zonas.actualizar(inicial)
+    this.cultivos?.destruir()
+    this.cultivos = new VistaCultivos(this, ladoValle(valle), this.semilla)
+    this.cultivos.actualizar(inicial)
     this.vistaPincel?.destruir()
     this.vistaPincel = new VistaPincel(this)
     // Edificios y obras (M4-05): un Graphics por edificio, ordenados por Y como el personaje.
@@ -296,6 +301,7 @@ export class EscenaValle extends Phaser.Scene {
       // vista y los ganchos de prueba no se desfasan del estado de la partida.
       if (cambio.eventos.length > 0) {
         this.zonas?.actualizar(partida.estado)
+        this.cultivos?.actualizar(partida.estado)
         this.edificios?.actualizar(partida.estado, zoomLogico(this))
       }
       if (cambio.eventos.some((e) => e.tipo === 'desmayo' || e.tipo === 'dormido')) {
@@ -822,6 +828,11 @@ export class EscenaValle extends Phaser.Scene {
     }
   }
 
+  /** Casillas aradas y plantas dibujadas (gancho de prueba); undefined sin vista. */
+  cultivosVisibles(): { aradas: number; plantas: number } | undefined {
+    return this.cultivos?.visibles
+  }
+
   /** Alfa de la capa de zonas (gancho de prueba); undefined sin capa. */
   alfaZonas(): number | undefined {
     return this.zonas?.alfaVisible
@@ -1034,6 +1045,7 @@ export class EscenaValle extends Phaser.Scene {
     this.luz?.actualizar(partida.estado.minutoDelDia)
     this.parcelas?.repintar(partida.estado)
     this.zonas?.actualizar(partida.estado)
+    this.cultivos?.actualizar(partida.estado)
     this.vistaPincel?.actualizar(partida.pincel)
     this.edificios?.actualizar(partida.estado, zoomLogico(this))
     this.actualizarCapaObjetos()
@@ -1105,6 +1117,7 @@ export class EscenaValle extends Phaser.Scene {
     this.trozos = this.hornear()
     this.capaObjetos?.invalidar()
     this.zonas?.invalidar()
+    this.cultivos?.invalidar()
     this.edificios?.invalidar()
   }
 
@@ -1127,6 +1140,8 @@ export class EscenaValle extends Phaser.Scene {
     this.parcelas = undefined
     this.zonas?.destruir()
     this.zonas = undefined
+    this.cultivos?.destruir()
+    this.cultivos = undefined
     this.vistaPincel?.destruir()
     this.vistaPincel = undefined
     this.edificios?.destruir()

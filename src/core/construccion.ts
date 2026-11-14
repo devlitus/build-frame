@@ -15,7 +15,8 @@ import { aguaDe, zonaEn } from './zonas'
  * 4. `no-propia`: alguna casilla es de una parcela que no se ha comprado.
  * 5. `agua`: alguna casilla es de río (vados incluidos).
  * 6. `obstaculo`: alguna casilla tiene un árbol o una roca.
- * 7. `ocupada`: alguna casilla ya es de otro edificio u obra.
+ * 7. `ocupada`: alguna casilla ya es de otro edificio u obra, o tiene una planta. La tierra arada
+ *    vacía no estorba: al construir encima se limpia (`Construir` y `MoverEdificio`).
  * 8. `aparicion`: la huella cubre la casilla de aparición.
  * 9. `personaje`: la huella toca la caja de colisión del personaje.
  * 10. `zona-incompatible`: alguna casilla no tiene una zona compatible con el edificio.
@@ -64,11 +65,15 @@ export type EstadoColocacion = Pick<
   | 'edificios'
   | 'dinero'
   | 'materiales'
->
+> &
+  Partial<Pick<EstadoJuego, 'plantas'>>
 
 const cacheObstaculos = new WeakMap<EstadoJuego['obstaculos'], Map<number, ReadonlySet<number>>>()
 
-function obstaculosDe(estado: EstadoColocacion, lado: number): ReadonlySet<number> {
+export function obstaculosDe(
+  estado: Pick<EstadoColocacion, 'obstaculos'>,
+  lado: number,
+): ReadonlySet<number> {
   let porLado = cacheObstaculos.get(estado.obstaculos)
   if (!porLado) cacheObstaculos.set(estado.obstaculos, (porLado = new Map()))
   let set = porLado.get(lado)
@@ -251,6 +256,7 @@ export function colocacionValida(
   const agua = aguaDe(valle, estado.cauce.ancho, lado)
   const obstaculos = obstaculosDe(estado, lado)
   const ocupadas = casillasOcupadas(estado.edificios, lado)
+  const conPlanta = new Set((estado.plantas ?? []).map((p) => p[0]))
   /** ¿Alguna casilla de la huella cumple `prueba`? */
   const alguna = (prueba: (cx: number, cy: number, k: number) => boolean): boolean => {
     for (let cy = h.y0; cy <= h.y1; cy++) {
@@ -272,7 +278,7 @@ export function colocacionValida(
   if (
     alguna((_cx, _cy, k) => {
       const id = ocupadas.get(k)
-      return id !== undefined && id !== opciones.ignorarId
+      return (id !== undefined && id !== opciones.ignorarId) || conPlanta.has(k)
     })
   ) {
     return no('ocupada')

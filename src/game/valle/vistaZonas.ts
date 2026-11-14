@@ -9,6 +9,12 @@ import { varianteDeCasilla } from './variantes'
 /** Profundidad de la capa de zonas: sobre el terreno y la decoración horneados, bajo las parcelas. */
 const PROFUNDIDAD_ZONAS = 1
 
+/**
+ * Los bordes de las zonas van en una textura aparte, sobre la tierra arada (profundidad 1.5 de
+ * `VistaCultivos`): terreno, relleno de zona, tierra arada, bordes de zona (informe de arte M5).
+ */
+const PROFUNDIDAD_BORDES_ZONAS = 1.6
+
 /** Sal de la variante del relleno: así no va a la par de la del terreno. */
 const SAL_ZONAS = 0x5a17
 
@@ -23,6 +29,8 @@ export class VistaZonas {
   /** Una textura por trozo, creada solo cuando el trozo tiene zonas (sin zonas no hay objetos extra). */
   private readonly trozos: {
     rt: Phaser.GameObjects.RenderTexture | undefined
+    /** Bordes de las zonas, en su propia textura sobre la tierra arada. */
+    rb: Phaser.GameObjects.RenderTexture | undefined
     t: Trozo
     firma: string
   }[]
@@ -37,7 +45,12 @@ export class VistaZonas {
     private readonly lado: number,
     private readonly semilla = 0,
   ) {
-    this.trozos = rejillaTrozos(mundoPx).map((t) => ({ rt: undefined, t, firma: '' }))
+    this.trozos = rejillaTrozos(mundoPx).map((t) => ({
+      rt: undefined,
+      rb: undefined,
+      t,
+      firma: '',
+    }))
   }
 
   /** Trozos que se han vuelto a hornear (ganchos de prueba y rendimiento). */
@@ -61,7 +74,10 @@ export class VistaZonas {
       this.modo = e.modo
       const alfa = e.modo === 'plano' ? 1 : ALFA_ZONAS_VIDA
       this.alfa = alfa
-      for (const { rt } of this.trozos) rt?.setAlpha(alfa)
+      for (const { rt, rb } of this.trozos) {
+        rt?.setAlpha(alfa)
+        rb?.setAlpha(alfa)
+      }
     }
   }
 
@@ -75,7 +91,12 @@ export class VistaZonas {
   }
 
   private hornearTrozo(
-    tr: { rt: Phaser.GameObjects.RenderTexture | undefined; t: Trozo; firma: string },
+    tr: {
+      rt: Phaser.GameObjects.RenderTexture | undefined
+      rb: Phaser.GameObjects.RenderTexture | undefined
+      t: Trozo
+      firma: string
+    },
     zonas: string,
   ): void {
     const v: VentanaCasillas = {
@@ -103,7 +124,9 @@ export class VistaZonas {
     }
     if (casillas.length === 0) {
       tr.rt?.destroy()
+      tr.rb?.destroy()
       tr.rt = undefined
+      tr.rb = undefined
       return
     }
     tr.rt ??= this.escena.add
@@ -111,18 +134,33 @@ export class VistaZonas {
       .setOrigin(0, 0)
       .setDepth(PROFUNDIDAD_ZONAS)
       .setAlpha(this.alfa)
+    tr.rb ??= this.escena.add
+      .renderTexture(tr.t.x, tr.t.y, tr.t.ancho, tr.t.alto)
+      .setOrigin(0, 0)
+      .setDepth(PROFUNDIDAD_BORDES_ZONAS)
+      .setAlpha(this.alfa)
     const rt = tr.rt
+    const rb = tr.rb
     rt.clear()
+    rb.clear()
     rt.beginDraw()
+    rb.beginDraw()
     const sello = crearSello(this.escena)
-    const estampar = (zona: Zona, fotograma: number, x: number, y: number): void => {
+    const estampar = (
+      destino: Phaser.GameObjects.RenderTexture,
+      zona: Zona,
+      fotograma: number,
+      x: number,
+      y: number,
+    ): void => {
       sello.setTexture(claveZona(zona), fotograma)
       sello.setScale(escalaNominal(this.escena, claveZona(zona), TAM_CASILLA, 0))
-      rt.batchDraw(sello, x * TAM_CASILLA - tr.t.x, y * TAM_CASILLA - tr.t.y)
+      destino.batchDraw(sello, x * TAM_CASILLA - tr.t.x, y * TAM_CASILLA - tr.t.y)
     }
-    // Primero todo el relleno y después los bordes, para que ningún relleno tape un borde vecino.
+    // El relleno en una textura y los bordes en otra, encima de la tierra arada.
     for (const { x, y, zona } of casillas) {
       estampar(
+        rt,
         zona,
         varianteDeCasilla(this.semilla, x, y, FOTOGRAMAS_ZONA.rellenos, SAL_ZONAS),
         x,
@@ -131,17 +169,21 @@ export class VistaZonas {
     }
     for (const { x, y, zona } of casillas) {
       const b = bordesDeCasilla(zonas, this.lado, x, y, zona)
-      if (b.arriba) estampar(zona, FOTOGRAMAS_ZONA.bordeArriba, x, y)
-      if (b.derecha) estampar(zona, FOTOGRAMAS_ZONA.bordeDerecha, x, y)
-      if (b.abajo) estampar(zona, FOTOGRAMAS_ZONA.bordeAbajo, x, y)
-      if (b.izquierda) estampar(zona, FOTOGRAMAS_ZONA.bordeIzquierda, x, y)
+      if (b.arriba) estampar(rb, zona, FOTOGRAMAS_ZONA.bordeArriba, x, y)
+      if (b.derecha) estampar(rb, zona, FOTOGRAMAS_ZONA.bordeDerecha, x, y)
+      if (b.abajo) estampar(rb, zona, FOTOGRAMAS_ZONA.bordeAbajo, x, y)
+      if (b.izquierda) estampar(rb, zona, FOTOGRAMAS_ZONA.bordeIzquierda, x, y)
     }
     sello.destroy()
     rt.endDraw()
+    rb.endDraw()
   }
 
   destruir(): void {
-    for (const { rt } of this.trozos) rt?.destroy()
+    for (const { rt, rb } of this.trozos) {
+      rt?.destroy()
+      rb?.destroy()
+    }
     this.trozos.length = 0
   }
 }
