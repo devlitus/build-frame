@@ -40,7 +40,7 @@ export interface ValleyOptions {
   /** Parcel indices to own at start (needs debug). */
   owned?: readonly number[]
   /** Start position (needs debug). */
-  at?: 'vado'
+  at?: 'vado' | { x: number; y: number }
   /** Parcel selected at start (needs debug and mode plano). */
   selection?: number
   /** Time multiplier (needs debug). */
@@ -48,6 +48,8 @@ export interface ValleyOptions {
   /** Start time of day `HH:MM` (needs debug). */
   hour?: string
   money?: number
+  /** Hides the fps counter and the HUD offset it causes (needs debug). */
+  noCounter?: boolean
   /** Notice duration in ms (needs debug); default 300 so tests never wait the real 6 s. */
   noticeMs?: number
 }
@@ -60,11 +62,12 @@ export function valleyQuery(o: ValleyOptions = {}): string {
   if (o.mode) q.push(`modo=${o.mode}`)
   if (debug) {
     if (o.owned && o.owned.length > 0) q.push(`propias=${o.owned.join(',')}`)
-    if (o.at) q.push(`en=${o.at}`)
+    if (o.at) q.push(`en=${typeof o.at === 'string' ? o.at : `${o.at.x},${o.at.y}`}`)
     if (o.selection !== undefined) q.push(`seleccion=${o.selection}`)
     if (o.speed !== undefined) q.push(`acelerar=${o.speed}`)
     if (o.hour) q.push(`hora=${o.hour}`)
     if (o.money !== undefined) q.push(`dinero=${o.money}`)
+    if (o.noCounter) q.push('contador=0')
     q.push(`aviso=${o.noticeMs ?? 300}`)
   }
   return `?${q.join('&')}`
