@@ -623,6 +623,186 @@ Fuera de la tanda; sin cambios.
 | elegir una herramienta y abrir y cerrar el inventario | — | e2e F8 (`@humo`) |
 | dormir junto a la aparición pasa de día con la energía al máximo | energía | e2e F7 (`@humo`); `core/energia › Dormir · sin casa, junto a la aparición…` |
 
+## E2E-17a: specs borrados
+
+Historia **E2E-17a**: se reescriben el smoke (`tests/e2e/smoke.spec.ts`, S1–S4) y los flujos de Vida (`tests/e2e/flows-life.spec.ts`, F5–F8, F11, F12) y se borran los 13 specs de abajo. Ninguno de ellos contiene un `[S]` (los `[S]` de `m5-00-final` quedan en S1 y en `unit/zone-palette`). La columna «Estado» dice si el destino ya existe: `17a` = test e2e nuevo de esta historia; `vitest` = ya existe; `17b`/`17c` = test e2e que escriben esas historias (hasta entonces esa comprobación no está en e2e; la lógica sí está en vitest cuando la fila lo cita).
+
+Tests nuevos: `smoke.spec.ts` › `S1 boot…`, `S2 move…`, `S3 mode-switch…`, `S4 accelerated-day…`; `flows-life.spec.ts` › `F5 crop-cycle…`, `F6 chop-mine…` (dos tests: hacha y pico), `F7 energy-sleep…`, `F8 inventory…`, `F11 time-controls…`, `F12 walk-routes…`. El título original de cada test va en el comentario `// Was:` sobre el nuevo.
+
+Dos notas: (1) el test de `humo` «dormir junto a la aparición…» pasa a F7, que **no** lleva `@humo` (el plan solo etiqueta F1–F5 y F8); la CI sigue cubriendo dormir dentro de F5 (`@humo`), que duerme 4 veces con el botón. (2) Hasta E2E-17b, `@humo` no contiene F1–F4 ni F13 (los cinco tests de humo del Plano, que se borran aquí). (3) F6 usa el gancho nuevo `obstaculos()` (solo con `?debug`) para localizar el árbol y la roca más cercanos.
+
+### portada (3 tests)
+
+| Test borrado | Destino | Estado |
+|---|---|---|
+| la portada muestra el título y el lienzo | e2e S1 | 17a: S1 |
+| el manifiesto PWA es accesible | e2e S1 | 17a: S1 |
+| la ilustración de fondo se carga | e2e S1 | 17a: S1 |
+
+### valle (2 tests)
+
+| Test borrado | Destino | Estado |
+|---|---|---|
+| «Nueva partida» lleva al valle con una semilla nueva | e2e S1; semilla en `unit/valle-rompedor-m102 › nunca lanza y la semilla siempre es uint32` | 17a: S1; vitest |
+| con ?semilla=N se abre el valle directamente | e2e B5; **unit/parametros-rompedor-m104 › %s opens the valley with seed %i** | pendiente 17c: B5; vitest |
+
+### personaje (4 tests)
+
+| Test borrado | Destino | Estado |
+|---|---|---|
+| con ?debug&en=vado el personaje empieza sobre un vado | `unit/partida › parámetro ?en · solo vale con debug`; **unit/parametros-rompedor-m104 › ?en=vado, ?hora…**; e2e B5 | pendiente 17c: B5; vitest |
+| al pulsar una tecla de movimiento el personaje se mueve y la cámara lo sigue | `unit/personaje › MoverPersonaje …`; **unit/keyboard-input › WASD and arrows give the 8 directions**; **prop/camara-rompedor › following (Life) reaches the target…**; e2e S2 | 17a: S2; vitest |
+| las flechas también mueven y al soltar se detiene | **unit/keyboard-input › WASD and arrows…**; e2e S2 | 17a: S2; vitest |
+| al perder el foco la ventana el personaje deja de andar | **unit/keyboard-input › losing the window focus (blur) or hiding the tab releases every key**; e2e B6 | pendiente 17c: B6; vitest |
+| el reloj avanza con el tiempo real | `unit/partida › a x1 un día dura unos 15 minutos reales`; e2e P4 | ya existe: P4 (E2E-19 / E2E-14); vitest |
+
+### tiempo-hud (14 tests)
+
+| Test borrado | Destino | Estado |
+|---|---|---|
+| el HUD muestra la hora, el día y la estación | `unit/textos-reloj › fecha y estaciones visibles`; e2e S1 | 17a: S1; vitest |
+| la hora de la madrugada se ve como 02:00 | `unit/textos-reloj › HH:MM con la madrugada como 02:00`; `unit/parametros-tiempo › la madrugada…` | vitest |
+| aceptación M2: un día completo, desmayo a las 02:00 y fecha nueva | `core/comandos › al superar las 02:00 pasa al día siguiente…`; `unit/personaje › desmayo · devuelve al personaje a la aparición`; e2e S4 | 17a: S4; vitest |
+| al despertar el reloj marca las 06:00 del día siguiente | `core/comandos`; `prop/tiempo-rompedor › minutoDelDia siempre en [inicio, fin]…` | vitest |
+| la pausa detiene el reloj y reanudar lo devuelve | `core/comandos › en pausa, AvanzarTiempo es ok pero no cambia nada`; `unit/partida › en pausa no acumula`; e2e F11 | 17a: F11; vitest |
+| la tecla P alterna la pausa y se ignora con modificadores | e2e G2 / F11 | 17a: F11; pendiente 17c: G2 |
+| x2 y x3 aceleran el reloj | `unit/acumulador-velocidad › x2 y x3 avanzan el doble y el triple…`; e2e F11 | 17a: F11; vitest |
+| tras pulsar con el puntero el foco vuelve al lienzo | e2e B6 | pendiente 17c: B6 |
+| en el Modo Plano se indica que el tiempo está detenido | `prop/modos-rompedor › en Plano ni el reloj ni el personaje cambian…`; e2e F11 (insignia) | 17a: F11; vitest |
+| el tinte del valle cambia con la hora | `unit/luz › a mediodía no hay tinte`, `› de noche el tinte es el más oscuro` | vitest |
+| botones de tiempo de al menos 44 px y sin solapes ×3 | e2e R1–R4 | ya existe: R1, R4 (E2E-19 / E2E-14) |
+| un segundo desmayo con el aviso visible lo reanuncia | **unit/faint-notice › a second faint with the notice visible announces it again** | vitest |
+
+### hud-rompedor (5 tests)
+
+| Test borrado | Destino | Estado |
+|---|---|---|
+| el aviso no tapa reloj ni botones ×3 | e2e R1–R4 | ya existe: R1, R4 (E2E-19 / E2E-14) |
+| el HUD no se repinta a ritmo de fotograma | e2e B1; `unit/compra-parcela › clasificador con memoria …` (memo) | pendiente 17c: B1; vitest |
+| P con foco en un botón alterna una sola vez; mantenida no repite | e2e G2 | pendiente 17c: G2 |
+
+### energia (6 tests)
+
+| Test borrado | Destino | Estado |
+|---|---|---|
+| la barra de energía es un medidor accesible | **unit/energy-meter › is a meter from 0 to the maximum…** | vitest |
+| usar la azada gasta 2 y el medidor lo refleja; la mano no gasta | `core/energia › un uso válido de %s gasta su coste`; **unit/energy-meter › with %i energy…**; **prop/m5-simulation** (coste exacto en cada uso) | vitest |
+| sin energía: «Estás agotado» y moverse sigue valiendo | **prop/m5-simulation › energy: a long day of chopping runs out…**; `core/energia › moverse y cambiar de modo nunca se bloquean sin energía`; texto: e2e F7 | 17a: F7; vitest |
+| el botón Dormir junto a la aparición pasa de día con la energía al máximo | `core/energia › Dormir · sin casa, junto a la aparición…`; e2e F7 | 17a: F7; vitest |
+| la tecla Z duerme y el botón solo se ve donde se puede dormir | **unit/action-buttons › shows exactly where the core accepts Dormir…**; tecla: e2e F7 | 17a: F7; vitest |
+| en el Modo Plano no hay botón Dormir | **unit/action-buttons › … (in the Plano)** | vitest |
+
+### energia-rompedor (14 tests)
+
+| Test borrado | Destino | Estado |
+|---|---|---|
+| Z con el inventario abierto: si el botón se oculta, la tecla no debe dormir | **unit/action-buttons › … hides with the inventory open**; la tecla: e2e G2 | pendiente 17c: G2; vitest |
+| Z con el foco en un botón del HUD no duerme | e2e G2 | pendiente 17c: G2 |
+| Z con el foco en `<body>` duerme | e2e G2 / F7 | 17a: F7; pendiente 17c: G2 |
+| Z mantenida duerme una sola vez | e2e G2 | pendiente 17c: G2 |
+| Z en el Modo Plano no hace nada | `core/energia › Dormir · solo en Modo Vida` | vitest |
+| Z y E a la vez: sin energía, E avisa y Z sigue durmiendo | **prop/m5-simulation › energy: a long day of chopping runs out…** (dormir tras agotarse) | vitest |
+| dormir en pausa conserva la pausa; a x3 conserva la velocidad | **prop/m5-simulation › sleeping while paused keeps the pause, and at x3 keeps the speed…** | vitest |
+| al dormir con un destino pendiente el personaje no sigue andando | e2e F12 | 17a: F12 |
+| aviso agotado y aviso de herramienta a la vez: queda uno | `unit/estabilizacion-m4 › unirFrases`; DOM: e2e F7 | 17a: F7; vitest |
+| el medidor: valor y texto coherentes en cada gasto | **unit/energy-meter › with %i energy the value and the «low» mark follow the state** | vitest |
+| el botón Dormir al aparecer no mueve los botones | e2e R* | ya existe: R* (E2E-19 / E2E-14) |
+| HUD en 320×568 con energía, Dormir y aviso ×N | e2e R* (controles alcanzables a 320×568) | ya existe: R* (E2E-19 / E2E-14) |
+
+### inventario (12 tests)
+
+| Test borrado | Destino | Estado |
+|---|---|---|
+| la barra muestra las seis herramientas, ≥ 44 px | e2e F8 / R* | 17a: F8; ya existe: R* (E2E-19 / E2E-14) |
+| elegir una herramienta con un clic o toque | `core/herramientas › ElegirHerramienta · elige %s`; `unit/inventario-partida › elegir «semillas»…` | vitest |
+| las teclas 1 a 6 eligen la herramienta | e2e G2 / F8 | 17a: F8; pendiente 17c: G2 |
+| E y Espacio usan la herramienta en la casilla de enfrente | `unit/casilla-enfrente`, `unit/inventario-partida › usarEnfrente actúa sobre la casilla de enfrente…`; teclas: e2e F8 | 17a: F8; vitest |
+| el botón de acción usa la herramienta en la casilla de enfrente | ídem; e2e F8 | 17a: F8 |
+| con la pausa el uso se rechaza con su motivo | `core/herramientas › con la pausa del jugador se rechaza` | vitest |
+| un clic en una casilla pegada usa la herramienta; uno lejano camina | `core/herramientas › se acepta sobre la casilla del personaje y sus 8 vecinas…`, `› a 2 casillas … fuera de alcance`; **prop/tactil-posiciones-rompedor › property: … maps back to it**; e2e T7 | pendiente 17c: T7; vitest |
+| inventario: el botón abre el panel con ranuras, cantidades y capacidad | `core/inventario › trae el lote de regalo…`, `› capacidad base 12…`; e2e F8 | 17a: F8; vitest |
+| inventario: elegir una semilla del panel activa «Semillas» | `unit/inventario-partida › elegirSemilla deja activa la herramienta «semillas»` | vitest |
+| inventario: la tecla I y Escape abren y cierran | `unit/inventario-partida › alternar abre y cierra…`; e2e F8 | 17a: F8; vitest |
+| en el Modo Plano no hay barra, ni botones, ni teclas | `core/herramientas › solo en Modo Vida`; **unit/action-buttons › does not exist in the Plano** | vitest |
+| el inventario abierto se cierra al pasar al Plano | `unit/inventario-partida › se cierra al pasar al Modo Plano…` | vitest |
+
+### inventario-rompedor (13 tests)
+
+| Test borrado | Destino | Estado |
+|---|---|---|
+| tras cerrar el inventario con M, las teclas siguen vivas | e2e G2 / B6 | pendiente 17c: B6, G2 |
+| con el inventario abierto por teclado, un clic devuelve las teclas | e2e B6 | pendiente 17c: B6 |
+| E y Espacio mirando fuera del valle: «fuera-del-valle» | `core/herramientas › fuera del valle`; aviso: e2e F8 | 17a: F8; vitest |
+| las teclas con modificadores no eligen ni usan | e2e G2 | pendiente 17c: G2 |
+| con el foco en un botón de herramienta, Espacio pulsa el botón | e2e G2 | pendiente 17c: G2 |
+| clic o toque: las 9 casillas usan la herramienta y la de distancia 2 camina ×DPR | `core/herramientas › se acepta sobre la casilla del personaje y sus 8 vecinas…`; **prop/tactil-posiciones-rompedor › property: any view, any CSS size, any DPR…**; e2e T7 | pendiente 17c: T7; vitest |
+| un joystick que empieza en una casilla pegada no usa la herramienta | **prop/tactil-rompedor › distance threshold…** (arrastre > 10 px no es toque); e2e T2 | pendiente 17c: T2; vitest |
+| en la esquina inferior izquierda la barra no tapa al personaje | **prop/life-camera-hud › wherever the character stands… not under the bar or the panel**; e2e R2–R4 (foco en Vida) | ya existe: R2, R4 (E2E-19 / E2E-14); vitest |
+| el panel de inventario no se solapa con la barra ni los botones | e2e R* | ya existe: R* (E2E-19 / E2E-14) |
+| con el personaje en medio, el inventario abierto no lo tapa | **prop/life-camera-hud › … not under the panel**, **› when a Life margin grows (panel opens)…**; e2e R* | ya existe: R* (E2E-19 / E2E-14); vitest |
+| girar el móvil con el inventario abierto | e2e R5 | ya existe: R5 (E2E-19 / E2E-14) |
+
+### inventario-rompedor-r2 (30 tests)
+
+| Test borrado | Destino | Estado |
+|---|---|---|
+| `<vista>, esquina <esquina>`: la vista no enseña más fuera del valle que lo que tapa la barra ×12 | **prop/life-camera-hud › in the 4 corners (and the west edge) it never shows more outside the valley…** | vitest |
+| ninguna esquina deja al personaje bajo el HUD ni fuera de la pantalla | **prop/life-camera-hud › wherever the character stands on a tile centre…**; fila superior del HUD: e2e R2–R4 | ya existe: R2, R4 (E2E-19 / E2E-14); vitest |
+| al girar el móvil en el borde oeste, la franja se ajusta a la barra | **prop/life-camera-hud › ControlCamara: following with the Life margins converges…; rotating re-fits the west strip** | vitest |
+| `<vista>`: personaje pegado al oeste, el panel abierto no lo tapa ×2 | **prop/life-camera-hud › … not under the panel**, **› when a Life margin grows (panel opens)…** | vitest |
+| con el foco en `<body>`, cada tecla actúa una sola vez | e2e G2 | pendiente 17c: G2 |
+| con el foco en el lienzo, E usa una vez e I abre | e2e G2 | pendiente 17c: G2 |
+| en el Plano, con el foco en `<body>`, 1–6, E e I no hacen nada | `core/herramientas › solo en Modo Vida`; e2e G2 | pendiente 17c: G2; vitest |
+| con el foco en un botón del HUD (Hacha), 1 y E no actúan | e2e G2 | pendiente 17c: G2 |
+| en el Plano, un clic en el lienzo no roba el foco de la barra de zonas | e2e B6 | pendiente 17c: B6 |
+| Tab desde el lienzo recorre el HUD | e2e A1 | pendiente 17c: A1 |
+| `<w×h>`: el texto de «Cerrar» cabe ×N | e2e R* (sin texto recortado) | ya existe: R* (E2E-19 / E2E-14) |
+| `<w×h>`: la pista «▼» no tapa la cantidad ×N | e2e R* / capturas | ya existe: R* (E2E-19 / E2E-14) |
+| `<w×h>`: tocar una ranura bajo la pista la elige ×N | e2e F8 (m) | 17a: F8 |
+| 320×568: la pista desaparece al final y vuelve al subir | capturas | descartada |
+| iconos de semilla @1x/@2x según el DPR | **unit/resolucion › DPR %f: every art file requested by cargarArte…** (lienzo); iconos del DOM: `unit/arte-m5-00`; descartada como e2e | vitest |
+
+### cosechar (1 tests)
+
+| Test borrado | Destino | Estado |
+|---|---|---|
+| arar, plantar, regar, dormir varios días y cosechar con el botón contextual | e2e F5 (se queda); lógica en `core/cosecha › aceptación del hito…`, **prop/m5-simulation › invariants after every command…** (cosechas = eventos), **unit/action-buttons › says «Cosechar» only with the hand facing a ripe, living plant** | 17a: F5; vitest |
+
+### m2-global-rompedor (11 tests)
+
+| Test borrado | Destino | Estado |
+|---|---|---|
+| un día acelerado con teclado, modos, velocidad y pausa: coherencia | `prop/m2-global-rompedor › el estado siempre es válido…`; `unit/hud-rompedor › luzDelMinuto …`; e2e S4 / F11 | 17a: F11, S4; vitest |
+| desmayo con una ruta en curso: sin destino, en la aparición, cámara con él | e2e F12; aparición: `unit/personaje › desmayo …` | 17a: F12; vitest |
+| desmayo con el joystick activo | e2e T2 | pendiente 17c: T2 |
+| pulsar el modo con el joystick activo lo suelta | e2e T9 | pendiente 17c: T9 |
+| segundo dedo sobre el botón de pausa durante el arrastre | e2e T9 | pendiente 17c: T9 |
+| girar el móvil de noche, en Plano y con aviso | e2e R5 | ya existe: R5 (E2E-19 / E2E-14) |
+| P y M a la vez: cada una actúa una vez | e2e G2 | pendiente 17c: G2 |
+| tras reiniciar la escena 6 veces: una P = un cambio, un joystick | e2e B1 | pendiente 17c: B1 |
+| reiniciar la escena en Plano con pausa: botón e insignia coherentes | e2e B1 | pendiente 17c: B1 |
+| Modo Plano con una ruta activa: se cancela | e2e F12 | 17a: F12 |
+| recorrido con Tab: nombre accesible y foco visible | e2e A1 | pendiente 17c: A1 |
+| botones de velocidad y pausa con aria-pressed; el reloj es un timer | e2e A1 | pendiente 17c: A1 |
+| fps de noche andando con el HUD | e2e P3 | ya existe: P3 (E2E-19 / E2E-14) |
+
+### humo (12 tests)
+
+| Test borrado | Destino | Estado |
+|---|---|---|
+| arrancar: la portada lleva al valle con el HUD | e2e S1 | 17a: S1 |
+| moverse con el teclado | e2e S2 | 17a: S2 |
+| clic o toque hasta un destino cercano | e2e S2; **unit/camino › a far free tile…** | 17a: S2; vitest |
+| cambiar de modo detiene el reloj y volver lo reanuda | e2e S3; `prop/modos-rompedor` | 17a: S3; vitest |
+| un día acelerado pasa al día siguiente con el aviso | e2e S4 | 17a: S4 |
+| seleccionar una parcela en el Modo Plano abre el panel | e2e F13 (`@humo`) | pendiente 17b: F13 |
+| comprar la primera parcela baja el dinero del HUD | e2e F1 (`@humo`); `unit/compra-parcela › compra: baja el dinero…` | pendiente 17b: F1; vitest |
+| pintar una zona con el pincel y borrarla | e2e F2 (`@humo`); **unit/pincel-zonas › erasing and repainting…** | pendiente 17b: F2; vitest |
+| pintar una zona y construir en ella: obra visible y edificio al pasar el día | e2e F3 (`@humo`); **prop/m5-simulation** (construir en la apertura) | pendiente 17b: F3; vitest |
+| demoler un edificio terminado devuelve la mitad del coste | e2e F4 (`@humo`); `core/mover-demoler › un edificio terminado devuelve la mitad…` | pendiente 17b: F4; vitest |
+| elegir una herramienta y abrir y cerrar el inventario | e2e F8 (`@humo`) | 17a: F8 |
+| dormir junto a la aparición pasa de día con la energía al máximo | e2e F7 (`@humo`); `core/energia › Dormir · sin casa, junto a la aparición…` | 17a: F7; vitest |
+
 ## Huecos encontrados
 
 1. **Lógica que vive en `EscenaValle` (no testeable sin Phaser).** Cancelar la ruta al cambiar de modo, al pausar, con una tecla o con el desmayo emitido fuera del bucle; las teclas de herramientas (1–6, E, Espacio, I, Z) y su filtro de foco y modificadores; `margenesVida`; la elección entre «usar» y «caminar» al tocar una casilla. Se queda en e2e (F12, G2, F8, T7). `prop/life-camera-hud` copia la fórmula de `margenesVida` como modelo: si cambia en la escena, hay que cambiarla allí. Extraer esas funciones puras de la escena (historia aparte, `src/` no es del Rompedor) permitiría pasarlas al núcleo.
