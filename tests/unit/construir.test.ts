@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion -- catálogo conocido en tests */
 import { describe, expect, it, vi } from 'vitest'
+import fc from 'fast-check'
 import {
   aplicarComando,
   crearEstadoInicial,
@@ -347,5 +348,72 @@ describe('ColocadorEdificio and the confirmation (fake scene)', () => {
     expect(partida.estado.edificios).toHaveLength(1)
     expect(partida.construccion.tipo).toBeUndefined()
     expect(partida.construccion.abierto).toBe(true)
+  })
+})
+
+// E2E-16 · Rompedor: m4-global-rompedor «exclusión mutua: parcela, pincel, construir y edificio
+// nunca están abiertos a la vez» and «Vida con cada panel abierto (…): se cierra todo y no se aplica
+// nada», at the `Partida` level plus the two rules the scene adds (`EscenaValle.alCambiarHerramienta`),
+// which are modelled here and stay checked in e2e (F10).
+describe('panels are mutually exclusive (Partida)', () => {
+  type Paso = 'parcela' | 'pincel' | 'construir' | 'edificio' | 'vida'
+  it('any sequence of openings leaves at most the allowed pairs open; Life closes everything and applies nothing', () => {
+    const { estado, x, y } = escenario()
+    const r = aplicarComando(estado, { tipo: 'Construir', tipoEdificio: 'caja-envio', x, y })
+    if (!r.ok) throw new Error(r.error)
+    const base = r.estado
+    const id = base.edificios[0]!.id
+    fc.assert(
+      fc.property(
+        fc.array(fc.constantFrom<Paso>('parcela', 'pincel', 'construir', 'edificio', 'vida'), {
+          maxLength: 30,
+        }),
+        (pasos) => {
+          const partida = new Partida(base)
+          // The scene's share (EscenaValle.alCambiarHerramienta): opening the brush or Construir
+          // deselects the parcel, and the parcel picker is off while either is open.
+          const escena = () => {
+            if (partida.pincel.abierto || partida.construccion.abierto)
+              partida.seleccion.deseleccionar()
+          }
+          partida.pincel.suscribir(escena)
+          partida.construccion.suscribir(escena)
+          for (const p of pasos) {
+            if (p === 'vida') {
+              const antes = partida.estado
+              partida.emitir({ tipo: 'CambiarModo', modo: 'vida' })
+              expect(partida.seleccion.indice).toBeUndefined()
+              expect(partida.pincel.abierto).toBe(false)
+              expect(partida.construccion.abierto).toBe(false)
+              expect(partida.edificioSeleccionado.id).toBeUndefined()
+              // Nothing was applied: only the mode changed.
+              expect({ ...partida.estado, modo: antes.modo }).toEqual(antes)
+              partida.emitir({ tipo: 'CambiarModo', modo: 'plano' })
+              continue
+            }
+            const seElige =
+              p !== 'parcela' || (!partida.pincel.abierto && !partida.construccion.abierto)
+            if (p === 'parcela' && seElige) partida.seleccion.seleccionar(14)
+            if (p === 'pincel') partida.pincel.abrir()
+            if (p === 'construir') partida.construccion.abrir()
+            if (p === 'edificio') partida.edificioSeleccionado.seleccionar(id)
+            const abiertos = {
+              parcela: partida.seleccion.indice !== undefined,
+              pincel: partida.pincel.abierto,
+              construir: partida.construccion.abierto,
+              edificio: partida.edificioSeleccionado.id !== undefined,
+            }
+            const n = Object.values(abiertos).filter(Boolean).length
+            expect(n, `${pasos.join(' > ')}: ${JSON.stringify(abiertos)}`).toBeLessThanOrEqual(1)
+            // The last thing opened is the one that stays (a parcel cannot be picked while the brush
+            // or Construir is open; the inventory is Life-only: unit/inventario-partida).
+            if (seElige) expect(abiertos[p]).toBe(true)
+          }
+          expect(partida.estado.dinero).toBe(base.dinero)
+          expect(partida.estado.edificios).toEqual(base.edificios)
+        },
+      ),
+      { numRuns: 300 },
+    )
   })
 })

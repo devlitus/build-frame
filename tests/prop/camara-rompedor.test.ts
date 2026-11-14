@@ -452,3 +452,78 @@ describe('ControlCamara with fake pointers', () => {
     }
   })
 })
+
+describe('ControlCamara: reaching the edges and coming back from the Plano', () => {
+  beforeEach(() => {
+    vi.stubGlobal('WheelEvent', RuedaFalsa)
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it.each([
+    [1280, 720],
+    [412, 915],
+  ])(
+    '%i×%i, min and max zoom: dragging reaches the four edges and never shows more than half a screen past them',
+    (w, h) => {
+      // Original e2e: m1-global-rompedor.spec.ts «<caso>, zoom <extremo>: se alcanzan las cuatro
+      // esquinas y los cuatro bordes».
+      for (const extremo of ['max', 'min'] as const) {
+        const c = controlPlano(w, h)
+        for (let i = 0; i < 40; i++) c.rueda(w / 2, h / 2, extremo === 'max' ? -500 : 500)
+        const lim = limitesZoom(c.pantalla(), MUNDO)
+        expect(c.control.vista.zoom).toBe(extremo === 'max' ? lim.max : lim.min)
+        for (const [dx, dy] of [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+          [1, 1],
+          [-1, -1],
+        ] as const) {
+          c.control.centrarEn({ x: MUNDO / 2, y: MUNDO / 2 })
+          for (let k = 0; k < 20; k++) {
+            const p = fakePointer(0, w / 2, h / 2, false)
+            c.down(p)
+            c.move(p, w / 2 + dx * 400, h / 2 + dy * 400)
+            c.up(p)
+          }
+          const v = c.control.vista
+          const x0 = v.cx - w / 2 / v.zoom
+          const x1 = v.cx + w / 2 / v.zoom
+          const y0 = v.cy - h / 2 / v.zoom
+          const y1 = v.cy + h / 2 / v.zoom
+          const msg = `${extremo} ${dx},${dy}`
+          if (dx > 0) expect(x0, msg).toBeLessThanOrEqual(0.5)
+          if (dx < 0) expect(x1, msg).toBeGreaterThanOrEqual(MUNDO - 0.5)
+          if (dy > 0) expect(y0, msg).toBeLessThanOrEqual(0.5)
+          if (dy < 0) expect(y1, msg).toBeGreaterThanOrEqual(MUNDO - 0.5)
+          validarControl(c)
+        }
+      }
+    },
+  )
+
+  it('Life after the Plano: with a corner parcel guided past the edge, the view goes back inside the valley', () => {
+    // Original e2e: m1-global-rompedor.spec.ts «Vida tras el Plano: la vista vuelve a quedar dentro
+    // del valle · con un panel abierto en una esquina del Plano» and «· con los márgenes que dejó el
+    // Plano (sin panel)».
+    for (const esquina of [
+      { x: 16, y: 16 },
+      { x: 16, y: MUNDO - 16 },
+    ]) {
+      const c = controlPlano(412, 915)
+      c.control.zoomCentro(2)
+      c.control.fijarMargenes({ arriba: 120, abajo: 400, izq: 24, der: 24 })
+      c.control.guiarA(esquina)
+      for (let i = 0; i < 500 && c.control.guiando; i++) c.control.avanzarGuia(16)
+      // To Life, in the order of `EscenaValle.aplicarModo`: no drag, follow on (drops the
+      // extension), then the Life margins (none here: no tool bar) with a jump.
+      c.control.arrastreActivo = false
+      c.control.seguirActivo = true
+      c.control.fijarMargenes(undefined, true)
+      validarControl(c)
+    }
+  })
+})

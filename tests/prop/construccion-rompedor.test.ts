@@ -1380,7 +1380,8 @@ describe('balance (medición)', () => {
       ].join('\n'),
     )
     expect(semillasConAlguna / N).toBeGreaterThan(0.5)
-  })
+    // E2E-16: 200 valleys take ~30 s on the 16-thread machine, over vitest's 20 s default.
+  }, 120_000)
 })
 
 /**

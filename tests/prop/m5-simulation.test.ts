@@ -551,3 +551,25 @@ describe('M5 simulation: whole games on the core', () => {
     )
   }, 120_000)
 })
+
+describe('sleeping keeps the player choices', () => {
+  it('sleeping while paused keeps the pause, and at x3 keeps the speed; the clock waits at 06:00', () => {
+    // Original e2e: energia-rompedor.spec.ts «dormir en pausa conserva la pausa; a velocidad x3
+    // conserva la velocidad».
+    let e = crearEstadoInicial({ semilla: 42 })
+    e = aplicarComando(e, { tipo: 'CambiarVelocidad', velocidad: 3 }).estado
+    e = aplicarComando(e, { tipo: 'AvanzarTiempo', minutos: 300 }).estado
+    e = aplicarComando(e, { tipo: 'Pausar' }).estado
+    const r = aplicarComando(e, { tipo: 'Dormir' })
+    expect(r.ok).toBe(true)
+    expect(r.estado).toMatchObject({
+      pausado: true,
+      velocidad: 3,
+      minutoDelDia: 360,
+      dia: e.dia + 1,
+    })
+    expect(r.estado.energia).toBe(ENERGIA_MAXIMA)
+    const tras = aplicarComando(r.estado, { tipo: 'AvanzarTiempo', minutos: 120 }).estado
+    expect(tras.minutoDelDia).toBe(360)
+  })
+})
