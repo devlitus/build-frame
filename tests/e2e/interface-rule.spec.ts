@@ -16,20 +16,21 @@ import { measureInterface, type InterfaceReport } from './apoyo/interface'
  * open and checks the controls at 320x568. The last block attacks the measurement itself.
  *
  * Each state gets an annotation `coverage % | focus | controls`, so the report is a table.
- * The thresholds are PROVISIONAL (the PO sets the final ones from that table).
+ * The thresholds are the ones fixed by the Product Owner.
  *
- * States that fail on the current HUD are listed in KNOWN_FAILING: they are still measured and
- * annotated, and the test expects them to fail (like `test.fail()`, but per state). When the HUD
- * refactor fixes one, the test says so and the entry must be removed.
+ * KNOWN_FAILING lists states that fail on the current HUD (measured, annotated, and expected to
+ * fail, like `test.fail()` but per state). It is empty since the HUD refactor (HUD-01).
  */
 
-/** PROVISIONAL: max coverage (opaque HUD boxes / canvas) with no panel open. */
+/** Max coverage (opaque HUD boxes / canvas) with no panel open. */
 const MAX_COVERAGE_BARE = 0.15
-/** PROVISIONAL: max coverage with a panel open. */
+/** Max coverage with a panel open. */
 const MAX_COVERAGE_PANEL = 0.35
-/** PROVISIONAL: radius (Chebyshev, tiles) of the square around the character that stays free. */
+/** Per-viewport exception to MAX_COVERAGE_PANEL: the smallest viewport (640x320) admits 45 %. */
+const MAX_COVERAGE_PANEL_BY_VIEWPORT: Readonly<Record<string, number>> = { '640x320': 0.45 }
+/** Radius (Chebyshev, tiles) of the square around the character that stays free. */
 const FOCUS_RADIUS = 3
-/** PROVISIONAL: minimum visible fraction of the chosen parcel in Plano. */
+/** Minimum visible fraction of the chosen parcel in Plano. */
 const MIN_PARCEL_VISIBLE = 0.5
 
 const SEED = 42
@@ -38,59 +39,8 @@ const OWNED = [14, 15, 20, 21]
 const SIDE = 96
 const PARCEL_TILES = 16
 
-/** State keys (`R1 spawn`, ...) that fail on the current HUD. Filled from the measured table. */
-const KNOWN_FAILING = new Set<string>([
-  'R1 corner-NW',
-  'R1 corner-NE',
-  'R1 corner-SW',
-  'R1 corner-SE',
-  'R1 inventory',
-  'R2 spawn',
-  'R2 corner-NW',
-  'R2 corner-NE',
-  'R2 corner-SW',
-  'R2 corner-SE',
-  'R2 inventory',
-  'R2 notice',
-  'R2 night-notice',
-  'R2 plano',
-  'R2 parcel',
-  'R2 parcel-confirm',
-  'R2 build-catalog',
-  'R2 build-silhouette',
-  'R2 build-confirm',
-  'R2 building',
-  'R2 building-confirm',
-  'R3 spawn',
-  'R3 corner-NW',
-  'R3 corner-NE',
-  'R3 corner-SW',
-  'R3 corner-SE',
-  'R3 inventory',
-  'R3 notice',
-  'R3 night-notice',
-  'R4 spawn',
-  'R4 corner-NW',
-  'R4 corner-NE',
-  'R4 corner-SW',
-  'R4 corner-SE',
-  'R4 inventory',
-  'R4 notice',
-  'R4 night-notice',
-  'R4 plano',
-  'R4 parcel',
-  'R4 parcel-confirm',
-  'R4 zones',
-  'R4 zones-brush',
-  'R4 build-catalog',
-  'R4 build-silhouette',
-  'R4 build-confirm',
-  'R4 building',
-  'R4 building-confirm',
-  'R4 move',
-  'R5 inventory 915x412',
-  'R5 inventory 320x568',
-])
+/** State keys (`R1 spawn`, ...) that fail on the current HUD. Empty: all states pass. */
+const KNOWN_FAILING = new Set<string>()
 
 interface Ctx {
   page: Page
@@ -374,9 +324,11 @@ const PLANO_STATES: State[] = [
 const ALL_STATES: State[] = [...VIDA_STATES, NIGHT_NOTICE, ...PLANO_STATES]
 
 /** Violations of the rule in a report; empty = the state passes. */
-function violations(r: InterfaceReport, panel: boolean, rotated = false): string[] {
+function violations(r: InterfaceReport, panel: boolean, rotated = false, viewport = ''): string[] {
   const out: string[] = []
-  const max = panel ? MAX_COVERAGE_PANEL : MAX_COVERAGE_BARE
+  const max = panel
+    ? (MAX_COVERAGE_PANEL_BY_VIEWPORT[viewport] ?? MAX_COVERAGE_PANEL)
+    : MAX_COVERAGE_BARE
   if (!rotated && r.coverage > max)
     out.push(`coverage ${(r.coverage * 100).toFixed(1)} % > ${max * 100} %`)
   for (const f of r.focus) if (!f.ok) out.push(`focus "${f.name}": ${f.detail}`)
@@ -394,8 +346,14 @@ function summary(r: InterfaceReport): string {
 }
 
 /** Annotates and asserts one state (soft), inverting the check for the known-failing ones. */
-function judge(key: string, r: InterfaceReport, panel: boolean, rotated = false): void {
-  const problems = violations(r, panel, rotated)
+function judge(
+  key: string,
+  r: InterfaceReport,
+  panel: boolean,
+  rotated = false,
+  viewport = '',
+): void {
+  const problems = violations(r, panel, rotated, viewport)
   test.info().annotations.push({ type: key, description: summary(r) })
   if (KNOWN_FAILING.has(key)) {
     expect
@@ -464,7 +422,13 @@ test.describe('interface rule', () => {
         for (const state of ALL_STATES) {
           await state.setup(c)
           await settle(c.page)
-          judge(`${run.id} ${state.id}`, await measure(c.page), state.panel)
+          judge(
+            `${run.id} ${state.id}`,
+            await measure(c.page),
+            state.panel,
+            false,
+            `${run.w}x${run.h}`,
+          )
         }
       })
     })

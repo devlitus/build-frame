@@ -1,4 +1,4 @@
-import { useEffect } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import { CONFIG_TIEMPO } from '../core'
 import { t } from './textos'
 import { useEstado, usePartida } from './useEstado'
@@ -18,6 +18,9 @@ export function ControlesTiempo() {
   const pausado = useEstado((e) => e.pausado)
   const velocidad = useEstado((e) => e.velocidad)
   const plano = useEstado((e) => e.modo === 'plano')
+  // En pantallas muy bajas (CSS `max-height: 340px`) la lista se esconde tras un botón con la
+  // velocidad vigente; en las demás la lista se ve siempre y el botón no se muestra.
+  const [abierto, setAbierto] = useState(false)
 
   // La `P` vive aquí y no en `entrada.ts` (teclado del lienzo): es un atajo de la interfaz de
   // tiempo y debe funcionar también con el foco en un botón del HUD. Como la `M` de entrada.ts,
@@ -35,39 +38,55 @@ export function ControlesTiempo() {
   }, [partida])
 
   return (
-    <div class="controles-tiempo" role="group" aria-label={t('controlesTiempo')}>
+    <div class="controles-tiempo" data-abierto={abierto ? 'true' : 'false'}>
       <span class="tiempo-detenido" aria-live="polite">
         {plano ? t('tiempoDetenidoPlano') : ''}
       </span>
       <button
         type="button"
-        class="boton-tiempo boton-pausa"
-        aria-label={t('pausaSimbolo')}
-        aria-pressed={pausado}
-        aria-keyshortcuts="P"
-        title={`${pausado ? t('reanudar') : t('pausar')} (P)`}
+        class="boton-tiempo boton-tiempo-menu"
+        aria-label={t('tiempoMenu')}
+        aria-expanded={abierto}
         onClick={(ev) => {
-          partida.emitir({ tipo: partida.estado.pausado ? 'Reanudar' : 'Pausar' })
+          setAbierto(!abierto)
           devolverFoco(ev)
         }}
       >
-        {pausado ? '▶\uFE0E' : '⏸\uFE0E'}
+        {pausado ? '⏸︎' : `x${velocidad}`}
       </button>
-      {CONFIG_TIEMPO.velocidades.map((v) => (
+      <div class="controles-tiempo-lista" role="group" aria-label={t('controlesTiempo')}>
         <button
-          key={v}
           type="button"
-          class="boton-tiempo"
-          aria-label={`${t('velocidadAria')} x${v}`}
-          aria-pressed={velocidad === v}
+          class="boton-tiempo boton-pausa"
+          aria-label={t('pausaSimbolo')}
+          aria-pressed={pausado}
+          aria-keyshortcuts="P"
+          title={`${pausado ? t('reanudar') : t('pausar')} (P)`}
           onClick={(ev) => {
-            partida.emitir({ tipo: 'CambiarVelocidad', velocidad: v })
+            partida.emitir({ tipo: partida.estado.pausado ? 'Reanudar' : 'Pausar' })
+            setAbierto(false)
             devolverFoco(ev)
           }}
         >
-          x{v}
+          {pausado ? '▶\uFE0E' : '⏸\uFE0E'}
         </button>
-      ))}
+        {CONFIG_TIEMPO.velocidades.map((v) => (
+          <button
+            key={v}
+            type="button"
+            class="boton-tiempo"
+            aria-label={`${t('velocidadAria')} x${v}`}
+            aria-pressed={velocidad === v}
+            onClick={(ev) => {
+              partida.emitir({ tipo: 'CambiarVelocidad', velocidad: v })
+              setAbierto(false)
+              devolverFoco(ev)
+            }}
+          >
+            x{v}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

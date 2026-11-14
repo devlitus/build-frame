@@ -25,6 +25,8 @@ export const CONFIG_CAMARA = {
   reservaHudInferiorPx: 72,
   /** Modo Plano: aire (px de pantalla) que se deja entre el borde del valle y la zona libre al pasar del borde. */
   holguraBordePx: 24,
+  /** Vida: casillas alrededor del personaje que el HUD nunca tapa (también en las esquinas del valle). */
+  radioLibreCasillas: 3,
   /** Constante de tiempo (ms) del deslizamiento suave que deja a la vista la parcela elegida. */
   suavizadoGuiaMs: 140,
 } as const

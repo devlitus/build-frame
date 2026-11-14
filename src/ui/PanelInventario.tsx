@@ -25,6 +25,38 @@ export function nombreObjeto(o: ObjetoId): string {
   return t(`objeto_${o}` as ClaveTexto)
 }
 
+/** Mochila: icono propio del botón «Inventario» (el rótulo se oculta en pantallas bajas). */
+function IconoMochila() {
+  return (
+    <svg
+      class="boton-icono"
+      viewBox="0 0 20 20"
+      width="22"
+      height="22"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M6 6a4 4 0 0 1 8 0v1h1.5a1 1 0 0 1 1 1v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1H6z"
+        fill="#c99a5b"
+        stroke="#5a3a1a"
+        stroke-width="1.4"
+        stroke-linejoin="round"
+      />
+      <rect
+        x="7"
+        y="11"
+        width="6"
+        height="4"
+        rx="1"
+        fill="none"
+        stroke="#5a3a1a"
+        stroke-width="1.4"
+      />
+    </svg>
+  )
+}
+
 /**
  * Botón «Inventario» de la barra inferior: solo en el Modo Vida. Con el panel abierto deja su hueco
  * invisible (fuera del árbol accesible y del orden de tabulación), para que el resto de la barra no
@@ -38,7 +70,8 @@ export function BotonInventario() {
   if (abierto) {
     return (
       <span class="boton-inventario boton-hueco" aria-hidden="true">
-        {t('inventarioBoton')}
+        <IconoMochila />
+        <span class="boton-etiqueta">{t('inventarioBoton')}</span>
       </span>
     )
   }
@@ -54,7 +87,8 @@ export function BotonInventario() {
         if (ev.detail > 0) devolverFoco()
       }}
     >
-      {t('inventarioBoton')}
+      <IconoMochila />
+      <span class="boton-etiqueta">{t('inventarioBoton')}</span>
     </button>
   )
 }

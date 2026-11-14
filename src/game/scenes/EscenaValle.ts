@@ -549,19 +549,33 @@ export class EscenaValle extends Phaser.Scene {
    * personaje, así que `seguir` se desliza sin saltos; solo se miden al cambiar el tamaño o el panel.
    */
   private margenesVida(pantalla: { ancho: number; alto: number }): Margenes | undefined {
-    const { barra, panel } = medirReservasHud()
+    const { barra, panel, arriba: reservaArriba } = medirReservasHud()
     const c = this.control
     if (!barra || !c) return undefined
     const h = CONFIG_CAMARA.holguraBordePx
+    // Zona que el HUD deja libre alrededor del personaje: en el borde del valle, la casilla del
+    // personaje queda tras ese radio (el cuadrado de 7x7 casillas se ve entero sin HUD encima).
+    const radio = CONFIG_CAMARA.radioLibreCasillas * TAM_CASILLA * c.vista.zoom
     const columna = barra.right - barra.left < barra.bottom - barra.top
     let izq = 0
     let abajo = 0
     if (columna) izq = barra.right + h
-    else abajo = Math.max(0, pantalla.alto - barra.top + h)
-    // Con el inventario abierto a la izquierda (no en vertical, donde ya queda a la derecha de la columna).
-    if (panel && !columna) izq = Math.max(izq, panel.right + h)
-    const arriba = Math.ceil((TAM_CASILLA / 2) * c.vista.zoom)
-    return { arriba, abajo, izq: Math.max(0, Math.ceil(izq)), der: 0, soloExtremos: true }
+    else abajo = Math.max(0, pantalla.alto - barra.top + h) + radio
+    if (panel && !columna) {
+      // Hoja inferior (móvil vertical): el valle acaba sobre ella. Tarjeta a la izquierda (apaisado):
+      // el borde oeste del valle queda a su derecha.
+      if (panel.right - panel.left > pantalla.ancho * 0.6)
+        abajo = Math.max(abajo, pantalla.alto - panel.top + h + radio)
+      else izq = Math.max(izq, panel.right + h + radio)
+    }
+    const arriba = Math.ceil(Math.max((TAM_CASILLA / 2) * c.vista.zoom, reservaArriba + radio))
+    return {
+      arriba,
+      abajo: Math.ceil(abajo),
+      izq: Math.max(0, Math.ceil(izq)),
+      der: 0,
+      soloExtremos: true,
+    }
   }
 
   /** La cámara se desliza (guía o vuelta de la extensión): gancho de prueba. */
