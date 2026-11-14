@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { defineConfig, devices, type Project } from '@playwright/test'
 
 /**
@@ -37,7 +38,15 @@ const PROYECTOS_SOLO: Project[] = [
 /** The `@medida` probe only runs on demand (E2E_MEDIDA=1): it measures, it does not check. */
 const NO_PROBE = process.env.E2E_MEDIDA ? [] : [/@medida/]
 
-const PORT = Number(process.env.PUERTO_E2E ?? 4173)
+/**
+ * Port per worktree (4200..4899), so two worktrees never share a server or a stale build.
+ * PUERTO_E2E overrides it. Never 4173 (vite's default preview port).
+ */
+function worktreePort(): number {
+  const hash = createHash('md5').update(process.cwd()).digest().readUInt32BE(0)
+  return 4200 + (hash % 700)
+}
+const PORT = Number(process.env.PUERTO_E2E ?? worktreePort())
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -51,10 +60,12 @@ export default defineConfig({
     { name: 'movil', use: { ...devices['Pixel 7'] }, grepInvert: [SOLO, ...NO_PROBE] },
     ...(process.env.CI ? [] : PROYECTOS_SOLO),
   ],
+  globalSetup: './tests/e2e/apoyo/check-dist.ts',
+  // Preview only: the build is done beforehand (npm run e2e / e2e:humo) and globalSetup checks it.
   webServer: {
-    command: `npm run build && npm run preview -- --port ${PORT} --strictPort`,
+    command: `node tests/e2e/apoyo/check-dist.ts && npm run preview -- --port ${PORT} --strictPort`,
     port: PORT,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    reuseExistingServer: false,
+    timeout: 30_000,
   },
 })
