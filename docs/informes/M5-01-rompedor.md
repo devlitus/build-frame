@@ -76,3 +76,81 @@ No hay S1. El núcleo resiste. Los fallos están en el foco del teclado y en la 
 - Lector de pantalla real (NVDA o TalkBack): solo se revisaron los roles, `aria-pressed`, `aria-label` y `aria-live` por DOM.
 - Esquina inferior derecha frente a los botones de Vida: los árboles me impidieron llegar con `MoverPersonaje`.
 - Teclados no QWERTY (AZERTY): se usa `ev.code`, así que debería funcionar, pero no se probó.
+
+## Ronda 2
+
+Sobre `6f79a6e` (arreglos de `110546e` y `6f79a6e`). Test nuevo: `tests/e2e/inventario-rompedor-r2.spec.ts`. Cada vista o esquina crea su propio contexto, así que casi todo corre solo en el proyecto `escritorio`.
+
+Para separar regresiones de fallos antiguos, los tests que fallan también se lanzaron contra un build de `110546e` (el commit anterior a los arreglos).
+
+### Fallos de la ronda 1
+
+Los 6 tests de `inventario-rompedor.spec.ts` que fallaban **pasan ahora** en escritorio y en móvil (19 pasan y 7 se omiten por proyecto):
+- foco tras M;
+- clic en el valle con el panel enfocado;
+- barra en la esquina suroeste;
+- panel sobre el personaje en vertical;
+- solape del panel con la barra.
+
+La semilla agotada (punto 5) y los iconos (punto 6) también están resueltos.
+
+### Fallos nuevos
+
+- **S2 · Regresión: en Vida la cámara deja de estar acotada al valle y, en cualquier borde, enseña media pantalla de vacío.**
+  - Causa: `margenesVida` pasa márgenes a `limitarEje`, y en cuanto un margen es mayor que 0, el rango del centro se abre a `[0, mundo]` **en los dos extremos del eje**. Ese comportamiento es el del Plano: «cualquier casilla puede quedar en el centro».
+  - Efecto: en Vida la cámara centra al personaje aunque esté pegado al borde.
+  - Medido:
+    - Escritorio: 349 px de vacío bajo el borde sur, cuando la barra solo justifica 117, y 350 px sobre el borde norte, que no tiene ningún HUD.
+    - Móvil horizontal: 195 px abajo y 196 arriba.
+    - Móvil vertical: 196 px a la izquierda, cuando la columna justifica 100, y 195 px a la derecha, sin ningún HUD.
+  - Rompe 2 tests que ya existían y que pasan con `110546e`:
+    - `personaje.spec.ts:29` («…la cámara lo sigue»): la cámara queda 494 px lejos del centro esperado.
+    - `m5-00-final-rompedor.spec.ts:64` (DPR en caliente, 1280×720): el toque cae 2 casillas más al sur, porque la cámara se recoloca después de calcular el punto.
+  - Capturas: `m501r2-esquina-so--*.png`, `m501r2-esquina-ne--*.png` y `m501r2-esquina-so-abierto--movil-horizontal.png`.
+  - Arreglo posible: en Vida, ampliar solo el extremo del eje que tapa la barra (`hi += abajo/zoom` o `lo -= izq/zoom`) y no abrirlo hasta `[0, mundo]`.
+  - Tests: los 12 de «…, esquina …: la vista no enseña más fuera del valle que lo que tapa la barra» y «al girar el móvil en el borde oeste, la franja fuera del valle se ajusta a la barra».
+- **S3 · En 320×568, el texto de «Cerrar» no cabe en su botón (desborda 13 px) y la caja del panel lo corta: se lee «Cerra».**
+  - Captura: `m501r2-abierto--movil-320x568.png`.
+  - Test: «320×568: el texto de «Cerrar» cabe en su botón y el botón en el panel».
+- **S3 · En pantallas verticales bajas, la pista «▼» tapa la cantidad de la primera fila.**
+  - El degradado de 26 px cae sobre «10» y «5»:
+    - En 360×640, la cantidad ocupa y 473–489 y la pista empieza en y 478; la flecha queda encima del «10» de la patata.
+    - En 320×568, la cantidad no se ve.
+  - Con `max-height: max(150px, …)` solo cabe una fila, y sin su cantidad.
+  - Captura: `m501r2-abierto--movil-320x568.png`. En 360×640 se vio en una captura de sondeo; no hay PNG en `capturas/`, pero lo reproduce el test.
+  - Tests: «360×640 / 320×568: la pista «▼» no tapa la cantidad de la primera fila de ranuras».
+- **S3 · Con el personaje pegado al borde oeste, el inventario abierto lo tapa en escritorio y en móvil horizontal.**
+  - El panel ocupa la esquina izquierda: x 8–628 en escritorio y x 8–448 en horizontal. El personaje queda en (10, 350) y en (10, 196).
+  - Ya pasaba con `110546e`: no es una regresión, pero la ronda 1 no lo cubrió (solo miré el centro del valle).
+  - Captura: `m501r2-esquina-so-abierto--movil-horizontal.png` (el personaje asoma por detrás del borde izquierdo del panel).
+  - Tests: «escritorio / móvil horizontal: con el personaje pegado al borde oeste, el panel abierto no lo tapa».
+- **S3 (antiguo) · En el borde norte, la cabeza del personaje queda fuera de la pantalla.**
+  - La cámara pone el borde del valle en el borde de la pantalla, y el sprite sobresale una casilla por encima de los pies: cabeza en y = −9 y pies en y = 10.
+  - Hoy solo se ve en móvil vertical, porque en las otras vistas la regresión S2 centra al personaje. Volverá en las tres vistas cuando se arregle la S2.
+  - Captura: `m501r2-esquina-ne--movil-vertical.png`.
+  - Test: «ninguna esquina deja al personaje bajo el HUD ni fuera de la pantalla (las tres vistas)». Contra `110546e` fallaban además el suroeste de escritorio y el de vertical, bajo la barra; eso ya está arreglado.
+
+### Visuales (sin test)
+
+- La franja fuera del valle (verde oscuro liso) se ve en todas las capturas de borde (`m501r2-esquina-*`). Es la S2 de arriba.
+- En móvil horizontal y en vertical, la pista «▼» se lee bien sobre las ranuras vacías (`m501r2-abierto--movil-horizontal.png` y `--movil-vertical.png`).
+- Nada cortado ni ilegible en `m501r2-cerrado--*`, `m501r2-abierto--escritorio`, `m501r2-abierto--movil-vertical`, `semilla-42-debug--*` ni en los iconos de las semillas, que tienen el arte final.
+
+### Resiste
+
+- **Listener en `window`:**
+  - Con el foco en `<body>`, 2, E e I actúan una sola vez: I abre y la siguiente I cierra.
+  - Con el foco en `#juego`, E y Espacio usan una vez. I abre, el foco entra en el panel, y la siguiente I lo cierra sin reabrirlo; el foco vuelve a `#juego`.
+  - No hay doble disparo: el `target` del evento es fijo, y el listener de `window` solo actúa con el `target` en `body` o en `html`.
+  - En el Plano, con el foco en `<body>`, 1–6, E e I no hacen nada.
+  - Con el foco en un botón del HUD, 1 y E no actúan sobre el juego.
+  - Contra `110546e`, el test del foco en `<body>` fallaba, así que confirma el arreglo.
+- **Diálogos de confirmación y paneles de M4:** son solo del Plano y el listener exige `modoAplicado === 'vida'`, así que no pueden recibir atajos de Vida. La portada no tiene la escena del valle activa.
+- **`pointerdown` del lienzo:** en el Plano no roba el foco de la barra de zonas. Tab desde el lienzo va al primer botón del HUD; tras un clic en el valle el foco vuelve a `#juego` y Tab repite el mismo orden. Contra `110546e`, este test fallaba.
+- **Clic o toque en la franja fuera del valle:** el personaje camina a la casilla libre más cercana del borde, sin errores. El joystick en el borde funciona igual.
+- **Pista «▼»:** aparece cuando hay más ranuras, desaparece al desplazarse hasta el final y vuelve al subir (320×568). Tiene `pointer-events: none`: tocar una ranura justo bajo la flecha la elige (360×640 y 320×568).
+- **Iconos `semilla-<id>`:** `@1x` con DPR 1 y `@2x` con DPR 2 y 3, `naturalWidth` mayor que 0 y ninguna respuesta 4xx.
+- **Botón «Inventario»:** se oculta mientras el panel está abierto, así que el panel no lo tapa. Con el panel abierto, el resto del HUD sigue visible y se puede tocar en 412×839, 360×640 y 320×568.
+- **Otros e2e:** `camara`, `personaje`, `valle`, `tactil`, `modos`, `hud`, `inventario.spec`, `humo` y `m5-00`: 265 pasan y fallan 3.
+  - Dos son la regresión S2.
+  - El tercero, `m5-00-rompedor.spec.ts:400`, ya fallaba con `110546e`: el toque en 412×915 no fija ningún destino. Ahora falla antes, en 915×412, por la S2.
