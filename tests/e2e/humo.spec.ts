@@ -304,3 +304,40 @@ test('demoler un edificio terminado devuelve la mitad del coste', HUMO, async ({
   await expect.poll(() => page.evaluate(() => window.__raices?.dinero()), LENTO).toBe(1075)
   await expect.poll(() => page.evaluate(() => window.__raices?.edificios().length), LENTO).toBe(0)
 })
+
+test('elegir una herramienta y abrir y cerrar el inventario', HUMO, async ({ page, isMobile }) => {
+  await abrirValle(page)
+  const herramienta = () => page.evaluate(() => window.__raices?.herramienta()?.herramienta)
+  if (isMobile) {
+    await page.getByRole('button', { name: 'Hacha', exact: true }).tap(LENTO)
+  } else {
+    await page.keyboard.press('5')
+  }
+  await expect.poll(herramienta, LENTO).toBe('hacha')
+  await expect(page.getByText('Herramienta activa: Hacha')).toBeVisible(LENTO)
+  const abrir = page.getByRole('button', { name: 'Inventario', exact: true })
+  if (isMobile) await abrir.tap(LENTO)
+  else await abrir.click(LENTO)
+  const panel = page.getByRole('region', { name: 'Inventario' })
+  await expect(panel).toBeVisible(LENTO)
+  await expect(panel.getByText('3 de 12 ranuras')).toBeVisible()
+  const cerrar = panel.getByRole('button', { name: 'Cerrar el inventario' })
+  if (isMobile) await cerrar.tap(LENTO)
+  else await cerrar.click(LENTO)
+  await expect(panel).toHaveCount(0, LENTO)
+})
+
+test('dormir junto a la aparición pasa de día con la energía al máximo', HUMO, async ({ page }) => {
+  await abrirValle(page)
+  await page.evaluate(() => {
+    const r = window.__raices
+    const p = r?.personaje()
+    if (!r || !p) return
+    r.emitir({ tipo: 'ElegirHerramienta', herramienta: 'hacha' })
+    r.emitir({ tipo: 'UsarHerramienta', x: Math.floor(p.x), y: Math.floor(p.y) })
+  })
+  await expect.poll(() => page.evaluate(() => window.__raices?.energia()), LENTO).toBe(96)
+  await page.getByRole('button', { name: 'Dormir', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => window.__raices?.energia()), LENTO).toBe(100)
+  await expect.poll(() => page.evaluate(() => window.__raices?.reloj()?.dia), LENTO).toBe(2)
+})

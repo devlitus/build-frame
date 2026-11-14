@@ -6,8 +6,10 @@ import { resolve } from 'node:path'
 import * as v from 'valibot'
 // Con extensión .ts: Vite carga la config con el cargador nativo (sin ella avisa).
 import {
+  EsquemaConfigCultivos,
   EsquemaConfigEconomia,
   EsquemaConfigEdificios,
+  EsquemaConfigInventario,
   EsquemaConfigValle,
 } from './src/core/datos/esquemas.ts'
 import pkg from './package.json' with { type: 'json' }
@@ -21,13 +23,15 @@ function commitCorto(): string {
 }
 
 /**
- * Aborta el build si data/valle.json, data/economia.json o data/edificios.json no cumplen su esquema (ADR 0006).
+ * Aborta el build si data/valle.json, economia.json, edificios.json, inventario.json o cultivos.json no cumplen su esquema (ADR 0006).
  * Las rutas se resuelven desde la raíz del proyecto, no desde el cwd.
  */
 export function validarDatos(
   ruta = resolve(import.meta.dirname, 'data/valle.json'),
   rutaEconomia = resolve(import.meta.dirname, 'data/economia.json'),
   rutaEdificios = resolve(import.meta.dirname, 'data/edificios.json'),
+  rutaInventario = resolve(import.meta.dirname, 'data/inventario.json'),
+  rutaCultivos = resolve(import.meta.dirname, 'data/cultivos.json'),
 ): Plugin {
   return {
     name: 'validar-datos',
@@ -45,6 +49,8 @@ export function validarDatos(
       comprobar(ruta, EsquemaConfigValle)
       comprobar(rutaEconomia, EsquemaConfigEconomia)
       comprobar(rutaEdificios, EsquemaConfigEdificios)
+      comprobar(rutaInventario, EsquemaConfigInventario)
+      comprobar(rutaCultivos, EsquemaConfigCultivos)
     },
   }
 }

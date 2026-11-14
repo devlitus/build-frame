@@ -1,23 +1,12 @@
-import type { EstadoParcela, Terreno } from '../../core'
+import type { EstadoParcela } from '../../core'
 import type { EstadoVisualParcela } from './estadoVisual'
 
 /**
- * Valores VISUALES provisionales (arte definitivo en M9): colores, tamaños y estilos.
+ * Valores VISUALES: colores y estilos de lo que no es arte (parcelas, resaltes, zonas, cartel de obra).
  * La posición de árboles y rocas y su densidad son del núcleo (`EstadoJuego.obstaculos`,
  * `data/valle.json`) desde M2-02; aquí solo queda cómo se ven.
  */
 export const TAM_CASILLA = 32
-
-export const COLOR_TERRENO: Readonly<Record<Terreno, { base: number; alterno: number }>> = {
-  prado: { base: 0x7cb55a, alterno: 0x73ab52 },
-  bosque: { base: 0x4f8a45, alterno: 0x488140 },
-  rocoso: { base: 0xa39b8a, alterno: 0x9a9281 },
-}
-
-export const COLOR_RIO = { base: 0x4a90c8, alterno: 0x5aa0d6 } as const
-
-/** Vado: agua más clara y piedras de paso, para ver por dónde se cruza. */
-export const COLOR_VADO = { agua: 0x9fd3ee, piedra: 0xb9b2a3, piedraBorde: 0x7a7468 } as const
 
 export interface EstiloParcela {
   readonly tinte: number
@@ -102,21 +91,6 @@ export const ESTILO_RESALTE_EDIFICIO = {
   grosorCrema: 2,
 } as const
 
-export const COLOR_ARBOL = { copa: 0x2f6b2f, copaClara: 0x3f8a3a, tronco: 0x6b4a2b } as const
-export const COLOR_ROCA = { relleno: 0x8a8a8a, borde: 0x5e5e5e } as const
-
-/** Personaje provisional (arte en M9): cuerpo, borde e indicador de orientación. */
-export const ESTILO_PERSONAJE = {
-  /** Radio del cuerpo, en píxeles. */
-  radio: 10,
-  cuerpo: 0xd9583b,
-  borde: 0x5a1f12,
-  indicador: 0xfff3c4,
-  /** Distancia del indicador al centro, en píxeles. */
-  distanciaIndicador: 7,
-  radioIndicador: 3,
-} as const
-
 /**
  * Ciclo día/noche (M2-06): puntos de control (minuto del día, color del tinte, opacidad). Entre
  * dos puntos se interpola de forma lineal; el último enlaza con el primero a medianoche.
@@ -147,28 +121,17 @@ export const PUNTOS_LUZ: readonly PuntoLuz[] = [
 export const PROFUNDIDAD_TINTE = 1_000_000
 
 /**
- * Zonas (M4-04). Colores de la paleta Okabe-Ito, pensada para daltonismo, y un patrón distinto
- * por zona (surcos, puntos, diagonales, cuadrícula) para no depender solo del color. Provisional:
- * el arte final llega en M5-00.
+ * Zonas (M4-04): colores de la paleta Okabe-Ito, pensada para daltonismo. Los usa la vista previa
+ * del pincel; el aspecto de las zonas lo da el arte de `public/assets/zonas` (relleno con trama
+ * propia por zona, para no depender solo del color).
  */
-export type PatronZona = 'surcos' | 'puntos' | 'diagonal' | 'cuadro'
-
-export interface EstiloZona {
-  readonly color: number
-  /** Opacidad del relleno en el Modo Plano. */
-  readonly alfa: number
-  readonly patron: PatronZona
-  /** Color del patrón: oscuro sobre fondos claros y crema sobre el verde azulado. */
-  readonly colorPatron: number
-}
-
 export const ESTILO_ZONAS: Readonly<
-  Record<'cultivo' | 'huerto' | 'vivienda' | 'almacen', EstiloZona>
+  Record<'cultivo' | 'huerto' | 'vivienda' | 'almacen', { readonly color: number }>
 > = {
-  cultivo: { color: 0xe69f00, alfa: 0.55, patron: 'surcos', colorPatron: 0x3b2a1a },
-  huerto: { color: 0xcc79a7, alfa: 0.55, patron: 'puntos', colorPatron: 0x3b2a1a },
-  vivienda: { color: 0x009e73, alfa: 0.6, patron: 'diagonal', colorPatron: 0xfff3c4 },
-  almacen: { color: 0xf0e442, alfa: 0.6, patron: 'cuadro', colorPatron: 0x3b2a1a },
+  cultivo: { color: 0xe69f00 },
+  huerto: { color: 0xcc79a7 },
+  vivienda: { color: 0x009e73 },
+  almacen: { color: 0xf0e442 },
 }
 
 /** Opacidad de la capa de zonas en el Modo Vida: un tono suave que no tapa el valle. */
@@ -185,22 +148,14 @@ export const ESTILO_PREVIA = {
 } as const
 
 /**
- * Edificios y obras (M4-05): formas simples provisionales (el arte final llega en M5-00) con el
- * contorno sepia del estilo B (BIBLIA §5): `#4A3426`, grosor uniforme, nunca negro.
+ * Cartel de las obras (M4-05): el contorno sepia del estilo B (BIBLIA §5) `#4A3426` y el tablón.
+ * Los edificios y el andamio son arte (`public/assets/edificios`, M5-00).
  */
 export const ESTILO_EDIFICIOS = {
   contorno: 0x4a3426,
   /** Grosor del contorno en px del mundo (1 px @1x de la BIBLIA, a la escala de una casilla de 32 px). */
   grosor: 2,
-  /** Líneas interiores: la mitad del contorno. */
-  grosorInterior: 1,
-  casa: { pared: 0xf1dfb8, techo: 0xc4623f, puerta: 0x7a4a2b, ventana: 0xa9d3e8 },
-  'caja-envio': { madera: 0xc99a5b, tabla: 0xa97a40 },
-  cobertizo: { pared: 0xb98b5a, techo: 0x8b7d6b, puerta: 0x6b4a2b },
   obra: {
-    suelo: 0xd9c49a,
-    alfaSuelo: 0.7,
-    madera: 0xd8b36a,
     cartel: 0xf6ecd6,
     /** Tamaño del texto del cartel en píxeles de PANTALLA (se compensa el zoom). */
     textoPx: 12,

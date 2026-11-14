@@ -1,7 +1,9 @@
 import Phaser from 'phaser'
 import {
   aplicarComando,
+  casillaAlAlcance,
   casillasOcupadas,
+  HERRAMIENTAS,
   casillasRio,
   crearEstadoInicial,
   defEdificio,
@@ -14,6 +16,7 @@ import {
 } from '../../core'
 import { CONFIG_CAMARA } from '../camara/config'
 import { ControlCamara } from '../camara/controlCamara'
+import type { Margenes } from '../camara/matematica'
 import { conPropiasDeDepuracion } from '../valle/debug'
 import type { EstadoVisualParcela } from '../valle/estadoVisual'
 import { VistaParcelas } from '../valle/vistaParcelas'
@@ -24,6 +27,7 @@ import { VistaSilueta } from '../valle/vistaSilueta'
 import { ColocadorEdificio } from '../colocador'
 import { casillaInicialSilueta, sePuedeColocar, type Construccion } from '../construir'
 import { VistaZonas } from '../valle/vistaZonas'
+import { VistaCultivos } from '../valle/vistaCultivos'
 import {
   casillaEnCentroDeVista,
   casillaMasCercana,
@@ -33,13 +37,12 @@ import {
   type RectCasillas,
 } from '../pincel'
 import { PintorZonas } from '../pintorZonas'
-import {
-  dibujarDecoracion,
-  dibujarResalte,
-  dibujarResalteEdificio,
-  dibujarTerreno,
-  tamanoMundoPx,
-} from '../valle/dibujar'
+import { dibujarResalte, dibujarResalteEdificio, tamanoMundoPx } from '../valle/dibujar'
+import { cargarArte } from '../valle/arte'
+import { animarObstaculos } from '../valle/efectosObstaculo'
+import { objetosDeDecoracion, pintarTrozoTerreno } from '../valle/terrenoArte'
+import { CapaObjetos } from '../valle/capaObjetos'
+import { mundoDePantalla, pantallaLogica, zoomLogico } from '../resolucion'
 import { medirReservasHud } from '../areaHud'
 import type { RectPantalla } from '../seleccion'
 import { areaLibre, centroParaVer, parcelaEnPunto, puntoDeToque, rectParcela } from '../picking'
@@ -84,12 +87,16 @@ export interface DatosEscenaValle {
  * a `RenderTexture`; en WebGL un `Graphics` vivo se reprocesa en cada fotograma.
  */
 export class EscenaValle extends Phaser.Scene {
+  /** Partida recibida en `init`; no se expone a los ganchos hasta que `create()` la publica. */
+  private recibida: Partida | undefined = undefined
   private _partida: Partida | undefined = undefined
   private en: 'vado' | undefined = undefined
   private modoInicial: ModoJuego = 'vida'
   /** Modo ya aplicado a la cámara y al teclado; si el estado cambia, `update()` lo reaplica. */
   private modoAplicado: ModoJuego = 'vida'
   private control: ControlCamara | undefined = undefined
+  private inventarioAbiertoVisto = false
+  private remedirMargenes = 0
   private entrada: EntradaMovimiento | undefined = undefined
   private vista: VistaPersonaje | undefined = undefined
   private luz: VistaLuz | undefined = undefined
@@ -98,7 +105,7 @@ export class EscenaValle extends Phaser.Scene {
   private dineroDepuracion: number | undefined = undefined
   private hora: number | undefined = undefined
   private tactil: ControlTactil | undefined = undefined
-  private desmayoVisto = false
+  private despertarVisto = false
   private desuscribir: (() => void) | undefined = undefined
   private marca: MarcaDestino | undefined = undefined
   private readonly seguidor = new SeguidorCamino()
@@ -119,8 +126,8 @@ export class EscenaValle extends Phaser.Scene {
     }
   }
   private partidaCompartida(): Partida {
-    if (!this._partida) throw new Error('La escena no se ha iniciado')
-    return this._partida
+    if (!this.recibida) throw new Error('La escena no se ha iniciado')
+    return this.recibida
   }
 
   private hornear: () => Phaser.GameObjects.RenderTexture[] = () => []
@@ -129,10 +136,15 @@ export class EscenaValle extends Phaser.Scene {
   private resalte: Phaser.GameObjects.Graphics | undefined = undefined
   private selector: SelectorParcela | undefined = undefined
   private zonas: VistaZonas | undefined = undefined
+  private cultivos: VistaCultivos | undefined = undefined
   private vistaPincel: VistaPincel | undefined = undefined
   private pintor: PintorZonas | undefined = undefined
   private desuscribirPincel: (() => void) | undefined = undefined
   private edificios: VistaEdificios | undefined = undefined
+  private capaObjetos: CapaObjetos | undefined = undefined
+  private obstaculosVistos: EstadoJuego['obstaculos'] | undefined = undefined
+  /** Día con el que se dibujó la capa: el marco del plantón depende de él. */
+  private diaObstaculosVisto = 0
   private vistaSilueta: VistaSilueta | undefined = undefined
   private colocador: ColocadorEdificio | undefined = undefined
   private desuscribirConstruccion: (() => void) | undefined = undefined
@@ -150,9 +162,15 @@ export class EscenaValle extends Phaser.Scene {
     super('valle')
   }
 
+  /** Carga el arte final (terreno, objetos, edificios, zonas y protagonista); lo ya cargado se salta. */
+  preload(): void {
+    cargarArte(this)
+  }
+
   init(datos: DatosEscenaValle): void {
     this.semilla = datos.semilla
-    this._partida = datos.partida
+    this.recibida = datos.partida
+    this._partida = undefined
     this.propias = datos.propias ?? []
     this.en = datos.en
     this.acelerar = datos.acelerar ?? 1
@@ -172,7 +190,8 @@ export class EscenaValle extends Phaser.Scene {
     return this._partida?.estado
   }
 
-  /** La partida (estado, comandos y suscripción); undefined hasta `create()`. */
+  /** La partida (estado, comandos y suscripción); undefined hasta que `create()` la publica
+   * (mientras se carga el arte los ganchos no exponen nada). */
   get partida(): Partida | undefined {
     return this._partida
   }
@@ -217,19 +236,29 @@ export class EscenaValle extends Phaser.Scene {
     // La misma instancia de Partida: los suscriptores (HUD) siguen suscritos tras un reinicio.
     const partida = this.partidaCompartida()
     partida.reemplazar(inicial)
+    this._partida = partida
     this.tiempo = new AcumuladorTiempo()
     const valle = inicial.valle
     const rio = casillasRio(valle, inicial.cauce.ancho)
     const vados = new Set(inicial.cauce.vados)
 
     // Terreno y decoración no cambian: se hornean a texturas por trozos (M1-04).
-    const decoracion = inicial.obstaculos
+    const semilla = this.semilla
     this.hornear = () =>
-      hornearCapaBase(this, this.mundoPx, (region) => [
-        dibujarTerreno(this, valle, rio, vados, region),
-        dibujarDecoracion(this, decoracion, region),
-      ])
+      hornearCapaBase(this, this.mundoPx, (rt, trozo) =>
+        pintarTrozoTerreno(this, rt, trozo, { valle, rio, vados, semilla }),
+      )
     this.trozos = this.hornear()
+    // Árboles y rocas no se hornean: son objetos con profundidad por su base (como el personaje y los
+    // edificios), solo los de la vista de la cámara más un margen (`CapaObjetos`).
+    this.capaObjetos?.destruir()
+    this.capaObjetos = new CapaObjetos(this, this.mundoPx)
+    this.capaObjetos.reemplazar(
+      objetosDeDecoracion(this, inicial.obstaculos, ladoValle(inicial.valle), inicial.dia),
+    )
+    this.obstaculosVistos = inicial.obstaculos
+    this.diaObstaculosVisto = inicial.dia
+    this.actualizarCapaObjetos()
     // Al perder y recuperar el contexto WebGL las texturas quedan vacías (Phaser no las
     // restaura): se vuelven a hornear con los mismos datos.
     if (this.renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer) {
@@ -242,15 +271,18 @@ export class EscenaValle extends Phaser.Scene {
     this.parcelas.repintar(inicial)
     // Zonas (M4-04): capa horneada por trozos, aparte del terreno; solo se rehornea el trozo que cambia.
     this.zonas?.destruir()
-    this.zonas = new VistaZonas(this, this.mundoPx, ladoValle(valle))
+    this.zonas = new VistaZonas(this, this.mundoPx, ladoValle(valle), this.semilla)
     this.zonas.actualizar(inicial)
+    this.cultivos?.destruir()
+    this.cultivos = new VistaCultivos(this, ladoValle(valle), this.semilla)
+    this.cultivos.actualizar(inicial)
     this.vistaPincel?.destruir()
     this.vistaPincel = new VistaPincel(this)
     // Edificios y obras (M4-05): un Graphics por edificio, ordenados por Y como el personaje.
     this.edificios?.destruir()
     const textos = this.registry.get(CLAVE_TEXTOS_LIENZO) as TextosLienzo | undefined
     this.edificios = new VistaEdificios(this, textos?.cartelObra ?? ((dias) => String(dias)))
-    this.edificios.actualizar(inicial, this.cameras.main.zoom)
+    this.edificios.actualizar(inicial, zoomLogico(this))
     this.vistaSilueta?.destruir()
     this.vistaSilueta = new VistaSilueta(this)
     // Contorno de la parcela seleccionada (estado de interfaz): por encima del personaje y del
@@ -268,18 +300,39 @@ export class EscenaValle extends Phaser.Scene {
     this.seguidor.cancelar()
     // El desmayo puede emitirse fuera de `update()` (p. ej. dormir desde la interfaz): se
     // atiende al evento de la partida, no a lo visto en el bucle.
-    this.desmayoVisto = false
+    this.despertarVisto = false
     this.desuscribir?.()
     this.desuscribir = partida.suscribir((cambio) => {
       // Zonas y edificios se redibujan en cuanto cambian (no esperan al siguiente fotograma): así la
       // vista y los ganchos de prueba no se desfasan del estado de la partida.
+      // Talar, picar y replantar (y el crecimiento de los plantones al cambiar de día) cambian la
+      // lista de obstáculos por referencia: se rehace la capa de árboles y rocas.
+      // Los golpes que no quitan nada cambian la lista pero no lo que se ve: no se rehace la capa.
+      // El marco del plantón depende del día, así que un cambio de día también la rehace.
+      const lado = ladoValle(cambio.estado.valle)
+      animarObstaculos(this, this.capaObjetos, cambio.eventos, lado)
+      const soloGolpes = cambio.eventos.every(
+        (e) => e.tipo === 'herramienta-usada' || e.tipo === 'obstaculo-golpeado',
+      )
+      const obstaculosCambian = cambio.estado.obstaculos !== this.obstaculosVistos
+      if (
+        cambio.estado.dia !== this.diaObstaculosVisto ||
+        (obstaculosCambian && !(soloGolpes && cambio.eventos.length > 0))
+      ) {
+        this.diaObstaculosVisto = cambio.estado.dia
+        this.capaObjetos?.reemplazar(
+          objetosDeDecoracion(this, cambio.estado.obstaculos, lado, cambio.estado.dia),
+        )
+      }
+      this.obstaculosVistos = cambio.estado.obstaculos
       if (cambio.eventos.length > 0) {
         this.zonas?.actualizar(partida.estado)
-        this.edificios?.actualizar(partida.estado, this.cameras.main.zoom)
+        this.cultivos?.actualizar(partida.estado)
+        this.edificios?.actualizar(partida.estado, zoomLogico(this))
       }
-      if (cambio.eventos.some((e) => e.tipo === 'desmayo')) {
+      if (cambio.eventos.some((e) => e.tipo === 'desmayo' || e.tipo === 'dormido')) {
         this.seguidor.cancelar()
-        this.desmayoVisto = true
+        this.despertarVisto = true
       }
     })
     this.selector = new SelectorParcela(this, (p) => {
@@ -335,6 +388,12 @@ export class EscenaValle extends Phaser.Scene {
     this.scale.on('resize', this.alRedimensionar, this)
     this.quitarEsc?.()
     const alEsc = (): void => {
+      // El inventario (Modo Vida) se cierra con Esc y el foco vuelve al lienzo.
+      if (partida.inventario.abierto) {
+        document.getElementById('juego')?.focus({ preventScroll: true })
+        partida.inventario.cerrar()
+        return
+      }
       // Modo Construir: Esc cancela la confirmación y, si no hay, sale del modo.
       if (partida.construccion.abierto) {
         if (partida.construccion.cancelarConfirmacion()) return
@@ -364,7 +423,26 @@ export class EscenaValle extends Phaser.Scene {
     const lienzo = this.game.canvas
     const contenedor = lienzo.parentElement
     contenedor?.addEventListener('keydown', this.alTeclaLienzo)
-    this.quitarTeclasLienzo = () => contenedor?.removeEventListener('keydown', this.alTeclaLienzo)
+    // Con el foco perdido en `<body>` el evento no pasa por el contenedor: en Vida se escucha también en `window`.
+    const alTeclaCuerpo = (ev: KeyboardEvent): void => {
+      if (
+        this.modoAplicado === 'vida' &&
+        (ev.target === document.body || ev.target === document.documentElement)
+      )
+        this.teclaVida(ev)
+    }
+    // Un clic o toque en el lienzo devuelve el foco al juego (Phaser cancela `mousedown`, que no lo mueve).
+    const alPunteroLienzo = (): void => {
+      if (this.modoAplicado !== 'vida' || !contenedor) return
+      if (document.activeElement !== contenedor) contenedor.focus({ preventScroll: true })
+    }
+    window.addEventListener('keydown', alTeclaCuerpo)
+    lienzo.addEventListener('pointerdown', alPunteroLienzo, true)
+    this.quitarTeclasLienzo = () => {
+      contenedor?.removeEventListener('keydown', this.alTeclaLienzo)
+      window.removeEventListener('keydown', alTeclaCuerpo)
+      lienzo.removeEventListener('pointerdown', alPunteroLienzo, true)
+    }
     this.ajustarLienzoAccesible(inicial.modo)
     this.tactil = new ControlTactil(this)
     this.tactil.activo = inicial.modo === 'vida'
@@ -385,6 +463,7 @@ export class EscenaValle extends Phaser.Scene {
       posicion,
     )
     this.alCambiarHerramienta()
+    this.actualizarCapaObjetos()
     // Los márgenes de la cámara se fijan explícitamente al terminar de crear (Plano: los del panel y el HUD).
     this.actualizarMargenes()
     const sel = this.seleccionInicial
@@ -419,7 +498,7 @@ export class EscenaValle extends Phaser.Scene {
     const g = this.geometria()
     const c = this.control
     if (!g || !c || !this._partida || !Number.isInteger(i)) return undefined
-    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const pantalla = pantallaLogica(this)
     const libre = this.zonaLibre(pantalla)
     return puntoDeToque(c.vista, pantalla, libre, rectParcela(g, i))
   }
@@ -430,15 +509,21 @@ export class EscenaValle extends Phaser.Scene {
   }
 
   /**
-   * Pone al día los márgenes de la cámara del Modo Plano: el valle puede pasar de su borde lo que
-   * tapa la interfaz, para ver lo que queda debajo (más un poco de aire). En Vida no hay márgenes.
+   * Pone al día los márgenes de la cámara: en Plano, el valle puede pasar de su borde lo que tapa
+   * la interfaz, para ver lo que queda debajo (más un poco de aire); en Vida, márgenes fijos en
+   * los extremos según la barra y el panel (ver `margenesVida`).
    * Se llama cuando cambian la selección, el modo, el tamaño o las guías (nunca desde una consulta).
    */
   private actualizarMargenes(): void {
     if (!this.control) return
-    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const pantalla = pantallaLogica(this)
     const libre = this.zonaLibre(pantalla)
     const h = CONFIG_CAMARA.holguraBordePx
+    if (this.modoAplicado === 'vida') {
+      // Tras abrir el panel o cambiar el tamaño, la vista salta (sin deslizarse) a su sitio.
+      this.control.fijarMargenes(this.margenesVida(pantalla), this.remedirMargenes > 0)
+      return
+    }
     this.control.fijarMargenes(
       this.modoAplicado === 'plano'
         ? {
@@ -451,6 +536,28 @@ export class EscenaValle extends Phaser.Scene {
     )
   }
 
+  /**
+   * Márgenes fijos de la cámara en Vida: solo se amplían los extremos, lo que ocupa la interfaz
+   * (barra de herramientas abajo o en columna, panel de inventario abierto a la izquierda) más
+   * un poco de aire, y arriba lo que sobresale el sprite. No dependen de la posición del
+   * personaje, así que `seguir` se desliza sin saltos; solo se miden al cambiar el tamaño o el panel.
+   */
+  private margenesVida(pantalla: { ancho: number; alto: number }): Margenes | undefined {
+    const { barra, panel } = medirReservasHud()
+    const c = this.control
+    if (!barra || !c) return undefined
+    const h = CONFIG_CAMARA.holguraBordePx
+    const columna = barra.right - barra.left < barra.bottom - barra.top
+    let izq = 0
+    let abajo = 0
+    if (columna) izq = barra.right + h
+    else abajo = Math.max(0, pantalla.alto - barra.top + h)
+    // Con el inventario abierto a la izquierda (no en vertical, donde ya queda a la derecha de la columna).
+    if (panel && !columna) izq = Math.max(izq, panel.right + h)
+    const arriba = Math.ceil((TAM_CASILLA / 2) * c.vista.zoom)
+    return { arriba, abajo, izq: Math.max(0, Math.ceil(izq)), der: 0, soloExtremos: true }
+  }
+
   /** La cámara se desliza (guía o vuelta de la extensión): gancho de prueba. */
   guiando(): boolean {
     return this.control?.guiando ?? false
@@ -460,7 +567,7 @@ export class EscenaValle extends Phaser.Scene {
   centrarCamaraEn(cx: number, cy: number): void {
     if (!Number.isFinite(cx) || !Number.isFinite(cy)) return
     // Un centrado explícito gana al salto pendiente del desmayo.
-    this.desmayoVisto = false
+    this.despertarVisto = false
     this.control?.centrarEn({ x: (cx + 0.5) * TAM_CASILLA, y: (cy + 0.5) * TAM_CASILLA })
   }
 
@@ -468,7 +575,7 @@ export class EscenaValle extends Phaser.Scene {
   puntoClicCasilla(cx: number, cy: number): { x: number; y: number } | undefined {
     const c = this.control
     if (!c || !this._partida || !Number.isInteger(cx) || !Number.isInteger(cy)) return undefined
-    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const pantalla = pantallaLogica(this)
     const libre = this.zonaLibre(pantalla)
     const celda = {
       x: cx * TAM_CASILLA,
@@ -485,7 +592,49 @@ export class EscenaValle extends Phaser.Scene {
     return a !== null && (a === this.game.canvas || a === this.game.canvas.parentElement)
   }
 
+  /** Destino válido para los atajos de Vida: el lienzo, su contenedor o `<body>` (foco perdido al cerrar un panel). */
+  private focoNeutro(destino: EventTarget | null): boolean {
+    return (
+      destino === this.game.canvas ||
+      destino === this.game.canvas.parentElement ||
+      destino === document.body ||
+      destino === document.documentElement
+    )
+  }
+
+  /**
+   * Teclado del Modo Vida con el foco en el lienzo: 1 a 6 eligen la herramienta, E o Espacio la usan
+   * en la casilla de enfrente, I abre o cierra el inventario y Z duerme; también con el foco en `<body>`.
+   * (Con el foco en un botón o campo del HUD,
+   * Espacio y Enter son del botón.)
+   */
+  private teclaVida(ev: KeyboardEvent): void {
+    const partida = this._partida
+    if (!partida || ev.ctrlKey || ev.altKey || ev.metaKey || ev.shiftKey) return
+    if (!this.focoNeutro(ev.target)) return
+    const digito = /^(?:Digit|Numpad)([1-6])$/.exec(ev.code)
+    const herramienta = digito ? HERRAMIENTAS[Number(digito[1]) - 1] : undefined
+    if (herramienta) {
+      ev.preventDefault()
+      if (!ev.repeat) partida.elegirHerramienta(herramienta)
+    } else if (ev.code === 'KeyE' || ev.code === 'Space') {
+      ev.preventDefault()
+      if (!ev.repeat) partida.usarEnfrente()
+    } else if (ev.code === 'KeyZ') {
+      ev.preventDefault()
+      // Con el inventario abierto el botón Dormir está oculto: la tecla tampoco duerme.
+      if (!ev.repeat && !partida.inventario.abierto) partida.dormir()
+    } else if (ev.code === 'KeyI') {
+      ev.preventDefault()
+      if (!ev.repeat) partida.inventario.alternar('teclado')
+    }
+  }
+
   private readonly alTeclaLienzo = (ev: KeyboardEvent): void => {
+    if (this.modoAplicado === 'vida') {
+      this.teclaVida(ev)
+      return
+    }
     const partida = this._partida
     const g = this.geometria()
     if (!partida || !g || !this.control || this.modoAplicado !== 'plano') return
@@ -615,9 +764,9 @@ export class EscenaValle extends Phaser.Scene {
     const partida = this._partida
     if (!partida || !this.control) return { x: 0, y: 0 }
     const lado = ladoValle(partida.estado.valle)
-    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const pantalla = pantallaLogica(this)
     const libre = this.zonaLibre(pantalla)
-    const m = this.cameras.main.getWorldPoint(libre.x + libre.ancho / 2, libre.y + libre.alto / 2)
+    const m = mundoDePantalla(this, libre.x + libre.ancho / 2, libre.y + libre.alto / 2)
     return casillaMasCercana(lado, TAM_CASILLA, m.x, m.y) ?? { x: 0, y: 0 }
   }
 
@@ -634,7 +783,7 @@ export class EscenaValle extends Phaser.Scene {
     const s = partida?.silueta()
     if (!partida || !s || !this.control) return
     this.actualizarMargenes()
-    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const pantalla = pantallaLogica(this)
     const libre = this.zonaLibre(pantalla)
     const rect = {
       x: s.x * TAM_CASILLA,
@@ -652,7 +801,7 @@ export class EscenaValle extends Phaser.Scene {
     const c = partida?.pincel.cursor
     if (!partida || !c || !this.control) return
     this.actualizarMargenes()
-    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const pantalla = pantallaLogica(this)
     const libre = this.zonaLibre(pantalla)
     const celda = {
       x: c.x * TAM_CASILLA,
@@ -705,6 +854,11 @@ export class EscenaValle extends Phaser.Scene {
     }
   }
 
+  /** Casillas aradas y plantas dibujadas (gancho de prueba); undefined sin vista. */
+  cultivosVisibles(): { aradas: number; plantas: number } | undefined {
+    return this.cultivos?.visibles
+  }
+
   /** Alfa de la capa de zonas (gancho de prueba); undefined sin capa. */
   alfaZonas(): number | undefined {
     return this.zonas?.alfaVisible
@@ -731,17 +885,20 @@ export class EscenaValle extends Phaser.Scene {
             : 'ayuda-plano',
       )
       if (contenedor) contenedor.dataset['modo'] = 'plano'
+      contenedor?.removeAttribute('aria-describedby')
     } else {
       if (document.activeElement === lienzo) contenedor?.focus({ preventScroll: true })
       lienzo.removeAttribute('tabindex')
       lienzo.removeAttribute('aria-labelledby')
       lienzo.removeAttribute('aria-describedby')
       if (contenedor) delete contenedor.dataset['modo']
+      contenedor?.setAttribute('aria-describedby', 'ayuda-vida')
     }
   }
 
   private alRedimensionar(): void {
     this.claveGuia = ''
+    this.remedirMargenes = 20
     this.actualizarMargenes()
     if (this.idFotograma !== undefined) cancelAnimationFrame(this.idFotograma)
     this.idFotograma = requestAnimationFrame(() => {
@@ -790,13 +947,13 @@ export class EscenaValle extends Phaser.Scene {
     }
     // Al girar, el panel avisa antes de que el lienzo cambie de tamaño: guiar con medidas a medias
     // mandaría la cámara a un sitio absurdo. Se espera al evento `resize` (que repite la guía).
-    // Esta guarda solo vale con `Phaser.Scale.RESIZE` (el lienzo mide lo mismo que su contenedor,
-    // como en `crearJuego`); con otro modo de escala nunca coincidirían y no habría guía.
+    // Esta guarda compara con la pantalla lógica (CSS): el lienzo mide CSS × factor de resolución (`juego.ts`).
     const padre = this.game.canvas.parentElement
+    const medida = pantallaLogica(this)
     if (
       padre &&
-      (Math.abs(padre.clientWidth - this.scale.width) > 1 ||
-        Math.abs(padre.clientHeight - this.scale.height) > 1)
+      (Math.abs(padre.clientWidth - medida.ancho) > 1 ||
+        Math.abs(padre.clientHeight - medida.alto) > 1)
     )
       return
     const o = partida.seleccion.ocupado
@@ -807,7 +964,7 @@ export class EscenaValle extends Phaser.Scene {
     const clave = `${sujeto}|${o ? `${o.x},${o.y},${o.ancho},${o.alto}` : ''}|${reservas.arriba},${reservas.abajo}`
     if (clave === this.claveGuia || !this.control) return
     this.claveGuia = clave
-    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const pantalla = pantallaLogica(this)
     const objetivo = huella
       ? {
           x: huella.x0 * TAM_CASILLA,
@@ -852,13 +1009,37 @@ export class EscenaValle extends Phaser.Scene {
           partida.construccion.activo) &&
         this.focoEnLienzo(),
     )
+    // Al abrir o cerrar el inventario se re-mide enseguida (la cámara esquiva el panel).
+    const inventarioAbierto = partida.inventario.abierto
+    if (inventarioAbierto !== this.inventarioAbiertoVisto) {
+      this.inventarioAbiertoVisto = inventarioAbierto
+      this.remedirMargenes = 20
+    }
+    if (modo === 'vida') {
+      // El panel se pinta un par de fotogramas después de abrirse: se re-mide fotograma a fotograma.
+      if (this.remedirMargenes > 0) {
+        this.remedirMargenes--
+        this.actualizarMargenes()
+      }
+    }
     const joystick = this.tactil?.leer() ?? { dx: 0, dy: 0 }
     // El teclado tiene prioridad sobre el joystick; cualquiera de los dos cancela el destino.
     const intencion = teclado.dx !== 0 || teclado.dy !== 0 ? teclado : joystick
     if (modo === 'vida') {
       const tocado = this.tactil?.tomarDestino()
+      const casillaTocada = tocado && {
+        x: Math.floor(tocado.x / TAM_CASILLA),
+        y: Math.floor(tocado.y / TAM_CASILLA),
+      }
       if (intencion.dx !== 0 || intencion.dy !== 0) this.seguidor.cancelar()
-      else if (tocado && !tiempoDetenido(partida.estado)) {
+      else if (
+        casillaTocada &&
+        casillaAlAlcance(partida.estado.personaje, casillaTocada.x, casillaTocada.y)
+      ) {
+        // Clic o toque en la casilla del personaje o en una vecina: usa la herramienta ahí.
+        this.seguidor.cancelar()
+        partida.usarHerramienta(casillaTocada.x, casillaTocada.y)
+      } else if (tocado && !tiempoDetenido(partida.estado)) {
         const e = partida.estado
         this.seguidor.fijar(e, e.personaje, {
           x: tocado.x / TAM_CASILLA,
@@ -890,19 +1071,21 @@ export class EscenaValle extends Phaser.Scene {
     this.luz?.actualizar(partida.estado.minutoDelDia)
     this.parcelas?.repintar(partida.estado)
     this.zonas?.actualizar(partida.estado)
+    this.cultivos?.actualizar(partida.estado)
     this.vistaPincel?.actualizar(partida.pincel)
-    this.edificios?.actualizar(partida.estado, this.cameras.main.zoom)
+    this.edificios?.actualizar(partida.estado, zoomLogico(this))
+    this.actualizarCapaObjetos()
     this.vistaSilueta?.actualizar(partida.silueta())
     const destino = this.seguidor.destino
     if (destino) this.marca?.mostrar(destino.x * TAM_CASILLA, destino.y * TAM_CASILLA)
     else this.marca?.ocultar()
     const p = partida.estado.personaje
-    this.vista?.colocar(p)
+    this.vista?.colocar(p, ms)
     const punto = { x: p.x * TAM_CASILLA, y: p.y * TAM_CASILLA }
     const real = Number.isFinite(delta) ? Math.min(Math.max(delta, 0), 1000) : 0
-    // Tras un desmayo el personaje reaparece lejos: la cámara salta, sin barrido.
-    if (this.desmayoVisto) {
-      this.desmayoVisto = false
+    // Tras un desmayo o al dormir el personaje reaparece lejos: la cámara salta, sin barrido.
+    if (this.despertarVisto) {
+      this.despertarVisto = false
       this.control?.centrarEn(punto)
     }
     // El suavizado de la cámara usa el tiempo real (no el acotado del juego): con pocos fps
@@ -932,13 +1115,35 @@ export class EscenaValle extends Phaser.Scene {
     const enVida = modo === 'vida'
     this.control.arrastreActivo = !enVida || ARRASTRE_EN_MODO_VIDA
     this.control.seguirActivo = enVida
+    // La interfaz de Vida se pinta un par de fotogramas después: se re-mide un rato (sin saltar de más).
+    if (enVida) this.remedirMargenes = 20
     this.actualizarMargenes()
+  }
+
+  /** Pone al día los objetos con profundidad según lo que ve la cámara (con un poco de margen). */
+  private actualizarCapaObjetos(): void {
+    const v = this.cameras.main.worldView
+    this.capaObjetos?.actualizar({ x0: v.x, y0: v.y, x1: v.right, y1: v.bottom })
+  }
+
+  /** Objetos con profundidad (árboles y rocas) vivos y los que caen en la vista más el margen (ganchos de prueba). */
+  objetosCapa(): { activos: number; enVista: number; obstaculos: number } | undefined {
+    const c = this.capaObjetos
+    if (!c) return undefined
+    const v = this.cameras.main.worldView
+    return {
+      activos: c.cantidad,
+      obstaculos: this.estado?.obstaculos.length ?? 0,
+      enVista: c.contarEn({ x0: v.x, y0: v.y, x1: v.right, y1: v.bottom }),
+    }
   }
 
   private rehornear(): void {
     for (const t of this.trozos) t.destroy()
     this.trozos = this.hornear()
+    this.capaObjetos?.invalidar()
     this.zonas?.invalidar()
+    this.cultivos?.invalidar()
     this.edificios?.invalidar()
   }
 
@@ -961,10 +1166,14 @@ export class EscenaValle extends Phaser.Scene {
     this.parcelas = undefined
     this.zonas?.destruir()
     this.zonas = undefined
+    this.cultivos?.destruir()
+    this.cultivos = undefined
     this.vistaPincel?.destruir()
     this.vistaPincel = undefined
     this.edificios?.destruir()
     this.edificios = undefined
+    this.capaObjetos?.destruir()
+    this.capaObjetos = undefined
     this.vistaSilueta?.destruir()
     this.vistaSilueta = undefined
     this.desuscribirPincel?.()

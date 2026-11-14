@@ -155,9 +155,9 @@ describe('catálogo de edificios (data/edificios.json)', () => {
 })
 
 describe('estado de M4-02', () => {
-  it('formato v8 con materiales, edificios e id siguiente', () => {
-    expect(VERSION_FORMATO).toBe(8)
-    expect(base.versionFormato).toBe(8)
+  it('formato vigente (v11) con materiales, edificios e id siguiente', () => {
+    expect(VERSION_FORMATO).toBe(11)
+    expect(base.versionFormato).toBe(11)
     expect(base.materiales).toEqual({ madera: 80, piedra: 20 })
     expect(base.edificios).toEqual([])
     expect(base.siguienteIdEdificio).toBe(1)

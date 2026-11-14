@@ -1,5 +1,5 @@
 import { CONFIG_PERSONAJE } from './datos/personaje'
-import type { Lado } from './rio'
+import type { Casilla, Lado } from './rio'
 import {
   casillaBloqueada,
   mapaTransitabilidad,
@@ -18,6 +18,23 @@ export interface Personaje {
 
 /** Orientación con la que aparece (y reaparece tras un desmayo). */
 export const ORIENTACION_INICIAL: Orientacion = 'sur'
+
+/** Desplazamiento en casillas hacia el que mira cada orientación (el eje Y crece hacia el sur). */
+const HACIA: Readonly<Record<Orientacion, Casilla>> = {
+  norte: { x: 0, y: -1 },
+  sur: { x: 0, y: 1 },
+  este: { x: 1, y: 0 },
+  oeste: { x: -1, y: 0 },
+}
+
+/**
+ * Casilla «de enfrente»: la contigua a la del personaje en la dirección en que mira. Es sobre la
+ * que actuarán las herramientas (M5-01). Función pura; no comprueba que esté dentro del valle.
+ */
+export function casillaDeEnfrente(p: Personaje): Casilla {
+  const d = HACIA[p.orientacion]
+  return { x: Math.floor(p.x) + d.x, y: Math.floor(p.y) + d.y }
+}
 
 /** Margen para no quedar pegado al borde de una casilla bloqueada por redondeo. */
 const HOLGURA = 1e-6

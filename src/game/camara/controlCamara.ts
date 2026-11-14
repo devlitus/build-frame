@@ -13,6 +13,7 @@ import {
   type Punto,
   type Vista,
 } from './matematica'
+import { factorDe, pantallaLogica } from '../resolucion'
 
 interface Medida {
   readonly ids: readonly number[]
@@ -154,24 +155,38 @@ export class ControlCamara {
   }
 
   /**
-   * Fija los márgenes del Modo Plano (o `undefined`). Si al reducirse la vista queda fuera de
+   * Fija los márgenes de la cámara (Plano o Vida; o `undefined`). Si al reducirse la vista queda fuera de
    * los límites, vuelve deslizándose (no de golpe).
    */
-  fijarMargenes(m: Margenes | undefined): void {
+  fijarMargenes(m: Margenes | undefined, saltar = false): void {
     const a = this.margenes
     if (
       a === m ||
-      (a && m && a.arriba === m.arriba && a.abajo === m.abajo && a.izq === m.izq && a.der === m.der)
+      (a &&
+        m &&
+        a.arriba === m.arriba &&
+        a.abajo === m.abajo &&
+        a.izq === m.izq &&
+        a.der === m.der &&
+        a.soloExtremos === m.soloExtremos)
     )
       return
     this.margenes = m ? { ...m } : undefined
     const v = this.actual
     const l = limitarVista(v, this.pantalla, this.mundoPx, this.limites())
     const fuera = l.cx !== v.cx || l.cy !== v.cy
-    // Al salir del Plano la vista vuelve de golpe (en Vida siempre dentro del valle); si solo
-    // cambia el panel, se desliza.
-    this.recolocando = fuera && m !== undefined
-    if (fuera && m === undefined) this.aplicar(l)
+    // Al salir del Plano (`undefined`) o con `saltar` la vista vuelve de golpe; si solo cambia el
+    // panel o un margen, se desliza de vuelta. Si crece un margen de Vida es porque el personaje
+    // quedaría bajo la interfaz: la vista salta hacia él.
+    const crece =
+      m?.soloExtremos === true &&
+      (m.arriba > (a?.arriba ?? 0) || m.abajo > (a?.abajo ?? 0) || m.izq > (a?.izq ?? 0))
+    this.recolocando = fuera && m !== undefined && !crece && !saltar
+    if (fuera && (m === undefined || saltar)) this.aplicar(l)
+    else if (crece && this.opciones.seguir && this.objetivo) {
+      // El personaje no debe quedar tapado ni un instante: la vista salta hacia él (con los nuevos límites).
+      this.aplicar({ ...v, cx: this.objetivo.x, cy: this.objetivo.y })
+    }
   }
 
   /** Hay un deslizamiento en curso (guía o vuelta de la extensión). */
@@ -250,7 +265,7 @@ export class ControlCamara {
   }
 
   private get pantalla(): Pantalla {
-    return { ancho: this.escena.scale.width, alto: this.escena.scale.height }
+    return pantallaLogica(this.escena)
   }
 
   private aplicar(v: Vista): void {
@@ -260,7 +275,8 @@ export class ControlCamara {
     const l = this.recolocando
       ? limitarVista(v, this.pantalla, this.mundoPx, this.limitesAnchos())
       : limitarVista(v, this.pantalla, this.mundoPx, this.limites())
-    cam.setZoom(l.zoom)
+    // La cámara de Phaser trabaja en píxeles de dispositivo: zoom lógico × factor de resolución.
+    cam.setZoom(l.zoom * factorDe(this.escena))
     cam.setScroll(l.cx - cam.width / 2, l.cy - cam.height / 2)
     this.actual = l
   }

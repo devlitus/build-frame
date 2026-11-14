@@ -17,8 +17,13 @@ interface Window {
     fps(): number
     /** Texto del contador de fps; undefined si no hay escena de depuración (sin `?debug`). */
     contadorFps(): string | undefined
-    /** Número de objetos en la lista de la escena del valle. */
+    /** Número de objetos en la lista de la escena del valle, sin los de la capa por profundidad (`objetosCapa`). */
     objetosValle(): number | undefined
+    /**
+     * Objetos con profundidad (árboles y rocas) vivos (`activos`), los que caen en la vista más el
+     * margen (`enVista`) y los obstáculos del estado (`obstaculos`, techo de `activos`).
+     */
+    objetosCapa(): { activos: number; enVista: number; obstaculos: number } | undefined
     /** Tamaño (en órdenes de dibujo) de cada `Graphics` vivo en la escena del valle. */
     graficosValle(): number[]
     /** Modo de juego vigente; undefined si no hay valle. */
@@ -37,6 +42,8 @@ interface Window {
     luz(): { alfa: number } | undefined
     /** Claves de casilla de los vados (`y * lado + x`) y lado del valle en casillas. */
     vados(): { lado: number; claves: number[] } | undefined
+    /** Energía del personaje (0..máximo); undefined si no hay partida. */
+    energia(): number | undefined
     /** Dinero de la partida; undefined si no hay partida. */
     dinero(): number | undefined
     /** Estado visual con el que se dibujó la parcela por última vez; undefined si no hay valle. */
@@ -70,6 +77,8 @@ interface Window {
     puntoClicCasilla(cx: number, cy: number): { x: number; y: number } | undefined
     /** Opacidad de la capa de zonas; solo con `?debug`. */
     alfaZonas(): number | undefined
+    /** Solo con `?debug`: casillas aradas y plantas que dibuja la vista de cultivos. */
+    cultivosVisibles(): { aradas: number; plantas: number } | undefined
     /** Estado del pincel de zonas (barra, herramienta, cursor de teclado y vista previa). */
     pincel():
       | {
@@ -79,6 +88,20 @@ interface Window {
           ancla: { x: number; y: number } | undefined
           rectangulo: { x0: number; y0: number; x1: number; y1: number } | undefined
         }
+      | undefined
+    /** Herramienta activa y semilla elegida; undefined si no hay partida. */
+    herramienta(): { herramienta: string; semilla: string | null } | undefined
+    /** Inventario: ranuras, capacidad y si el panel está abierto; undefined si no hay partida. */
+    inventario():
+      | {
+          ranuras: { objeto: string; cantidad: number }[]
+          capacidad: number
+          abierto: boolean
+        }
+      | undefined
+    /** Último uso de una herramienta (acción o clic): cuántos van, dónde y el motivo del rechazo. */
+    ultimoUso():
+      | { n: number; herramienta: string; x: number; y: number; error: string | undefined }
       | undefined
     /** Madera y piedra de la partida; undefined si no hay partida. */
     materiales(): { madera: number; piedra: number } | undefined

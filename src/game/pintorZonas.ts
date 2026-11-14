@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { casillaEnPunto, casillaMasCercana, type Pincel, type RectCasillas } from './pincel'
+import { mundoDePantalla } from './resolucion'
 
 type Fase = 'libre' | 'pintando' | 'anulado'
 
@@ -42,7 +43,7 @@ export class PintorZonas {
   }
 
   private casilla(p: Phaser.Input.Pointer, ajustar: boolean) {
-    const m = this.escena.cameras.main.getWorldPoint(p.x, p.y)
+    const m = mundoDePantalla(this.escena, p.x, p.y)
     return ajustar
       ? casillaMasCercana(this.lado, this.tamCasilla, m.x, m.y)
       : casillaEnPunto(this.lado, this.tamCasilla, m.x, m.y)

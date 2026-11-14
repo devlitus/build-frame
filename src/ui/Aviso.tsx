@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useState } from 'preact/hooks'
-import { despiertaEnCasa } from '../core'
+import { casaTerminada, despiertaEnCasa } from '../core'
 import { nombreEdificio, textoColocacion, textoReembolso } from './construirTextos'
 import { nombreParcela, textoPrecio } from './parcelaTextos'
-import { t, tp } from './textos'
+import { existeTexto, t, tp, type ClaveTexto } from './textos'
 import { usePartida } from './useEstado'
 
 /** Milisegundos que se muestra el aviso. */
@@ -45,6 +45,8 @@ export function Aviso() {
       for (const ev of eventos) {
         if (ev.tipo === 'desmayo')
           partes.push(t(despiertaEnCasa(estado) ? 'avisoDesmayoCasa' : 'avisoDesmayo'))
+        else if (ev.tipo === 'dormido')
+          partes.push(t(despiertaEnCasa(estado) ? 'avisoDormidoCasa' : 'avisoDormido'))
         else if (ev.tipo === 'parcela-comprada') {
           const p = estado.valle.parcelas[ev.indice]
           partes.push(
@@ -64,6 +66,31 @@ export function Aviso() {
           )
         } else if (ev.tipo === 'obra-terminada') {
           partes.push(tp('avisoObraTerminada', { edificio: nombreEdificio(ev.tipoEdificio) }))
+        } else if (ev.tipo === 'obstaculo-golpeado') {
+          const arbol = ev.obstaculo !== 'roca'
+          const clave = `avisoGolpe${arbol ? 'Arbol' : 'Roca'}${ev.restantes === 1 ? 'Uno' : ''}`
+          partes.push(tp(clave as ClaveTexto, { n: ev.restantes }))
+        } else if (ev.tipo === 'obstaculo-quitado') {
+          if (ev.obstaculo === 'planton') partes.push(t('avisoPlantonArrancado'))
+          else if (ev.obstaculo === 'roca')
+            partes.push(tp('avisoRocaPicada', { piedra: ev.piedra }))
+          else
+            partes.push(
+              tp(ev.plantones > 0 ? 'avisoArbolTaladoPlanton' : 'avisoArbolTalado', {
+                madera: ev.madera,
+              }),
+            )
+        } else if (ev.tipo === 'planton-plantado') {
+          partes.push(t('avisoPlantonPlantado'))
+        } else if (ev.tipo === 'planta-cosechada') {
+          partes.push(
+            tp('avisoCosecha', {
+              cantidad: ev.cantidad,
+              producto: t(`objeto_${ev.producto}` as ClaveTexto),
+            }),
+          )
+        } else if (ev.tipo === 'planton-perdido') {
+          partes.push(t('avisoPlantonPerdido'))
         } else if (ev.tipo === 'edificio-movido') {
           partes.push(tp('avisoEdificioMovido', { edificio: nombreEdificio(ev.tipoEdificio) }))
         } else if (ev.tipo === 'edificio-demolido' || ev.tipo === 'obra-cancelada') {
@@ -79,7 +106,16 @@ export function Aviso() {
     })
     const bajaUi = partida.suscribirAvisos((aviso) => {
       if (aviso === 'zona-sin-casillas') mostrarAviso(t('avisoZonaSinCasillas'))
-      else if (aviso.tipo === 'edificio-rechazado') {
+      else if (aviso.tipo === 'herramienta-rechazada') {
+        const clave = `errorHerramienta_${aviso.error}`
+        mostrarAviso(t(existeTexto(clave) ? clave : ('errorHerramienta_otro' as ClaveTexto)))
+      } else if (aviso.tipo === 'dormir-rechazado') {
+        const sinCasa = aviso.error === 'lejos-de-la-cama' && !casaTerminada(partida.estado)
+        const clave = sinCasa
+          ? 'errorDormir_lejos-de-la-cama-sin-casa'
+          : `errorDormir_${aviso.error}`
+        mostrarAviso(t(existeTexto(clave) ? clave : ('errorDormir_otro' as ClaveTexto)))
+      } else if (aviso.tipo === 'edificio-rechazado') {
         mostrarAviso(
           tp('avisoEdificioRechazado', {
             accion: t(`accion_${aviso.accion}`),

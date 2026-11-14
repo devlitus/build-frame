@@ -2,9 +2,14 @@ import * as v from 'valibot'
 import {
   AGUAS,
   AGUAS_SIN_RIO,
+  CATEGORIAS_OBJETO,
+  CULTIVOS,
+  ESTACIONES,
   FERTILIDADES,
+  HERRAMIENTAS,
   LADOS,
   MATERIALES,
+  OBJETOS,
   TERRENOS,
   TIPOS_EDIFICIO,
   ZONAS,
@@ -179,3 +184,179 @@ export const EsquemaConfigEdificios = v.strictObject({
 })
 
 export type ConfigEdificios = v.InferOutput<typeof EsquemaConfigEdificios>
+
+const ranurasEnteras = v.pipe(v.number(), v.safeInteger(), v.minValue(0), v.maxValue(1000))
+const idObjeto = v.picklist(OBJETOS)
+
+export const EsquemaObjeto = v.strictObject({
+  categoria: v.picklist(CATEGORIAS_OBJETO),
+  /** Cantidad máxima de una ranura (≥ 1). */
+  pilaMaxima: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(9999)),
+})
+
+export type DefObjeto = v.InferOutput<typeof EsquemaObjeto>
+
+export const EsquemaConfigInventario = v.pipe(
+  v.strictObject({
+    /** Ranuras del inventario sin ningún edificio (≥ 1). */
+    capacidadBase: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(1000)),
+    /** Ranuras que suma cada edificio **terminado** de cada tipo (una obra o un demolido no suman). */
+    ranurasPorEdificio: v.strictObject(
+      Object.fromEntries(TIPOS_EDIFICIO.map((t) => [t, ranurasEnteras])) as Record<
+        (typeof TIPOS_EDIFICIO)[number],
+        typeof ranurasEnteras
+      >,
+    ),
+    /** Herramienta activa al empezar una partida. */
+    herramientaInicial: v.picklist(HERRAMIENTAS),
+    /** Regalo de bienvenida (sin tienda hasta M6): objetos con los que empieza el inventario. */
+    loteInicial: v.array(
+      v.strictObject({
+        objeto: idObjeto,
+        cantidad: v.pipe(v.number(), v.safeInteger(), v.minValue(1)),
+      }),
+    ),
+    /** Catálogo: exactamente un registro por cada objeto de `OBJETOS`. */
+    objetos: v.strictObject(
+      Object.fromEntries(OBJETOS.map((o) => [o, EsquemaObjeto])) as Record<
+        (typeof OBJETOS)[number],
+        typeof EsquemaObjeto
+      >,
+    ),
+  }),
+  v.check(
+    (c) => new Set(c.loteInicial.map((l) => l.objeto)).size === c.loteInicial.length,
+    'Objetos repetidos en el lote inicial',
+  ),
+  v.check((c) => {
+    // El lote cabe en el inventario base, con las pilas completas y a lo sumo una incompleta por objeto.
+    const ranuras = c.loteInicial.reduce(
+      (n, l) => n + Math.ceil(l.cantidad / c.objetos[l.objeto].pilaMaxima),
+      0,
+    )
+    return ranuras <= c.capacidadBase
+  }, 'El lote inicial no cabe en la capacidad base'),
+)
+
+export type ConfigInventario = v.InferOutput<typeof EsquemaConfigInventario>
+
+/** Coste de energía por golpe: entero ≥ 0 (0 = gratis). */
+const costeEnergia = v.pipe(v.number(), v.safeInteger(), v.minValue(0), v.maxValue(1000))
+
+export const EsquemaConfigEnergia = v.pipe(
+  v.strictObject({
+    /** Energía máxima (entero ≥ 1) con la que se empieza y a la que se vuelve al dormir. */
+    maximo: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(1000)),
+    /** Fracción del máximo con la que se despierta tras un desmayo (se redondea hacia abajo). */
+    desmayoFraccion: v.pipe(v.number(), v.finite(), v.minValue(0), v.maxValue(1)),
+    /** Energía que gasta un uso aceptado de cada herramienta. */
+    costes: v.strictObject(
+      Object.fromEntries(HERRAMIENTAS.map((h) => [h, costeEnergia])) as Record<
+        (typeof HERRAMIENTAS)[number],
+        typeof costeEnergia
+      >,
+    ),
+  }),
+  v.check(
+    (c) => Object.values(c.costes).every((n) => n <= c.maximo),
+    'Ningún coste puede superar la energía máxima',
+  ),
+)
+
+export type ConfigEnergia = v.InferOutput<typeof EsquemaConfigEnergia>
+
+/** Nº de fases de crecimiento con días propios (0 sembrado, 1 brote, 2 joven); la 3 es «maduro». */
+export const FASES_CRECIMIENTO = 3
+
+const diasEnteros = v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(365))
+
+export const EsquemaCultivo = v.pipe(
+  v.strictObject({
+    /** Estaciones en las que se puede sembrar (al menos una, sin repetir). */
+    estaciones: v.pipe(
+      v.array(v.picklist(ESTACIONES)),
+      v.minLength(1),
+      v.check((e) => new Set(e).size === e.length, 'Estaciones repetidas'),
+    ),
+    /** Días que pasa en cada una de las fases 0, 1 y 2; su suma es el crecimiento total (enteros >= 1). */
+    diasPorFase: v.pipe(v.array(diasEnteros), v.length(FASES_CRECIMIENTO)),
+    /**
+     * Necesidad de agua (GDD §6.6): un cultivo sin regar no crece ese día (se detiene) y, al
+     * llegar a `diasSinRegar` días seguidos sin agua, se marchita.
+     */
+    necesidadAgua: v.strictObject({ diasSinRegar: diasEnteros }),
+    /** `null` si se cosecha una sola vez; si rebrota, días hasta volver a madurar tras cosechar (vuelve a la fase 2). */
+    rebrota: v.nullable(v.strictObject({ dias: diasEnteros })),
+    cosecha: v.strictObject({
+      /** Producto que se recoge (un cultivo del catálogo de objetos, categoría `producto`). */
+      producto: v.picklist(CULTIVOS),
+      cantidad: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(99)),
+    }),
+    /** Precio base de venta del producto (lo usa M6). */
+    precioBase: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(1_000_000)),
+    /** Zonas en las que se puede plantar (en M5, cultivo y huerto). */
+    zonas: v.pipe(
+      v.array(v.picklist(['cultivo', 'huerto'] as const)),
+      v.minLength(1),
+      v.check((z) => new Set(z).size === z.length, 'Zonas repetidas'),
+    ),
+  }),
+  // Al rebrotar la planta vuelve a la fase 2 (joven): solo cabe si `rebrota.dias` no supera la
+  // duración de esa fase, así que cosechar no necesita acotar los días.
+  v.check(
+    (c) => c.rebrota === null || c.rebrota.dias <= (c.diasPorFase[2] ?? 0),
+    'rebrota.dias no puede superar los días de la fase 2',
+  ),
+)
+
+export type DefCultivo = v.InferOutput<typeof EsquemaCultivo>
+
+export const EsquemaConfigCultivos = v.strictObject({
+  /**
+   * Tierra arada sin planta: tras `diasSinRegarAHierba` días seguidos sin regar vuelve a hierba
+   * (1..9: cabe en un carácter de `tierra`).
+   */
+  tierra: v.strictObject({
+    diasSinRegarAHierba: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(9)),
+  }),
+  /** Catálogo: exactamente un registro por cada cultivo de `CULTIVOS`. */
+  cultivos: v.strictObject(
+    Object.fromEntries(CULTIVOS.map((c) => [c, EsquemaCultivo])) as Record<
+      (typeof CULTIVOS)[number],
+      typeof EsquemaCultivo
+    >,
+  ),
+})
+
+export type ConfigCultivos = v.InferOutput<typeof EsquemaConfigCultivos>
+const cantidadPorTerreno = (min: number) => {
+  const n = v.pipe(v.number(), v.safeInteger(), v.minValue(min), v.maxValue(100))
+  return v.strictObject(
+    Object.fromEntries(TERRENOS.map((t) => [t, n])) as Record<(typeof TERRENOS)[number], typeof n>,
+  )
+}
+
+/** Talar, picar y replantar (GDD §6.8 y §8): golpes y botín por terreno, y crecimiento del plantón. */
+export const EsquemaConfigRecursos = v.strictObject({
+  arbol: v.strictObject({
+    /** Golpes de hacha que hacen falta para talar un árbol, por terreno del que está. */
+    golpes: cantidadPorTerreno(1),
+    /** Madera que da un árbol talado, por terreno. */
+    madera: cantidadPorTerreno(0),
+    /** Plantones que deja un árbol talado (si caben en el inventario). */
+    plantones: v.pipe(v.number(), v.safeInteger(), v.minValue(0), v.maxValue(10)),
+    /** Probabilidad (0 a 1) de que talar un árbol deje esos plantones; se sortea con el RNG del estado. */
+    probabilidadPlanton: v.pipe(v.number(), v.minValue(0), v.maxValue(1)),
+  }),
+  roca: v.strictObject({
+    golpes: cantidadPorTerreno(1),
+    /** Piedra que da una roca picada, por terreno. */
+    piedra: cantidadPorTerreno(0),
+  }),
+  planton: v.strictObject({
+    /** Días que tarda un plantón en convertirse en árbol. */
+    diasCrecimiento: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(100)),
+  }),
+})
+
+export type ConfigRecursos = v.InferOutput<typeof EsquemaConfigRecursos>

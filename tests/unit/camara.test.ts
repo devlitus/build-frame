@@ -3,6 +3,7 @@ import fc from 'fast-check'
 import { CONFIG_CAMARA, limitesZoom, zoomInicial } from '../../src/game/camara/config'
 import {
   factorPellizco,
+  limitarEje,
   limitarVista,
   limitarZoom,
   medirDedos,
@@ -192,5 +193,20 @@ describe('extensión de la vista (parcela de borde con panel abierto)', () => {
   it('sin extensión, el mismo gesto salta a los límites normales', () => {
     const v = transformar(fuera, pantalla, c, { x: c.x + 1, y: c.y }, 1, lim, MUNDO)
     expect(Math.abs(v.cx - fuera.cx)).toBeGreaterThan(100)
+  })
+})
+
+describe('márgenes de Vida (solo el extremo tapado)', () => {
+  it('amplía solo el extremo con margen, sin abrir el rango a [0, mundo]', () => {
+    // Pantalla 400, zoom 1, mundo 1000: rango normal del centro [200, 800].
+    expect(limitarEje(0, 400, 1, 1000, undefined, 0, 100, true)).toBe(200)
+    expect(limitarEje(5000, 400, 1, 1000, undefined, 0, 100, true)).toBe(900)
+    expect(limitarEje(0, 400, 1, 1000, undefined, 50, 0, true)).toBe(150)
+    expect(limitarEje(5000, 400, 1, 1000, undefined, 50, 0, true)).toBe(800)
+  })
+
+  it('sin la marca (Plano) abre el rango a [0, mundo]', () => {
+    expect(limitarEje(-5, 400, 1, 1000, undefined, 0, 100)).toBe(0)
+    expect(limitarEje(5000, 400, 1, 1000, undefined, 0, 100)).toBe(1000)
   })
 })

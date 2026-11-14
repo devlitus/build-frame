@@ -32,9 +32,9 @@ const borrar = (e: EstadoJuego, x0: number, y0: number, x1: number, y1: number) 
 const cuenta = (e: EstadoJuego) => [...e.zonas].filter((c) => c !== '.').length
 
 describe('zonas', () => {
-  it('estado inicial vacío, de lado*lado, y formato v8', () => {
+  it('estado inicial vacío, de lado*lado, y formato vigente (v11)', () => {
     expect(base.zonas).toBe('.'.repeat(LADO * LADO))
-    expect(base.versionFormato).toBe(8)
+    expect(base.versionFormato).toBe(11)
   })
 
   it('pinta en parcela propia, esquinas en cualquier orden', () => {

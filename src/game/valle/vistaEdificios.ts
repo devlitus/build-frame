@@ -7,6 +7,14 @@ import {
   type EstadoJuego,
   type TipoEdificio,
 } from '../../core'
+import { factorDe } from '../resolucion'
+import {
+  MARCO_EDIFICIO,
+  claveEdificio,
+  escalaNominal,
+  estadoDeEdificio,
+  type EstadoEdificio,
+} from './arte'
 import { ESTILO_EDIFICIOS as E, TAM_CASILLA as T } from './estilo'
 
 /** Lo que se ve de un edificio ahora mismo (ganchos de prueba y e2e). */
@@ -40,157 +48,14 @@ interface Cartel {
 
 interface Dibujo {
   readonly clave: string
-  readonly g: Phaser.GameObjects.Graphics
+  readonly sprite: Phaser.GameObjects.Image
   readonly cartel: Cartel | undefined
   readonly rect: { readonly x: number; readonly y: number; readonly w: number; readonly h: number }
   readonly dias: number | undefined
   readonly visible: EdificioVisible
 }
 
-type G = Phaser.GameObjects.Graphics
 type Rect = { readonly x: number; readonly y: number; readonly w: number; readonly h: number }
-
-/** Trazo con contorno sepia: primero la línea gruesa de contorno y encima la de relleno. */
-function lineaConContorno(
-  g: G,
-  color: number,
-  grosor: number,
-  pts: readonly [number, number][],
-): void {
-  const trazar = (): void => {
-    g.beginPath()
-    pts.forEach(([x, y], i) => (i === 0 ? g.moveTo(x, y) : g.lineTo(x, y)))
-    g.strokePath()
-  }
-  g.lineStyle(grosor + 2 * E.grosor, E.contorno, 1)
-  trazar()
-  g.lineStyle(grosor, color, 1)
-  trazar()
-}
-
-/** Polígono relleno con contorno sepia. */
-function poligono(g: G, color: number, pts: readonly [number, number][]): void {
-  g.fillStyle(color, 1)
-  g.lineStyle(E.grosor, E.contorno, 1)
-  g.beginPath()
-  pts.forEach(([x, y], i) => (i === 0 ? g.moveTo(x, y) : g.lineTo(x, y)))
-  g.closePath()
-  g.fillPath()
-  g.strokePath()
-}
-
-function rectangulo(g: G, color: number, x: number, y: number, w: number, h: number): void {
-  poligono(g, color, [
-    [x, y],
-    [x + w, y],
-    [x + w, y + h],
-    [x, y + h],
-  ])
-}
-
-function lineaInterior(g: G, x1: number, y1: number, x2: number, y2: number): void {
-  g.lineStyle(E.grosorInterior, E.contorno, 1)
-  g.beginPath()
-  g.moveTo(x1, y1)
-  g.lineTo(x2, y2)
-  g.strokePath()
-}
-
-/** Casa: paredes, tejado a dos aguas que sobresale por arriba y puerta en la casilla de `puertaDe`. */
-function dibujarCasa(g: G, { x, y, w, h }: Rect): void {
-  const c = E.casa
-  const techo = h * 0.45
-  rectangulo(g, c.pared, x + 4, y + techo - 2, w - 8, h - techo - 2)
-  poligono(g, c.techo, [
-    [x - 2, y + techo + 2],
-    [x + w / 2, y - 12],
-    [x + w + 2, y + techo + 2],
-  ])
-  // La puerta está bajo el centro del borde inferior, como `puertaDe`: columna floor(ancho / 2).
-  const columna = Math.floor(w / T / 2)
-  const px = x + columna * T + T / 2
-  rectangulo(g, c.puerta, px - 7, y + h - 22, 14, 20)
-  rectangulo(g, c.ventana, x + 14, y + techo + 8, 14, 14)
-  if (w >= 3 * T) rectangulo(g, c.ventana, x + w - 28, y + techo + 8, 14, 14)
-}
-
-/** Caja de envío: un cajón de madera con tablas cruzadas. */
-function dibujarCaja(g: G, { x, y, w, h }: Rect): void {
-  const c = E['caja-envio']
-  rectangulo(g, c.madera, x + 3, y + 5, w - 6, h - 8)
-  lineaInterior(g, x + 3, y + 5, x + w - 3, y + h - 3)
-  lineaInterior(g, x + w - 3, y + 5, x + 3, y + h - 3)
-  g.fillStyle(c.tabla, 1)
-  g.fillRect(x + 3 + E.grosor, y + 5 + h * 0.4, w - 6 - 2 * E.grosor, 4)
-}
-
-/** Cobertizo: cuerpo bajo con tejado de una vertiente y puerta ancha. */
-function dibujarCobertizo(g: G, { x, y, w, h }: Rect): void {
-  const c = E.cobertizo
-  rectangulo(g, c.pared, x + 3, y + h * 0.4, w - 6, h * 0.6 - 3)
-  poligono(g, c.techo, [
-    [x - 2, y + h * 0.4 + 2],
-    [x + 6, y - 4],
-    [x + w - 6, y - 4],
-    [x + w + 2, y + h * 0.4 + 2],
-  ])
-  const columna = Math.floor(w / T / 2)
-  const px = x + columna * T + T / 2
-  rectangulo(g, c.puerta, px - 12, y + h - 24, 24, 21)
-  lineaInterior(g, px, y + h - 24, px, y + h - 3)
-}
-
-/** Obra: suelo de tierra y andamio (postes, travesaños y riostras) con contorno sepia. */
-function dibujarAndamio(g: G, { x, y, w, h }: Rect): void {
-  const o = E.obra
-  g.fillStyle(o.suelo, o.alfaSuelo)
-  g.fillRect(x + 1, y + 1, w - 2, h - 2)
-  g.lineStyle(E.grosor, E.contorno, 1)
-  g.strokeRect(x + 1, y + 1, w - 2, h - 2)
-  const izq = x + 5
-  const der = x + w - 5
-  const alto = Math.min(h * 0.9 + 8, h + 12)
-  const base = y + h - 3
-  const cima = base - alto
-  const medio = base - alto * 0.5
-  lineaConContorno(g, o.madera, 4, [
-    [izq, base],
-    [izq, cima],
-  ])
-  lineaConContorno(g, o.madera, 4, [
-    [der, base],
-    [der, cima],
-  ])
-  lineaConContorno(g, o.madera, 3, [
-    [izq, cima],
-    [der, cima],
-  ])
-  lineaConContorno(g, o.madera, 3, [
-    [izq, medio],
-    [der, medio],
-  ])
-  lineaConContorno(g, o.madera, 2, [
-    [izq, base],
-    [der, medio],
-  ])
-  lineaConContorno(g, o.madera, 2, [
-    [der, base],
-    [izq, medio],
-  ])
-  // Postes intermedios en las obras anchas.
-  for (let cx = x + T; cx < x + w - T / 2; cx += T) {
-    lineaConContorno(g, o.madera, 3, [
-      [cx, base],
-      [cx, cima],
-    ])
-  }
-}
-
-const dibujar: Readonly<Record<TipoEdificio, (g: G, r: Rect) => void>> = {
-  casa: dibujarCasa,
-  'caja-envio': dibujarCaja,
-  cobertizo: dibujarCobertizo,
-}
 
 /** Resolución del texto del cartel: 2 como mínimo y, con zoom bajo, la siguiente potencia de 2 de 2/zoom (tope 8). */
 function resolucionTexto(zoom: number): number {
@@ -198,13 +63,14 @@ function resolucionTexto(zoom: number): number {
 }
 
 /**
- * Capa de edificios y obras (M4-05). Un `Graphics` por edificio, con `depth` = borde inferior de
- * la huella en px (como el personaje, ADR 0003: lo que está más al sur tapa a lo que está más al
- * norte), y el cartel de las obras (otro `Graphics` y un `Text`). Son gráficos vectoriales (no
- * texturas horneadas): el contexto WebGL perdido no los vacía, y cada uno se destruye cuando
- * desaparece su edificio o cambia su aspecto, así que no acumulan texturas. Solo se redibuja cuando
- * cambia la lista de edificios o el día; el cartel se dibuja a tamaño de pantalla y con el zoom solo
- * cambia su escala (y su forma, si cruza el umbral).
+ * Capa de edificios y obras (M4-05, con el arte final de M5-00). Una `Image` por edificio con la
+ * textura de su estado (cimientos, obra o terminado), colocada según `docs/informes/arte-m4.md`
+ * (sobresale de la huella hacia arriba y a la izquierda), con `depth` = borde inferior de la huella
+ * en px (como el personaje, ADR 0003: lo que está más al sur tapa a lo que está más al norte). El
+ * cartel de las obras (un `Graphics` y un `Text` en un contenedor) va delante. Las imágenes
+ * comparten textura, así que no acumulan texturas: se destruyen cuando desaparece su edificio o
+ * cambia su aspecto. Solo se rehace cuando cambia la lista de edificios o el día; el cartel se
+ * dibuja a tamaño de pantalla y con el zoom solo cambia su escala (y su forma, si cruza el umbral).
  */
 export class VistaEdificios {
   private readonly dibujos = new Map<number, Dibujo>()
@@ -245,10 +111,11 @@ export class VistaEdificios {
         if (!def) continue
         vivos.add(ed.id)
         const dias = ed.obra ? diasRestantes(ed.obra, e.dia) : undefined
-        const clave = `${ed.tipo}|${ed.x},${ed.y}|${dias ?? 'ok'}`
+        const estado = estadoDeEdificio(ed.obra, e.dia)
+        const clave = `${ed.tipo}|${ed.x},${ed.y}|${dias ?? 'ok'}|${estado}`
         if (this.dibujos.get(ed.id)?.clave === clave) continue
         this.quitar(ed.id)
-        this.dibujos.set(ed.id, this.crear(ed, clave, dias, def, z))
+        this.dibujos.set(ed.id, this.crear(ed, clave, estado, dias, def, z))
       }
       for (const id of [...this.dibujos.keys()]) if (!vivos.has(id)) this.quitar(id)
       // Si el zoom también cambió, las obras que se conservan reescalan su cartel.
@@ -263,7 +130,8 @@ export class VistaEdificios {
 
   private crear(
     ed: Edificio,
-    clave: string,
+    claveDibujo: string,
+    estado: EstadoEdificio,
     dias: number | undefined,
     def: { readonly ancho: number; readonly alto: number },
     zoom: number,
@@ -272,11 +140,15 @@ export class VistaEdificios {
     const h = huellaDe(def, ed.x, ed.y)
     const r: Rect = { x: h.x0 * T, y: h.y0 * T, w: def.ancho * T, h: def.alto * T }
     const profundidad = (h.y1 + 1) * T
-    const g = this.escena.add.graphics().setDepth(profundidad)
+    const marco = MARCO_EDIFICIO[ed.tipo]
+    const clave = claveEdificio(ed.tipo, estado)
+    const sprite = this.escena.add
+      .image(r.x - marco.izquierda, r.y - marco.arriba, clave)
+      .setOrigin(0, 0)
+      .setScale(escalaNominal(this.escena, clave, marco.ancho))
+      .setDepth(profundidad)
     let cartel: Cartel | undefined
-    if (dias === undefined) dibujar[ed.tipo](g, r)
-    else {
-      dibujarAndamio(g, r)
+    if (dias !== undefined) {
       const texto = this.escena.add
         .text(0, 0, '', {
           fontFamily: 'system-ui, sans-serif',
@@ -291,8 +163,8 @@ export class VistaEdificios {
       cartel = { caja, g: fondo, texto, forma: 'tablon', resolucion: 2 }
     }
     const d: Dibujo = {
-      clave,
-      g,
+      clave: claveDibujo,
+      sprite,
       cartel,
       rect: r,
       dias,
@@ -342,7 +214,7 @@ export class VistaEdificios {
     // El cartel se apoya en el borde inferior de la huella, sin salirse por abajo más de un poco.
     const k = 1 / zoom
     // El texto se rasteriza con más resolución cuanto menor es el zoom (por escalones, para no rehacerlo).
-    const res = resolucionTexto(zoom)
+    const res = resolucionTexto(zoom * factorDe(this.escena))
     if (cartel.resolucion !== res) {
       cartel.resolucion = res
       cartel.texto.setResolution(res)
@@ -355,7 +227,7 @@ export class VistaEdificios {
   private quitar(id: number): void {
     const d = this.dibujos.get(id)
     if (!d) return
-    d.g.destroy()
+    d.sprite.destroy()
     d.cartel?.caja.destroy()
     this.dibujos.delete(id)
   }

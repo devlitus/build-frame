@@ -3,6 +3,7 @@ import type { EstadoJuego } from './estado'
 import { casillasOcupadas, edificiosValidos } from './edificios'
 import { ladoValle } from './mapa'
 import { casillasRio } from './rio'
+import { sinLabrar } from './tierra'
 
 export { ZONAS }
 export type Zona = (typeof ZONAS)[number]
@@ -52,7 +53,13 @@ export function casillaConEdificio(
 }
 
 export type ResultadoZonas =
-  | { readonly ok: true; readonly zonas: string; readonly cambiadas: number }
+  | {
+      readonly ok: true
+      readonly zonas: string
+      /** `tierra` tras limpiar la arada vacía que deja de ser de cultivo o huerto (la misma cadena si no cambia). */
+      readonly tierra: string
+      readonly cambiadas: number
+    }
   | {
       readonly ok: false
       readonly error: 'parametro-invalido' | 'estado-invalido' | 'sin-casillas-validas'
@@ -80,9 +87,14 @@ export function aguaDe(
  * Aplica `caracter` a las casillas válidas del rectángulo (esquinas inclusivas, en cualquier
  * orden, recortado al valle). Válida = en parcela propia, no es río (vados incluidos) y sin
  * edificio. Árboles y rocas no impiden pintar. Pura.
+ *
+ * Tierra trabajada (M5-03): una casilla con planta cuenta como válida pero se deja como está
+ * (si la zona nueva no es cultivo ni huerto, ni se cambia ni se borra su zona, sin error). Si la zona de una casilla arada vacía pasa a
+ * ser otra que cultivo o huerto (o se borra), la tierra se limpia.
  */
 export function aplicarZonas(
-  estado: Pick<EstadoJuego, 'zonas' | 'valle' | 'cauce' | 'edificios'>,
+  estado: Pick<EstadoJuego, 'zonas' | 'valle' | 'cauce' | 'edificios'> &
+    Partial<Pick<EstadoJuego, 'tierra' | 'plantas'>>,
   rect: { x0: number; y0: number; x1: number; y1: number },
   caracter: string,
 ): ResultadoZonas {
@@ -107,6 +119,9 @@ export function aplicarZonas(
   const yb = Math.min(lado - 1, Math.max(y0, y1))
   const agua = aguaDe(valle, estado.cauce.ancho, lado)
   const celdas = estado.zonas.split('')
+  const conPlanta = new Set((estado.plantas ?? []).map((p) => p[0]))
+  const limpiar: number[] = []
+  const sigueLabrable = caracter === CARACTER_ZONA.cultivo || caracter === CARACTER_ZONA.huerto
   let validas = 0
   let cambiadas = 0
   for (let y = ya; y <= yb; y++) {
@@ -117,12 +132,21 @@ export function aplicarZonas(
       }
       validas++
       const i = y * lado + x
+      if (conPlanta.has(i) && !sigueLabrable) continue
       if (celdas[i] !== caracter) {
         celdas[i] = caracter
         cambiadas++
+        if (!sigueLabrable) limpiar.push(i)
       }
     }
   }
   if (validas === 0) return { ok: false, error: 'sin-casillas-validas' }
-  return { ok: true, zonas: cambiadas === 0 ? estado.zonas : celdas.join(''), cambiadas }
+  if (estado.tierra === undefined) return { ok: false, error: 'estado-invalido' }
+  const tierra = sinLabrar(estado.tierra, limpiar)
+  return {
+    ok: true,
+    zonas: cambiadas === 0 ? estado.zonas : celdas.join(''),
+    tierra,
+    cambiadas,
+  }
 }

@@ -116,9 +116,12 @@ test.describe('escritorio: ratón', () => {
         const r = window.__raices!
         const c = r.camara()!
         const p = r.personaje()!
-        for (let radio = 1; radio < 12; radio++) {
+        // Desde la distancia de Chebyshev 2: desde M5-01 un clic en la casilla del personaje o en
+        // una de sus 8 vecinas usa la herramienta en lugar de caminar.
+        for (let radio = 2; radio < 12; radio++) {
           for (let dy = -radio; dy <= radio; dy++) {
             for (let dx = -radio; dx <= radio; dx++) {
+              if (Math.max(Math.abs(dx), Math.abs(dy)) < 2) continue
               const cx = Math.floor(p.x) + dx
               const cy = Math.floor(p.y) + dy
               if (!r.bloqueada(cx, cy)) continue

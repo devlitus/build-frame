@@ -1,0 +1,12 @@
+{
+  "maximo": 100,
+  "desmayoFraccion": 0.5,
+  "costes": {
+    "azada": 2,
+    "regadera": 2,
+    "semillas": 0,
+    "mano": 0,
+    "hacha": 4,
+    "pico": 4
+  }
+}
