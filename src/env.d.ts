@@ -79,6 +79,11 @@ interface Window {
     zonaDe(cx: number, cy: number): 'cultivo' | 'huerto' | 'vivienda' | 'almacen' | undefined
     /** Punto de pantalla (px) donde pulsar para tocar la casilla; solo con `?debug`. */
     puntoClicCasilla(cx: number, cy: number): { x: number; y: number } | undefined
+    /** Rect (px CSS de la ventana) de la casilla según la cámara, sin contar la interfaz; solo con `?debug`. */
+    rectCasilla(
+      cx: number,
+      cy: number,
+    ): { x: number; y: number; ancho: number; alto: number } | undefined
     /** Opacidad de la capa de zonas; solo con `?debug`. */
     alfaZonas(): number | undefined
     /** Solo con `?debug`: casillas aradas y plantas que dibuja la vista de cultivos. */
