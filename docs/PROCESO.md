@@ -122,7 +122,10 @@ docs(gdd): añadir sección de recursos
 1. **Orquestador** redacta la historia (plantilla abajo) y la asigna.
 2. **Implementador** crea `feat/…` en un worktree, implementa y escribe sus tests. Termina cuando sus tests y la CI local pasan.
 3. **Rompedor** ataca: escribe tests que **demuestran** cada fallo encontrado y un informe breve. Si no encuentra nada, lo deja documentado.
-4. **Implementador** corrige hasta que todos los tests (los suyos y los del Rompedor) pasen. **Los tests del Rompedor no se pueden borrar ni modificar**; si uno es incorrecto, lo decide el Orquestador.
+4. **Implementador** corrige hasta que todos los tests (los suyos y los del Rompedor) pasen. **Durante un hito activo, los tests del Rompedor no se pueden borrar, saltar ni debilitar**; si uno es incorrecto, lo decide el Orquestador.
+   - **Regresión tras el hito.** Cuando un hito está integrado en `main`, sus tests del Rompedor pasan a ser suite de regresión y se pueden **reorganizar** en una historia de mantenimiento (`test(e2e): …`) si: (a) la autoriza el Orquestador; (b) la hace el **Rompedor** (Opus en sistemas críticos); (c) el **Revisor** verifica que ninguna aserción se pierde ni se relaja (mismos umbrales y tolerancias, o más estrictos); (d) los tests de regresión de un fallo (`[S1]`, `[S2]`, `[S3]`) se pueden mover, nunca borrar.
+   - **Cambios mecánicos** (etiquetas, usar los helpers de `tests/e2e/apoyo/`, sustituir una espera fija por la condición equivalente): sin tabla, con revisión.
+   - **Fusionar, mover a `tests/prop` o `tests/unit`, o restringir a un proyecto**: la PR incluye una tabla de equivalencias (test original → dónde queda cada aserción).
 5. **Revisor** revisa el diff completo y aprueba o pide cambios.
 6. **Orquestador** abre o integra la PR en la rama del hito cuando la CI está en verde.
 
@@ -175,6 +178,9 @@ Las historias se gestionan como **GitHub Issues**, con el *milestone* del hito y
 **e2e en dos tandas.** El runner de GitHub no tiene GPU y va a 12–17 fps, así que los tests que dependen de fps, tiempo real o recorridos largos fallan allí sin que haya un fallo real.
 - **CI: tanda de humo** (`npm run e2e:humo`, tests con la etiqueta `@humo` en `tests/e2e/humo.spec.ts`). Corta y estable, en escritorio y móvil emulado: arrancar, moverse con el teclado, ir con un clic o toque a un destino cercano, cambiar de modo y pasar un día acelerado. Se amplía cuando un hito añade un flujo básico nuevo, con márgenes de tiempo amplios.
 - **Local: tanda completa** (`npm run e2e`), **obligatoria antes de abrir la PR de cada hito**. El resultado (pasan, se omiten y fallos esperados) se anota en la descripción de la PR. Incluye los tests de tiempo real y rendimiento, que corren al final y solos (ver `playwright.config.ts`).
+- **Presupuesto (hito E2E-velocidad, en implantación):** la tanda completa tarda **≤ 10 min** de reloj en local; un test nuevo, mediana ≤ 5 s; los `@lento` (≤ 60 s) solo con aprobación del Orquestador. Si un hito supera los 10 min, se abre una historia `deuda` antes de su PR, y la PR del hito anota la pared total y los 10 tests más lentos.
+- **Un solo e2e a la vez por máquina:** no lanzar tandas en dos worktrees a la vez (falsean tiempos y fps).
+- Las reglas de esperas (`waitForTimeout` prohibido fuera de `tests/e2e/apoyo/`), etiquetas (`@movil`, `@rendimiento`, `@capturas`, `@medida`, `@lento`) y proyectos se documentan aquí según se implanten las historias E2E-01 a E2E-10.
 
 ### Verificación visual
 Los tests e2e comprueban que los elementos **existen**, no que se **vean** bien. Por eso, en toda historia que cambie lo que se ve:
