@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   aplicarComando,
   comprobarUsarHerramienta,
+  costeEnergia,
   crearEstadoInicial,
   HERRAMIENTAS,
   ladoValle,
@@ -73,7 +74,7 @@ describe('ElegirSemilla', () => {
 })
 
 describe('UsarHerramienta: validación', () => {
-  it('se acepta sobre la casilla del personaje y sus 8 vecinas, sin cambiar el estado', () => {
+  it('se acepta sobre la casilla del personaje y sus 8 vecinas; solo gasta la energía', () => {
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         const r = usar(e0, 50 + dx, 50 + dy)
@@ -81,7 +82,7 @@ describe('UsarHerramienta: validación', () => {
           ok: true,
           eventos: [{ tipo: 'herramienta-usada', herramienta: 'azada', x: 50 + dx, y: 50 + dy }],
         })
-        expect(r.estado).toBe(e0)
+        expect(r.estado).toEqual({ ...e0, energia: e0.energia - costeEnergia('azada') })
       }
     }
   })

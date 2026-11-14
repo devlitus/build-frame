@@ -42,6 +42,8 @@ interface Window {
     luz(): { alfa: number } | undefined
     /** Claves de casilla de los vados (`y * lado + x`) y lado del valle en casillas. */
     vados(): { lado: number; claves: number[] } | undefined
+    /** Energía del personaje (0..máximo); undefined si no hay partida. */
+    energia(): number | undefined
     /** Dinero de la partida; undefined si no hay partida. */
     dinero(): number | undefined
     /** Estado visual con el que se dibujó la parcela por última vez; undefined si no hay valle. */

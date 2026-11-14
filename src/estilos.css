@@ -1159,6 +1159,7 @@ body {
 }
 
 .boton-accion,
+.boton-dormir,
 .boton-inventario {
   pointer-events: auto;
   font: inherit;
@@ -1182,6 +1183,7 @@ body {
 }
 
 .boton-accion:focus-visible,
+.boton-dormir:focus-visible,
 .boton-inventario:focus-visible,
 .herramienta-boton:focus-visible,
 .ranura-boton:focus-visible {
@@ -1528,3 +1530,53 @@ body {
   }
 }
 /* === Fin herramientas e inventario === */
+
+/* === M5-02 · Energía y dormir === */
+.energia {
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.energia-barra {
+  flex: 1;
+  min-width: 56px;
+  height: 10px;
+  border: 2px solid var(--tinta);
+  border-radius: 999px;
+  background: var(--crema);
+  overflow: hidden;
+}
+
+.energia-relleno {
+  display: block;
+  height: 100%;
+  background: #6f9f4a;
+  transition: width 0.2s;
+}
+
+.energia[data-baja='true'] .energia-relleno {
+  background: #c0562d;
+}
+
+.energia-marca {
+  font-weight: bold;
+  color: #c0562d;
+}
+
+.energia-cifra {
+  min-width: 2.2ch;
+  text-align: right;
+}
+
+.boton-dormir {
+  background: var(--verde-oscuro);
+  color: var(--crema);
+  border-color: var(--tinta);
+}
+/* === Fin M5-02 === */

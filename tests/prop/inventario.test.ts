@@ -141,8 +141,8 @@ describe('propiedades de los comandos del inventario y las herramientas', () => 
           const r = aplicarComando(e, c)
           if (!r.ok) expect(r.estado).toBe(e)
           else if (c.tipo === 'UsarHerramienta') {
-            // Sin efecto en esta historia: el estado no cambia.
-            expect(r.estado).toBe(e)
+            // Sin efecto en el mundo hasta M5-03: solo cambia la energía (M5-02).
+            expect({ ...r.estado, energia: e.energia }).toEqual(e)
           }
           e = r.estado
           expect(inventarioValido(e.inventario)).toBe(true)

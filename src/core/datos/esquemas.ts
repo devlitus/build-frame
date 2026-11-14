@@ -237,3 +237,28 @@ export const EsquemaConfigInventario = v.pipe(
 )
 
 export type ConfigInventario = v.InferOutput<typeof EsquemaConfigInventario>
+
+/** Coste de energía por golpe: entero ≥ 0 (0 = gratis). */
+const costeEnergia = v.pipe(v.number(), v.safeInteger(), v.minValue(0), v.maxValue(1000))
+
+export const EsquemaConfigEnergia = v.pipe(
+  v.strictObject({
+    /** Energía máxima (entero ≥ 1) con la que se empieza y a la que se vuelve al dormir. */
+    maximo: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(1000)),
+    /** Fracción del máximo con la que se despierta tras un desmayo (se redondea hacia abajo). */
+    desmayoFraccion: v.pipe(v.number(), v.finite(), v.minValue(0), v.maxValue(1)),
+    /** Energía que gasta un uso aceptado de cada herramienta. */
+    costes: v.strictObject(
+      Object.fromEntries(HERRAMIENTAS.map((h) => [h, costeEnergia])) as Record<
+        (typeof HERRAMIENTAS)[number],
+        typeof costeEnergia
+      >,
+    ),
+  }),
+  v.check(
+    (c) => Object.values(c.costes).every((n) => n <= c.maximo),
+    'Ningún coste puede superar la energía máxima',
+  ),
+)
+
+export type ConfigEnergia = v.InferOutput<typeof EsquemaConfigEnergia>

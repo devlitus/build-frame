@@ -1,6 +1,7 @@
 import { CONFIG_PERSONAJE } from './datos/personaje'
 import { CONFIG_TIEMPO } from './datos/tiempo'
 import { defEdificio, huellaDe, type Edificio, type Obra, type TipoEdificio } from './edificios'
+import { energiaAlEmpezarDia, type MotivoCambioDeDia } from './energia'
 import type { EstadoJuego } from './estado'
 import { casillaBloqueada, mapaTransitabilidad, type MapaTransitabilidad } from './mapa'
 import { ORIENTACION_INICIAL, personajeEnAparicion, type Personaje } from './personaje'
@@ -82,6 +83,13 @@ export function despiertaEnCasa(estado: EstadoJuego): boolean {
   return p.x !== a.x || p.y !== a.y
 }
 
+/** La casa terminada de menor id (la que hace de hogar), si hay alguna. */
+export function casaTerminada(estado: EstadoJuego): Edificio | undefined {
+  return estado.edificios
+    .filter((e) => e.tipo === 'casa' && e.obra === null)
+    .sort((a, b) => a.id - b.id)[0]
+}
+
 /**
  * Dónde despierta el personaje al empezar un día, con las obras ya actualizadas: en la puerta
  * de la casa terminada (la de menor id) o, si no hay, en la aparición.
@@ -94,9 +102,7 @@ export function despiertaEnCasa(estado: EstadoJuego): boolean {
  */
 export function personajeAlDespertar(estado: EstadoJuego): Personaje {
   const aparicion = personajeEnAparicion(estado.aparicion)
-  const casa = estado.edificios
-    .filter((e) => e.tipo === 'casa' && e.obra === null)
-    .sort((a, b) => a.id - b.id)[0]
+  const casa = casaTerminada(estado)
   const def = casa && defEdificio(casa.tipo)
   if (!casa || !def) return aparicion
   const mapa = mapaTransitabilidad(estado)
@@ -139,12 +145,16 @@ export function personajeAlDespertar(estado: EstadoJuego): Personaje {
 }
 
 /**
- * Único punto de cambio de día (desmayo hoy, dormir en M7): pasa al día siguiente a la hora de
- * inicio, termina las obras y coloca al personaje (en la casa si existe). No toca dinero,
- * materiales, zonas ni parcelas. El llamador debe haber comprobado antes que `dia + 1` es un
- * entero seguro y que `edificiosValidos(estado.edificios)` (lo hace `AvanzarTiempo`).
+ * Único punto de cambio de día (desmayo y dormir; M5-04 enganchará aquí el crecimiento): pasa al
+ * día siguiente a la hora de inicio, termina las obras, repone la energía según el `motivo`
+ * (dormir: al máximo; desmayo: la fracción de `data/energia.json`) y coloca al personaje (en la
+ * casa si existe). No toca dinero, materiales, zonas ni parcelas. El llamador debe haber
+ * comprobado antes que `dia + 1` es un entero seguro y que `edificiosValidos(estado.edificios)`.
  */
-export function empezarDiaSiguiente(estado: EstadoJuego): {
+export function empezarDiaSiguiente(
+  estado: EstadoJuego,
+  motivo: MotivoCambioDeDia,
+): {
   readonly estado: EstadoJuego
   readonly eventos: readonly ObraTerminada[]
 } {
@@ -152,6 +162,7 @@ export function empezarDiaSiguiente(estado: EstadoJuego): {
     ...estado,
     dia: estado.dia + 1,
     minutoDelDia: CONFIG_TIEMPO.horaInicio,
+    energia: energiaAlEmpezarDia(motivo),
   })
   return { estado: { ...r.estado, personaje: personajeAlDespertar(r.estado) }, eventos: r.eventos }
 }

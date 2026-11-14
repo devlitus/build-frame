@@ -34,7 +34,7 @@ const cuenta = (e: EstadoJuego) => [...e.zonas].filter((c) => c !== '.').length
 describe('zonas', () => {
   it('estado inicial vacío, de lado*lado, y formato v8', () => {
     expect(base.zonas).toBe('.'.repeat(LADO * LADO))
-    expect(base.versionFormato).toBe(9)
+    expect(base.versionFormato).toBe(10)
   })
 
   it('pinta en parcela propia, esquinas en cualquier orden', () => {

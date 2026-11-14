@@ -30,6 +30,7 @@ import {
   type Inventario,
   type ObjetoId,
 } from '../../src/core'
+import { costeEnergia } from '../../src/core/energia'
 
 const base = crearEstadoInicial({ semilla: 11 })
 const LADO = ladoValle(base.valle)
@@ -134,7 +135,9 @@ describe('M5-01 · rompedor del núcleo', () => {
           if (esp === undefined) {
             expect(r1.ok, JSON.stringify(r1.ok ? null : r1.error)).toBe(true)
             if (r1.ok) {
-              expect(r1.estado).toBe(e)
+              // Orquestador (M5-02): un uso aceptado gasta energía; el resto del estado no cambia.
+              expect({ ...r1.estado, energia: e.energia }).toEqual(e)
+              expect(r1.estado.energia).toBe(e.energia - costeEnergia(e.herramienta))
               expect(r1.eventos[0]).toEqual({
                 tipo: 'herramienta-usada',
                 herramienta: e.herramienta,

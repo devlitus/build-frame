@@ -1,7 +1,7 @@
 import type { ModoJuego } from '../core'
 import type { Partida } from '../game/partida'
 import { Aviso } from './Aviso'
-import { BarraHerramientas, BotonAccion } from './BarraHerramientas'
+import { BarraHerramientas, BotonAccion, BotonDormir } from './BarraHerramientas'
 import { BotonInventario, PanelInventario } from './PanelInventario'
 import { ControlesTiempo } from './ControlesTiempo'
 import { Dinero } from './Dinero'
@@ -110,6 +110,7 @@ export function Hud({ partida, debug = false }: { partida: Partida; debug?: bool
         <PanelInventario />
         <BarraHerramientas />
         <div class="botones-vida">
+          <BotonDormir />
           <BotonInventario />
           <BotonAccion />
         </div>
