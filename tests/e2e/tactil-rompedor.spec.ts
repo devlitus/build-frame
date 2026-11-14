@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion -- índices con noUncheckedIndexedAccess */
 import { expect, test, type CDPSession, type Page } from '@playwright/test'
+import { target } from './apoyo/rendimiento.ts'
 
 /** M2-04 · Rompedor: gestos táctiles y de ratón, estados cruzados y accesibilidad. */
 
@@ -234,20 +235,27 @@ test.describe('escritorio: ratón', () => {
     expect(await destino(page)).toBeUndefined()
   })
 
-  test('20 clics en 1 s no bloquean el juego ni dan errores', async ({ page }) => {
-    await abrir(page)
-    const t0 = Date.now()
-    for (let i = 0; i < 20; i++) {
-      const pt = await junto(page, 1 + (i % 6), (i % 5) - 2)
-      await page.mouse.click(pt.x, pt.y)
-    }
-    const dur = Date.now() - t0
-    expect(errores(page)).toEqual([])
-    const fps = await page.evaluate(() => window.__raices?.fps())
-    expect(fps ?? 60).toBeGreaterThan(15)
-    expect(dur).toBeLessThan(8000)
-    await expect.poll(() => destino(page), { timeout: 20_000 }).toBeUndefined()
-  })
+  test(
+    '20 clics en 1 s no bloquean el juego ni dan errores',
+    { tag: '@rendimiento' },
+    async ({ page }) => {
+      await abrir(page)
+      const t0 = Date.now()
+      for (let i = 0; i < 20; i++) {
+        const pt = await junto(page, 1 + (i % 6), (i % 5) - 2)
+        await page.mouse.click(pt.x, pt.y)
+      }
+      const dur = Date.now() - t0
+      expect(errores(page)).toEqual([])
+      const fps = await page.evaluate(() => window.__raices?.fps())
+      // Targets (noted only): > 15 fps and < 8 s. Floors (hard): 9 fps and < 13.3 s.
+      target((fps ?? 60) > 15, `fps ${fps} <= 15`)
+      target(dur < 8000, `${dur} ms >= 8000`)
+      expect(fps ?? 60, 'floor fps').toBeGreaterThan(9)
+      expect(dur, 'floor ms').toBeLessThan(13_333)
+      await expect.poll(() => destino(page), { timeout: 20_000 }).toBeUndefined()
+    },
+  )
 })
 
 test.describe('móvil: gestos', () => {
@@ -276,36 +284,44 @@ test.describe('móvil: gestos', () => {
     return (await destino(page)) !== undefined
   }
 
-  test('umbral de distancia: 10 px es toque, 11 px es joystick', async ({ page }) => {
-    const p3 = await junto(page, 3)
-    const pt = { x: Math.round(p3.x), y: Math.round(p3.y) }
-    await tocar('touchStart', [[pt.x, pt.y]])
-    await tocar('touchMove', [[pt.x + 10, pt.y]])
-    await page.waitForTimeout(80)
-    expect(await joystick(page)).toBe(false)
-    await tocar('touchEnd', [])
-    await expect.poll(() => destino(page)).toBeDefined()
-    await emitir(page, { tipo: 'Pausar' })
-    await emitir(page, { tipo: 'Reanudar' })
-    await tocar('touchStart', [[pt.x, pt.y]])
-    await tocar('touchMove', [[pt.x + 11, pt.y]])
-    await page.waitForTimeout(80)
-    expect(await joystick(page)).toBe(true)
-    await tocar('touchEnd', [])
-  })
+  test(
+    'umbral de distancia: 10 px es toque, 11 px es joystick',
+    { tag: '@rendimiento' },
+    async ({ page }) => {
+      const p3 = await junto(page, 3)
+      const pt = { x: Math.round(p3.x), y: Math.round(p3.y) }
+      await tocar('touchStart', [[pt.x, pt.y]])
+      await tocar('touchMove', [[pt.x + 10, pt.y]])
+      await page.waitForTimeout(80)
+      expect(await joystick(page)).toBe(false)
+      await tocar('touchEnd', [])
+      await expect.poll(() => destino(page)).toBeDefined()
+      await emitir(page, { tipo: 'Pausar' })
+      await emitir(page, { tipo: 'Reanudar' })
+      await tocar('touchStart', [[pt.x, pt.y]])
+      await tocar('touchMove', [[pt.x + 11, pt.y]])
+      await page.waitForTimeout(80)
+      expect(await joystick(page)).toBe(true)
+      await tocar('touchEnd', [])
+    },
+  )
 
-  test('umbral de tiempo: 600 ms quieto no es un toque; 150 ms sí', async ({ page }) => {
-    const pt = await junto(page, 3)
-    await tocar('touchStart', [[pt.x, pt.y]])
-    await page.waitForTimeout(600)
-    await tocar('touchEnd', [])
-    await page.waitForTimeout(150)
-    expect(await destino(page)).toBeUndefined()
-    await tocar('touchStart', [[pt.x, pt.y]])
-    await page.waitForTimeout(150)
-    await tocar('touchEnd', [])
-    await expect.poll(() => destino(page)).toBeDefined()
-  })
+  test(
+    'umbral de tiempo: 600 ms quieto no es un toque; 150 ms sí',
+    { tag: '@rendimiento' },
+    async ({ page }) => {
+      const pt = await junto(page, 3)
+      await tocar('touchStart', [[pt.x, pt.y]])
+      await page.waitForTimeout(600)
+      await tocar('touchEnd', [])
+      await page.waitForTimeout(150)
+      expect(await destino(page)).toBeUndefined()
+      await tocar('touchStart', [[pt.x, pt.y]])
+      await page.waitForTimeout(150)
+      await tocar('touchEnd', [])
+      await expect.poll(() => destino(page)).toBeDefined()
+    },
+  )
 
   test('toque sobre el botón de modo: cambia de modo y no fija destino', async ({ page }) => {
     const caja = (await page.getByRole('button', { name: /modo/i }).boundingBox())!
@@ -491,35 +507,41 @@ test.describe('móvil: gestos', () => {
     await tocar('touchEnd', [])
   })
 
-  test('toque en un punto, 20 toques seguidos en 1 s: sin errores y fps decentes', async ({
-    page,
-  }) => {
-    for (let i = 0; i < 20; i++) {
-      const pt = await junto(page, 1 + (i % 5), (i % 4) - 1)
+  test(
+    'toque en un punto, 20 toques seguidos en 1 s: sin errores y fps decentes',
+    { tag: '@rendimiento' },
+    async ({ page }) => {
+      for (let i = 0; i < 20; i++) {
+        const pt = await junto(page, 1 + (i % 5), (i % 4) - 1)
+        await tocar('touchStart', [[pt.x, pt.y]])
+        await tocar('touchEnd', [])
+      }
+      expect(errores(page)).toEqual([])
+      const fps = await page.evaluate(() => window.__raices?.fps())
+      // Target (noted only): > 15 fps. Floor (hard): 9 fps.
+      target((fps ?? 60) > 15, `fps ${fps} <= 15`)
+      expect(fps ?? 60, 'floor fps').toBeGreaterThan(9)
+    },
+  )
+
+  test(
+    'el joystick no depende de hover y la marca de destino se ve (captura)',
+    { tag: '@capturas' },
+    async ({ page }) => {
+      const pt = await junto(page, 4, 1)
       await tocar('touchStart', [[pt.x, pt.y]])
       await tocar('touchEnd', [])
-    }
-    expect(errores(page)).toEqual([])
-    const fps = await page.evaluate(() => window.__raices?.fps())
-    expect(fps ?? 60).toBeGreaterThan(15)
-  })
-
-  test('el joystick no depende de hover y la marca de destino se ve (captura)', async ({
-    page,
-  }) => {
-    const pt = await junto(page, 4, 1)
-    await tocar('touchStart', [[pt.x, pt.y]])
-    await tocar('touchEnd', [])
-    await expect.poll(() => destino(page)).toBeDefined()
-    await page.waitForTimeout(150)
-    await page.screenshot({ path: 'capturas/tactil-rompedor-marca.png' })
-    const css = await page.evaluate(() =>
-      [...document.styleSheets]
-        .flatMap((h) => [...h.cssRules])
-        .map((r) => r.cssText)
-        .filter((t) => t.includes(':hover'))
-        .join('\n'),
-    )
-    expect(css).not.toMatch(/joystick/)
-  })
+      await expect.poll(() => destino(page)).toBeDefined()
+      await page.waitForTimeout(150)
+      await page.screenshot({ path: 'capturas/tactil-rompedor-marca.png' })
+      const css = await page.evaluate(() =>
+        [...document.styleSheets]
+          .flatMap((h) => [...h.cssRules])
+          .map((r) => r.cssText)
+          .filter((t) => t.includes(':hover'))
+          .join('\n'),
+      )
+      expect(css).not.toMatch(/joystick/)
+    },
+  )
 })

@@ -6,7 +6,7 @@ import { test } from '@playwright/test'
  * fps so the effect of the worker count can be compared. Results go to the annotations
  * (`probe`) so the JSON reporter and scripts/e2e-tiempos.mjs can read them.
  */
-test('probe: startup, renderer and fps @medida', async ({ page }, info) => {
+test('probe: startup, renderer and fps', { tag: '@medida' }, async ({ page }, info) => {
   test.setTimeout(120_000)
   const t0 = Date.now()
   await page.goto('./?semilla=42&debug')

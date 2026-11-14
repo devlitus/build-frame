@@ -116,7 +116,7 @@ test('al perder el foco la ventana el personaje deja de andar', async ({ page })
   await page.keyboard.up('d')
 })
 
-test('el reloj avanza con el tiempo real', async ({ page }) => {
+test('el reloj avanza con el tiempo real', { tag: '@rendimiento' }, async ({ page }) => {
   await abrir(page, '?semilla=42&debug')
   const r0 = await reloj(page)
   await expect

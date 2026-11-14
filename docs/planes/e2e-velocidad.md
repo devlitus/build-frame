@@ -8,6 +8,7 @@ Los e2e no detectaron que el HUD entorpece jugar y cuestan demasiado (línea bas
 ## Decisiones previas
 - **PR #77 (etiquetas, `scripts/e2e.mjs`):** se aprovecha con dos ajustes: `npm run e2e` = build + solo funcional; `npm run e2e:rendimiento` y `npm run e2e:completo` (las dos tandas, obligatoria antes de la PR del hito). En rendimiento: objetivo con `expect.soft` (se anota) y suelo con `expect` (p. ej. 60 % del objetivo, falla). El `TODO(E2E-07)` de `m1-global` sobra (se borra).
 - **GPU (E2E-03): descartada.** Se cierra y se descarta el cambio de `playwright.config.ts`.
+  > **GPU descartada:** la prueba (flags `--enable-gpu --use-angle=d3d11 --ignore-gpu-blocklist` en Chromium local, desactivable con `E2E_GPU=0`) se apartó en la rama `test/e2e-03-gpu` (commit WIP local, sin empujar) y no entra en el hito. Motivo: la CI no tiene GPU, así que los umbrales de fps deben valer con renderizado por software; además un resultado distinto en local y CI haría la tanda de rendimiento inconsistente. No se guardaron mediciones comparativas.
 - **Helpers de #76: obligatorios.** Se amplían con `apoyo/interfaz.ts` (regla), `apoyo/toque.ts` (`tap`, `drag`, `pinch`, `twoFingers`, uniendo las copias de `camara`, `tactil`, `modos`, `m3`, `m5-00`) y `openValley({ at: {x, y} })`. `waitForTimeout` pasa a `error` en lint al borrar los specs viejos. `support-smoke.spec.ts` se borra.
 - Tests nuevos en inglés (regla de la PO). Los `[S]` conservan su etiqueta y el título original en un comentario.
 
