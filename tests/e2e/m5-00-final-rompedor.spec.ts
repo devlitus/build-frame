@@ -207,8 +207,8 @@ test.describe('capturas finales', () => {
   test.skip(({ isMobile }) => isMobile, 'una sola vez')
   test.setTimeout(300_000)
 
-  // Orquestador (M5-00): la escala de grises falla por el arte de zonas aprobado en M4; ver #62.
-  test.fail()
+  // Orquestador (M5-00): la aserción de escala de grises sale a su propio test (`test.fail`, #62)
+  // para que un fallo real de estas capturas no quede oculto como «fallo esperado». Aquí se anota.
   test('árbol, edificio, zonas, barra de zonas y escala de grises en las tres vistas', async ({
     browser,
   }) => {
@@ -335,14 +335,36 @@ test.describe('capturas finales', () => {
       console.log(
         `GRIS ${nombre}: luminancias ${lum.map((v) => v.toFixed(1)).join(', ')}; mínima diferencia entre las 4 zonas ${minDif.toFixed(1)}/255`,
       )
-      expect
-        .soft(
-          minDif,
-          `las cuatro muestras de zona deben distinguirse en gris (${nombre}): ${lum.map((v) => v.toFixed(1)).join(', ')}`,
-        )
-        .toBeGreaterThan(18)
+      test.info().annotations.push({
+        type: 'gris (#62)',
+        description: `${nombre}: ${lum.map((v) => v.toFixed(1)).join(', ')}; mínima ${minDif.toFixed(1)}/255`,
+      })
       expect(errores).toEqual([])
       await ctx.close()
     }
+  })
+
+  // Pendiente de #62 (arte de zonas aprobado por la PO en M4): falla a propósito hasta que se decida.
+  test('[S3] las cuatro muestras de zona se distinguen en escala de grises', async ({ page }) => {
+    test.fail()
+    await abrir(page, `./?semilla=${SEMILLA}&debug&modo=plano`)
+    await page.getByRole('button', { name: 'Zonas', exact: true }).click()
+    const muestras = page.locator('.barra-zonas .muestra-zona')
+    await expect(muestras.first()).toBeVisible()
+    const lum: number[] = []
+    for (let i = 0; i < 4; i++) {
+      const gris = await sharp(await muestras.nth(i).screenshot())
+        .greyscale()
+        .raw()
+        .toBuffer()
+      let s = 0
+      for (const v of gris) s += v
+      lum.push(s / gris.length)
+    }
+    let minDif = 255
+    for (let i = 0; i < 4; i++)
+      for (let j = i + 1; j < 4; j++)
+        minDif = Math.min(minDif, Math.abs((lum[i] ?? 0) - (lum[j] ?? 0)))
+    expect(minDif, `luminancias ${lum.map((v) => v.toFixed(1)).join(', ')}`).toBeGreaterThan(18)
   })
 })
