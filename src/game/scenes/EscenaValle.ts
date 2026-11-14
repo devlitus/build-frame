@@ -39,6 +39,7 @@ import {
 import { PintorZonas } from '../pintorZonas'
 import { dibujarResalte, dibujarResalteEdificio, tamanoMundoPx } from '../valle/dibujar'
 import { cargarArte } from '../valle/arte'
+import { animarObstaculos } from '../valle/efectosObstaculo'
 import { objetosDeDecoracion, pintarTrozoTerreno } from '../valle/terrenoArte'
 import { CapaObjetos } from '../valle/capaObjetos'
 import { mundoDePantalla, pantallaLogica, zoomLogico } from '../resolucion'
@@ -142,6 +143,8 @@ export class EscenaValle extends Phaser.Scene {
   private edificios: VistaEdificios | undefined = undefined
   private capaObjetos: CapaObjetos | undefined = undefined
   private obstaculosVistos: EstadoJuego['obstaculos'] | undefined = undefined
+  /** Día con el que se dibujó la capa: el marco del plantón depende de él. */
+  private diaObstaculosVisto = 0
   private vistaSilueta: VistaSilueta | undefined = undefined
   private colocador: ColocadorEdificio | undefined = undefined
   private desuscribirConstruccion: (() => void) | undefined = undefined
@@ -254,6 +257,7 @@ export class EscenaValle extends Phaser.Scene {
       objetosDeDecoracion(this, inicial.obstaculos, ladoValle(inicial.valle), inicial.dia),
     )
     this.obstaculosVistos = inicial.obstaculos
+    this.diaObstaculosVisto = inicial.dia
     this.actualizarCapaObjetos()
     // Al perder y recuperar el contexto WebGL las texturas quedan vacías (Phaser no las
     // restaura): se vuelven a hornear con los mismos datos.
@@ -303,17 +307,24 @@ export class EscenaValle extends Phaser.Scene {
       // vista y los ganchos de prueba no se desfasan del estado de la partida.
       // Talar, picar y replantar (y el crecimiento de los plantones al cambiar de día) cambian la
       // lista de obstáculos por referencia: se rehace la capa de árboles y rocas.
-      if (cambio.estado.obstaculos !== this.obstaculosVistos) {
-        this.obstaculosVistos = cambio.estado.obstaculos
+      // Los golpes que no quitan nada cambian la lista pero no lo que se ve: no se rehace la capa.
+      // El marco del plantón depende del día, así que un cambio de día también la rehace.
+      const lado = ladoValle(cambio.estado.valle)
+      animarObstaculos(this, this.capaObjetos, cambio.eventos, lado)
+      const soloGolpes = cambio.eventos.every(
+        (e) => e.tipo === 'herramienta-usada' || e.tipo === 'obstaculo-golpeado',
+      )
+      const obstaculosCambian = cambio.estado.obstaculos !== this.obstaculosVistos
+      if (
+        cambio.estado.dia !== this.diaObstaculosVisto ||
+        (obstaculosCambian && !(soloGolpes && cambio.eventos.length > 0))
+      ) {
+        this.diaObstaculosVisto = cambio.estado.dia
         this.capaObjetos?.reemplazar(
-          objetosDeDecoracion(
-            this,
-            cambio.estado.obstaculos,
-            ladoValle(cambio.estado.valle),
-            cambio.estado.dia,
-          ),
+          objetosDeDecoracion(this, cambio.estado.obstaculos, lado, cambio.estado.dia),
         )
       }
+      this.obstaculosVistos = cambio.estado.obstaculos
       if (cambio.eventos.length > 0) {
         this.zonas?.actualizar(partida.estado)
         this.cultivos?.actualizar(partida.estado)
