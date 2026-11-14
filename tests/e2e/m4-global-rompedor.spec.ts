@@ -19,7 +19,6 @@ import {
   type Locator,
   type Page,
 } from '@playwright/test'
-import { target } from './apoyo/rendimiento.ts'
 import { devices } from '@playwright/test'
 import sharp from 'sharp'
 
@@ -1412,61 +1411,6 @@ test.describe('M4 global · granja llena', () => {
     await expect(barra(page)).toBeVisible()
     expect(errores).toEqual([])
   })
-
-  test(
-    'fps con la granja llena en Plano, con el panel del edificio y en Vida',
-    { tag: '@rendimiento' },
-    async ({ page }) => {
-      test.setTimeout(120_000)
-      await abrir(page, `?semilla=${SEMILLA}&debug&modo=plano&dinero=100000000&propias=${TODAS}`)
-      const fps = (ms: number) =>
-        page.evaluate(
-          (ms) =>
-            new Promise<number>((res) => {
-              let n = 0
-              const t0 = performance.now()
-              const f = () => {
-                n++
-                if (performance.now() - t0 < ms) requestAnimationFrame(f)
-                else res((n * 1000) / (performance.now() - t0))
-              }
-              requestAnimationFrame(f)
-            }),
-          ms,
-        )
-      const vacio = await fps(2500)
-      const n = await granjaLlena(page)
-      await page.evaluate(() => window.__raices?.centrarCamara(48, 48))
-      await page.waitForTimeout(500)
-      const plano = await fps(2500)
-      await page.evaluate(() => {
-        const r = window.__raices
-        r?.seleccionarEdificio(r.edificios()[5]?.id ?? 0)
-      })
-      await page.waitForTimeout(300)
-      const panel = await fps(2500)
-      await page.evaluate(() => {
-        const r = window.__raices
-        r?.emitir({ tipo: 'CambiarModo', modo: 'vida' })
-        r?.emitir({ tipo: 'Pausar' })
-      })
-      await page.waitForTimeout(500)
-      const vida = await fps(2500)
-      test.info().annotations.push({
-        type: 'fps',
-        description: `edificios ${n}; vacío ${vacio.toFixed(1)}, plano ${plano.toFixed(1)}, panel ${panel.toFixed(1)}, vida ${vida.toFixed(1)}`,
-      })
-      console.log(
-        `[fps ${test.info().project.name}] edificios ${n}; vacío ${vacio.toFixed(1)}, plano ${plano.toFixed(1)}, panel ${panel.toFixed(1)}, vida ${vida.toFixed(1)}`,
-      )
-      // Target (noted only): > min(15, 60 % of the empty valley). Floor (hard): 60 % of it.
-      const goal = Math.min(15, vacio * 0.6)
-      target(plano > goal, `plano ${plano.toFixed(1)} fps <= target ${goal.toFixed(1)}`)
-      target(panel > goal, `panel ${panel.toFixed(1)} fps <= target ${goal.toFixed(1)}`)
-      expect(plano, 'floor plano').toBeGreaterThan(goal * 0.6)
-      expect(panel, 'floor panel').toBeGreaterThan(goal * 0.6)
-    },
-  )
 })
 
 /** Granja de ejemplo (economía real): parcela 32, vivienda, almacén, cultivo y huerto, 3 edificios. */

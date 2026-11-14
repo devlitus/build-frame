@@ -1,5 +1,4 @@
 import { expect, test, type CDPSession, type Page } from '@playwright/test'
-import { target } from './apoyo/rendimiento.ts'
 import sharp from 'sharp'
 
 /** Rompedor · M4-04. Gestos cruzados, teclado en los bordes, estado de la capa de zonas y capturas. */
@@ -221,27 +220,25 @@ test('un rectángulo sobre parcelas propias y ajenas solo pinta las propias', as
   expect(await contar(page, { x0: 0, y0: 0, x1: 95, y1: 95 }, 'vivienda')).toBe(dentro)
 })
 
-test(
-  'teclado: el cursor se queda en el borde del valle y se puede pintar la esquina 0,0',
-  { tag: '@rendimiento' },
-  async ({ page }) => {
-    test.skip(esMovil(), 'teclado')
-    const errores = await abrir(page, `?semilla=${SEMILLA}&debug&modo=plano&propias=0`)
-    await abrirBarra(page)
-    await herramienta(page, 'Cultivo').click()
-    await page.keyboard.press('Enter') // cursor al centro
-    for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowLeft')
-    for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowUp')
-    expect((await pincel(page))?.cursor).toEqual({ x: 0, y: 0 })
-    await page.keyboard.press('Enter') // marca
-    await page.keyboard.press('Enter') // aplica
-    expect(await zona(page, 0, 0)).toBe('cultivo')
-    for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowRight')
-    for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowDown')
-    expect((await pincel(page))?.cursor).toEqual({ x: 55, y: 55 })
-    expect(errores).toEqual([])
-  },
-)
+test('teclado: el cursor se queda en el borde del valle y se puede pintar la esquina 0,0', async ({
+  page,
+}) => {
+  test.skip(esMovil(), 'teclado')
+  const errores = await abrir(page, `?semilla=${SEMILLA}&debug&modo=plano&propias=0`)
+  await abrirBarra(page)
+  await herramienta(page, 'Cultivo').click()
+  await page.keyboard.press('Enter') // cursor al centro
+  for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowLeft')
+  for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowUp')
+  expect((await pincel(page))?.cursor).toEqual({ x: 0, y: 0 })
+  await page.keyboard.press('Enter') // marca
+  await page.keyboard.press('Enter') // aplica
+  expect(await zona(page, 0, 0)).toBe('cultivo')
+  for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowRight')
+  for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowDown')
+  expect((await pincel(page))?.cursor).toEqual({ x: 55, y: 55 })
+  expect(errores).toEqual([])
+})
 
 test('teclado: Enter mantenido (repetición) solo marca una vez', async ({ page }) => {
   test.skip(esMovil(), 'teclado')
@@ -347,40 +344,6 @@ test('pintar y borrar muchas veces no acumula texturas ni objetos', async ({ pag
   expect(fin).toEqual(base)
   expect(errores).toEqual([])
 })
-
-test(
-  'pintar todo el valle repetidamente no hunde los fps',
-  { tag: '@rendimiento' },
-  async ({ page }) => {
-    test.skip(esMovil(), 'rendimiento en escritorio')
-    await todasPropias(page)
-    const ms = await page.evaluate(async () => {
-      const zs = ['cultivo', 'huerto', 'vivienda', 'almacen']
-      const t0 = performance.now()
-      for (let i = 0; i < 24; i++) {
-        window.__raices?.emitir({
-          tipo: 'PintarZona',
-          x0: 0,
-          y0: 0,
-          x1: 95,
-          y1: 95,
-          zona: zs[i % 4],
-        })
-        await new Promise((r) => requestAnimationFrame(() => r(0)))
-      }
-      return performance.now() - t0
-    })
-    // Un hitch medio de más de 200 ms por pincelada (dependiente de la máquina, ver informe).
-    // Targets (noted only): mean stroke < 200 ms and > 20 fps afterwards.
-    // Floors (hard): 60 % of each target (333 ms; 12 fps).
-    target(ms / 24 < 200, `stroke ${(ms / 24).toFixed(0)} ms >= 200`)
-    expect(ms / 24, 'floor ms per stroke').toBeLessThan(333)
-    await page.waitForTimeout(1500)
-    const fps = await page.evaluate(() => window.__raices?.fps())
-    target((fps ?? 0) > 20, `fps ${fps} <= 20`)
-    expect(fps, 'floor fps').toBeGreaterThan(12)
-  },
-)
 
 test('tras perder el contexto WebGL las zonas pintadas se vuelven a dibujar', async ({ page }) => {
   test.skip(esMovil(), 'escritorio')

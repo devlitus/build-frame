@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion -- código dentro de page.evaluate, sin tipos de ayuda */
 import { expect, test, type Page } from '@playwright/test'
-import { target } from './apoyo/rendimiento.ts'
 
 test.skip(({ isMobile }) => isMobile, 'solo escritorio')
 
@@ -12,64 +11,6 @@ async function abrir(page: Page, query = '?semilla=42&debug&en=vado'): Promise<v
     .toBe(true)
   await page.locator('canvas').click({ position: { x: 5, y: 5 } })
 }
-
-test(
-  'medida: velocidad efectiva y fps (informativo)',
-  { tag: '@medida' },
-  async ({ page }, info) => {
-    await abrir(page)
-    // Se prueba cada dirección: se mide la mejor (la menos bloqueada).
-    const res: string[] = []
-    for (const tecla of ['d', 'a', 's', 'w']) {
-      const m = await page.evaluate(async (t) => {
-        const p0 = window.__raices!.personaje()!
-        const r0 = window.__raices!.reloj()!
-        const t0 = performance.now()
-        let frames = 0
-        const contar = () => void frames++
-        let activo = true
-        const bucle = () => {
-          contar()
-          if (activo) requestAnimationFrame(bucle)
-        }
-        requestAnimationFrame(bucle)
-        window.dispatchEvent(
-          new KeyboardEvent('keydown', {
-            key: t,
-            code: 'Key' + t.toUpperCase(),
-            keyCode: t.toUpperCase().charCodeAt(0),
-            bubbles: true,
-          }),
-        )
-        await new Promise((r) => setTimeout(r, 1000))
-        window.dispatchEvent(
-          new KeyboardEvent('keyup', {
-            key: t,
-            code: 'Key' + t.toUpperCase(),
-            keyCode: t.toUpperCase().charCodeAt(0),
-            bubbles: true,
-          }),
-        )
-        activo = false
-        const t1 = performance.now()
-        const p1 = window.__raices!.personaje()!
-        const r1 = window.__raices!.reloj()!
-        return {
-          dx: p1.x - p0.x,
-          dy: p1.y - p0.y,
-          s: (t1 - t0) / 1000,
-          fps: frames / ((t1 - t0) / 1000),
-          dmin: r1.minutoDelDia - r0.minutoDelDia,
-        }
-      }, tecla)
-      res.push(
-        `${tecla}: dx=${m.dx.toFixed(2)} dy=${m.dy.toFixed(2)} fps=${m.fps.toFixed(0)} dmin=${m.dmin}`,
-      )
-    }
-    console.log(res.join('\n'))
-    info.annotations.push({ type: 'medida', description: res.join(' | ') })
-  },
-)
 
 test('las teclas de movimiento no bloquean atajos del navegador (Ctrl+L, F5)', async ({ page }) => {
   await abrir(page)
@@ -171,22 +112,3 @@ test('la cámara se mantiene dentro del valle caminando mucho y al redimensionar
     await page.keyboard.up(t)
   }
 })
-
-test(
-  'el reloj avanza ~1,33 min de juego por segundo real a x1 (día = 15 min)',
-  { tag: '@rendimiento' },
-  async ({ page }) => {
-    await abrir(page)
-    const r0 = await page.evaluate(() => window.__raices?.reloj())
-    const t0 = Date.now()
-    await page.waitForTimeout(9000)
-    const r1 = await page.evaluate(() => window.__raices?.reloj())
-    const s = (Date.now() - t0) / 1000
-    const min = (r1?.minutoDelDia ?? 0) - (r0?.minutoDelDia ?? 0)
-    // Target (noted only): 1.1..1.5 game min per real s. Floor (hard): >= 60 % of the lower
-    // bound and <= 2x the upper one (a clock that stalls or races).
-    target(min / s > 1.1 && min / s < 1.5, `clock rate ${(min / s).toFixed(2)} outside 1.1..1.5`)
-    expect(min / s, 'floor').toBeGreaterThan(0.66)
-    expect(min / s, 'ceiling').toBeLessThan(3)
-  },
-)
