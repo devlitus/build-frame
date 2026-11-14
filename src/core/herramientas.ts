@@ -213,10 +213,10 @@ export function comprobarUsarHerramienta(
 export function usarHerramienta(estado: EstadoJuego, x: number, y: number): ResultadoEfecto {
   const error = comprobarUsarHerramienta(estado, x, y)
   if (error) return { ok: false, error }
-  const r = EFECTOS_HERRAMIENTA[estado.herramienta].aplicar(estado, x, y)
-  if (!r.ok) return r
-  const nx = x + 0 // -0 se normaliza a 0
+  const nx = x + 0 // -0 se normaliza a 0 antes de que ningún efecto lo copie a eventos o estado
   const ny = y + 0
+  const r = EFECTOS_HERRAMIENTA[estado.herramienta].aplicar(estado, nx, ny)
+  if (!r.ok) return r
   return {
     ok: true,
     estado: gastarEnergia(r.estado, costeEnergia(estado.herramienta)),

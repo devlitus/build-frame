@@ -463,17 +463,7 @@ describe('M5-01 · rompedor del núcleo', () => {
               expect({ ...r1.estado, energia: e.energia }).toEqual(previsto)
               expect(r1.estado.energia).toBe(e.energia - costeEnergia(e.herramienta))
               expect(r1.estado.energia).toBeGreaterThanOrEqual(0)
-              // BUG conocido (ver «-0 en eventos de M5-06»): los eventos de hacha, pico y mano arrastran -0;
-              // aquí se normaliza para el resto de la verificación y el test aparte lo documenta.
-              const sinCero = (ev: unknown) =>
-                typeof ev === 'object' && ev !== null && 'x' in ev && 'y' in ev
-                  ? { ...ev, x: (ev.x as number) + 0, y: (ev.y as number) + 0 }
-                  : ev
-              expect(
-                e.herramienta === 'hacha' || e.herramienta === 'pico' || e.herramienta === 'mano'
-                  ? r1.eventos.slice(1).map(sinCero)
-                  : r1.eventos.slice(1),
-              ).toEqual(eventosPropios)
+              expect(r1.eventos.slice(1)).toEqual(eventosPropios)
               expect(r1.eventos[0]).toEqual({
                 tipo: 'herramienta-usada',
                 herramienta: e.herramienta,
@@ -527,10 +517,9 @@ describe('M5-01 · rompedor del núcleo', () => {
       expect(vistos.get(v) ?? 0, v).toBeGreaterThan(0)
   })
 
-  // Falla hoy (bug real del núcleo, S3): `usarHerramienta` normaliza -0 solo en `herramienta-usada`;
-  // los eventos y el obstáculo nuevo de M5-06 conservan -0. `it.fails` pasa mientras el bug exista
-  // y avisará (fallando) cuando se arregle: entonces basta quitar `.fails`.
-  it.fails('-0 en eventos de M5-06: las coordenadas se normalizan como en la azada', () => {
+  // Regresión del bug S3 hallado por el Rompedor: los eventos y el obstáculo nuevo de M5-06
+  // conservaban -0; `usarHerramienta` ahora normaliza las coordenadas antes de aplicar el efecto.
+  it('-0 en eventos de M5-06: las coordenadas se normalizan como en la azada', () => {
     const e0 = crearEstadoInicial({ semilla: 11 })
     const lado = ladoValle(e0.valle)
     const casilla = 1 // casilla (1, 0): propia, con el personaje en (0.5, 0.5)
