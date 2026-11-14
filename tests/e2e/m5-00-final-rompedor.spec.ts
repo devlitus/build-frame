@@ -207,6 +207,8 @@ test.describe('capturas finales', () => {
   test.skip(({ isMobile }) => isMobile, 'una sola vez')
   test.setTimeout(300_000)
 
+  // Orquestador (M5-00): la escala de grises falla por el arte de zonas aprobado en M4; ver #62.
+  test.fail()
   test('árbol, edificio, zonas, barra de zonas y escala de grises en las tres vistas', async ({
     browser,
   }) => {

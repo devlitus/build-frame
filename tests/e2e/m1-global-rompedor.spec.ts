@@ -205,7 +205,8 @@ test.describe('se recorre todo el valle', () => {
         isMobile,
       }) => {
         test.skip(isMobile !== caso.movil, 'otro dispositivo')
-        test.setTimeout(240_000)
+        // Orquestador (M5-00): con el lienzo a DPR 2 el barrido móvil tarda ~2,9 min sin GPU; margen para carga.
+        test.setTimeout(420_000)
         const errores = espiar(page)
         await page.setViewportSize(caso.tam)
         await abrir(page, './?semilla=42&modo=plano')
