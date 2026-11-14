@@ -66,12 +66,6 @@ export function esToqueDeSeleccion(
   return !tactil || ms < config.umbralMs
 }
 
-/**
- * Un panel más ancho que esta fracción de la pantalla es la hoja inferior del móvil vertical
- * (regla `@media (orientation: portrait) and (max-width: 700px)` de `estilos.css`); si no, es
- * una tarjeta lateral.
- */
-const FRACCION_HOJA_INFERIOR = 0.6
 /** Fracción de una parcela grande que debe verse para no recentrarla. */
 const FRACCION_VISIBLE_MINIMA = 0.6
 
@@ -87,7 +81,7 @@ export function areaLibre(
   let ancho = pantalla.ancho
   let alto = Math.max(0, pantalla.alto - arriba - abajo)
   if (ocupado) {
-    if (ocupado.ancho > pantalla.ancho * FRACCION_HOJA_INFERIOR) {
+    if (ocupado.ancho > pantalla.ancho * CONFIG_CAMARA.fraccionHojaInferior) {
       // Hoja inferior: lo libre llega hasta su borde superior.
       alto = Math.max(0, Math.min(ocupado.y, pantalla.alto - abajo) - arriba)
     } else if (ocupado.x + ocupado.ancho / 2 < pantalla.ancho / 2) {

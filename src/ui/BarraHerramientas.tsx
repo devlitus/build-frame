@@ -4,8 +4,9 @@ import {
   HERRAMIENTAS,
   puedeCosechar,
   type Herramienta,
+  type ObjetoId,
 } from '../core'
-import { rutaIconoHerramienta } from './iconos'
+import { rutaIconoHerramienta, rutaIconoObjeto } from './iconos'
 import { t, tp, type ClaveTexto } from './textos'
 import { useEstado, useInventarioAbierto, usePartida } from './useEstado'
 
@@ -18,10 +19,18 @@ export function nombreHerramienta(h: Herramienta): string {
   return t(`herramienta_${h}` as ClaveTexto)
 }
 
+/** Estilo con el icono de la semilla elegida (lo pinta el `::after` de la ranura y del botón «Usar …»). */
+function estiloSemilla(semilla: ObjetoId | null): string | undefined {
+  const ruta = semilla === null ? undefined : rutaIconoObjeto(semilla)
+  return ruta ? `--semilla-icono: url("${ruta}")` : undefined
+}
+
 /**
- * Barra de herramientas del Modo Vida (GDD §8: herramienta activa en el HUD): un botón de al menos
- * 48 px por herramienta, con su icono y su tecla (1 a 6). La activa va marcada con `aria-pressed`
- * y con su nombre en texto (no solo con el color). Con «Semillas» se ve qué semilla está elegida.
+ * Ranuras de herramientas del Modo Vida (GDD §8: herramienta activa en el HUD), el primer grupo de
+ * la barra inferior: un botón de 44 px por herramienta, con su icono y su tecla (1 a 6). La activa
+ * va marcada con `aria-pressed` y con su nombre en un rótulo para lectores de pantalla (a la vista
+ * lo dice el botón «Usar …»). Con «Semillas» la semilla elegida se ve en una insignia de la ranura
+ * y del botón «Usar …».
  */
 export function BarraHerramientas() {
   const partida = usePartida()
@@ -39,51 +48,56 @@ export function BarraHerramientas() {
         })
       : tp('herramientaActiva', { herramienta: nombre })
   return (
-    <div class="barra-herramientas">
-      <div class="barra-herramientas-caja" role="group" aria-label={t('herramientasBarra')}>
-        <div class="herramientas-fila">
-          {HERRAMIENTAS.map((h, i) => (
-            <button
-              key={h}
-              type="button"
-              class="herramienta-boton"
-              data-herramienta={h}
-              aria-pressed={actual === h}
-              aria-label={nombreHerramienta(h)}
-              aria-keyshortcuts={String(i + 1)}
-              title={tp('herramientaTitulo', { herramienta: nombreHerramienta(h), n: i + 1 })}
-              onClick={(ev) => {
-                partida.elegirHerramienta(h)
-                devolverFoco(ev)
-              }}
-            >
-              <img
-                src={rutaIconoHerramienta(h)}
-                alt=""
-                width="32"
-                height="32"
-                draggable={false}
-                aria-hidden="true"
-              />
-              <span class="herramienta-tecla" aria-hidden="true">
-                {i + 1}
-              </span>
-            </button>
-          ))}
-        </div>
-        <p class="herramienta-activa" aria-live="polite">
-          {activa}
-        </p>
+    <div class="barra-herramientas-caja" role="group" aria-label={t('herramientasBarra')}>
+      <div class="herramientas-fila">
+        {HERRAMIENTAS.map((h, i) => (
+          <button
+            key={h}
+            type="button"
+            class="herramienta-boton"
+            data-herramienta={h}
+            style={h === 'semillas' ? estiloSemilla(semilla) : undefined}
+            aria-pressed={actual === h}
+            aria-label={nombreHerramienta(h)}
+            aria-keyshortcuts={String(i + 1)}
+            title={tp('herramientaTitulo', { herramienta: nombreHerramienta(h), n: i + 1 })}
+            onClick={(ev) => {
+              partida.elegirHerramienta(h)
+              devolverFoco(ev)
+            }}
+          >
+            <img
+              src={rutaIconoHerramienta(h)}
+              alt=""
+              width="32"
+              height="32"
+              draggable={false}
+              aria-hidden="true"
+            />
+            <span class="herramienta-tecla" aria-hidden="true">
+              {i + 1}
+            </span>
+          </button>
+        ))}
       </div>
+      <p class="herramienta-activa" aria-live="polite">
+        {activa}
+      </p>
     </div>
   )
 }
 
-/** Botón de acción contextual: usa la herramienta activa en la casilla de enfrente (como E o Espacio). Solo en Vida. */
+/**
+ * Botón de acción contextual: usa la herramienta activa en la casilla de enfrente (como E o
+ * Espacio). Solo en Vida, también en escritorio (el clic en el lienzo es para andar; GDD §4:
+ * «ratón para la acción»). Con «Semillas» lleva la insignia de la semilla elegida. Tiene un ancho
+ * mínimo para que la barra no se mueva al cambiar de herramienta.
+ */
 export function BotonAccion() {
   const partida = usePartida()
   const vida = useEstado((e) => e.modo === 'vida')
   const actual = useEstado((e) => e.herramienta)
+  const semilla = useEstado((e) => e.semillaElegida)
   // Con la mano, delante de una planta madura y viva el botón dice «Cosechar» (la pista, sin avisos).
   const cosecha = useEstado((e) => {
     if (e.herramienta !== 'mano') return false
@@ -96,6 +110,7 @@ export function BotonAccion() {
     <button
       type="button"
       class="boton-accion"
+      style={actual === 'semillas' ? estiloSemilla(semilla) : undefined}
       aria-keyshortcuts="E Space"
       title={t('accionBotonAyuda')}
       onClick={(ev) => {
