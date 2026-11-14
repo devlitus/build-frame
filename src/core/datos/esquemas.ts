@@ -325,6 +325,8 @@ export const EsquemaConfigRecursos = v.strictObject({
     madera: cantidadPorTerreno(0),
     /** Plantones que deja un árbol talado (si caben en el inventario). */
     plantones: v.pipe(v.number(), v.safeInteger(), v.minValue(0), v.maxValue(10)),
+    /** Probabilidad (0 a 1) de que talar un árbol deje esos plantones; se sortea con el RNG del estado. */
+    probabilidadPlanton: v.pipe(v.number(), v.minValue(0), v.maxValue(1)),
   }),
   roca: v.strictObject({
     golpes: cantidadPorTerreno(1),

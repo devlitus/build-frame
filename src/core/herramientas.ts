@@ -37,12 +37,12 @@ export type ErrorUsoHerramienta =
   | 'sin-semillas'
   /** No queda energía para el coste de la herramienta (nunca bloquea moverse ni cambiar de modo). */
   | 'sin-energia'
-  /** Motivos propios de la azada y las semillas (`labranza.ts`). */
+  /** Motivos propios de la azada y las semillas (`labranza.ts`); incluye `no-propia`. */
   | ErrorLabranza
   /** El botín desbordaría los materiales (enteros seguros). */
   | 'limite-de-recursos'
 
-/** Hecho que anuncia que la herramienta se aceptó (el efecto concreto llega con sus propios eventos). */
+/** Hecho que anuncia que la herramienta se aceptó; los efectos en el mundo llegan en sus propios eventos. */
 export interface EventoHerramientaUsada {
   readonly tipo: 'herramienta-usada'
   readonly herramienta: Herramienta
@@ -77,6 +77,13 @@ export interface EventoPlantonPlantado {
   readonly y: number
 }
 
+/** Talar dejó un plantón pero no cupo en el inventario: se perdió (la madera sí se dio). */
+export interface EventoPlantonPerdido {
+  readonly tipo: 'planton-perdido'
+  readonly x: number
+  readonly y: number
+}
+
 export type EventoHerramienta =
   | EventoHerramientaUsada
   | EventoTierraArada
@@ -84,6 +91,7 @@ export type EventoHerramienta =
   | EventoObstaculoGolpeado
   | EventoObstaculoQuitado
   | EventoPlantonPlantado
+  | EventoPlantonPerdido
 
 export type ResultadoEfecto =
   | {
@@ -111,6 +119,29 @@ const sinEfecto: EfectoHerramienta = {
 }
 
 /**
+ * Prueba los efectos en orden y se queda con el primero que cambia algo (estado o eventos); si
+ * ninguno lo hace, la herramienta no hace nada. Un rechazo corta la cadena.
+ */
+export function encadenar(...efectos: readonly EfectoHerramienta[]): EfectoHerramienta {
+  return {
+    comprobar: (estado, x, y) => {
+      for (const efecto of efectos) {
+        const motivo = efecto.comprobar(estado, x, y)
+        if (motivo) return motivo
+      }
+      return undefined
+    },
+    aplicar: (estado, x, y) => {
+      for (const efecto of efectos) {
+        const r = efecto.aplicar(estado, x, y)
+        if (!r.ok || r.estado !== estado || r.eventos.length > 0) return r
+      }
+      return { ok: true, estado, eventos: [] }
+    },
+  }
+}
+
+/**
  * PUNTO DE ENGANCHE de los efectos de las herramientas. Cada historia sustituye aquí su entrada:
  * M5-03 azada (arar) y semillas (plantar) ya están; faltan M5-04 regadera, M5-05 mano
  * (cosechar) y M5-06 hacha y pico (talar y picar).
@@ -119,8 +150,9 @@ export const EFECTOS_HERRAMIENTA: Readonly<Record<Herramienta, EfectoHerramienta
   azada: { comprobar: motivoNoArar, aplicar: arar },
   regadera: sinEfecto,
   semillas: { comprobar: motivoNoSembrar, aplicar: plantar },
-  // M5-06: con plantones en el inventario la mano los planta; M5-05 le añade el cosechar.
-  mano: efectoPlantarPlanton,
+  // Mano: cosechar tiene prioridad (M5-05 lo antepondrá aquí) y, si no hay nada que cosechar,
+  // planta un plantón del inventario (M5-06).
+  mano: encadenar(efectoPlantarPlanton),
   hacha: efectoHacha,
   pico: efectoPico,
 }

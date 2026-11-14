@@ -66,6 +66,24 @@ export function Aviso() {
           )
         } else if (ev.tipo === 'obra-terminada') {
           partes.push(tp('avisoObraTerminada', { edificio: nombreEdificio(ev.tipoEdificio) }))
+        } else if (ev.tipo === 'obstaculo-golpeado') {
+          const arbol = ev.obstaculo !== 'roca'
+          const clave = `avisoGolpe${arbol ? 'Arbol' : 'Roca'}${ev.restantes === 1 ? 'Uno' : ''}`
+          partes.push(tp(clave as ClaveTexto, { n: ev.restantes }))
+        } else if (ev.tipo === 'obstaculo-quitado') {
+          if (ev.obstaculo === 'planton') partes.push(t('avisoPlantonArrancado'))
+          else if (ev.obstaculo === 'roca')
+            partes.push(tp('avisoRocaPicada', { piedra: ev.piedra }))
+          else
+            partes.push(
+              tp(ev.plantones > 0 ? 'avisoArbolTaladoPlanton' : 'avisoArbolTalado', {
+                madera: ev.madera,
+              }),
+            )
+        } else if (ev.tipo === 'planton-plantado') {
+          partes.push(t('avisoPlantonPlantado'))
+        } else if (ev.tipo === 'planton-perdido') {
+          partes.push(t('avisoPlantonPerdido'))
         } else if (ev.tipo === 'edificio-movido') {
           partes.push(tp('avisoEdificioMovido', { edificio: nombreEdificio(ev.tipoEdificio) }))
         } else if (ev.tipo === 'edificio-demolido' || ev.tipo === 'obra-cancelada') {

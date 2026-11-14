@@ -159,13 +159,13 @@ export function empezarDiaSiguiente(
   readonly estado: EstadoJuego
   readonly eventos: readonly ObraTerminada[]
 } {
-  const r = terminarObras(
-    crecerPlantones({
-      ...estado,
-      dia: estado.dia + 1,
-      minutoDelDia: CONFIG_TIEMPO.horaInicio,
-      energia: energiaAlEmpezarDia(motivo),
-    }),
-  )
-  return { estado: { ...r.estado, personaje: personajeAlDespertar(r.estado) }, eventos: r.eventos }
+  const r = terminarObras({
+    ...estado,
+    dia: estado.dia + 1,
+    minutoDelDia: CONFIG_TIEMPO.horaInicio,
+    energia: energiaAlEmpezarDia(motivo),
+  })
+  // Los plantones crecen con el personaje ya recolocado: si despierta sobre uno, espera un día.
+  const despierto = { ...r.estado, personaje: personajeAlDespertar(r.estado) }
+  return { estado: crecerPlantones(despierto), eventos: r.eventos }
 }

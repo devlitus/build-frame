@@ -180,6 +180,9 @@ interface EntradaCache {
   readonly valle: Valle
   readonly aparicion: { readonly x: number; readonly y: number }
   readonly mapa: MapaTransitabilidad
+  readonly obstaculos: readonly Obstaculo[]
+  readonly edificios: readonly Edificio[]
+  readonly cauce: Cauce
 }
 
 const CACHE = new WeakMap<
@@ -194,6 +197,8 @@ const CACHE = new WeakMap<
  * aparición (comparada por valor) coincide. Fuera del valle cuenta como bloqueado (`casillaBloqueada`).
  */
 export function mapaTransitabilidad(datos: DatosMapa): MapaTransitabilidad {
+  const mismo = reutilizable(datos)
+  if (mismo) return mismo
   let porObstaculos = CACHE.get(datos.cauce)
   if (!porObstaculos) CACHE.set(datos.cauce, (porObstaculos = new WeakMap()))
   let porEdificios = porObstaculos.get(datos.obstaculos)
@@ -209,18 +214,61 @@ export function mapaTransitabilidad(datos: DatosMapa): MapaTransitabilidad {
   }
   const lado = ladoValle(datos.valle)
   const bloqueada = aguaBloqueada(datos.valle, datos.cauce)
-  for (const o of datos.obstaculos) bloqueada[claveCasilla(lado, o.x, o.y)] = 1
+  for (const o of datos.obstaculos) if (bloqueaPaso(o)) bloqueada[claveCasilla(lado, o.x, o.y)] = 1
   for (const k of casillasOcupadas(datos.edificios, lado).keys()) bloqueada[k] = 1
   const inicio = claveCasilla(lado, Math.floor(datos.aparicion.x), Math.floor(datos.aparicion.y))
   const vista = alcanzables(lado, bloqueada, inicio)
   for (let i = 0; i < bloqueada.length; i++) bloqueada[i] = vista[i] === 1 ? 0 : 1
   const mapa: MapaTransitabilidad = { lado, bloqueada }
-  porEdificios.set(datos.edificios, {
+  const entrada: EntradaCache = {
     valle: datos.valle,
     aparicion: { x: datos.aparicion.x, y: datos.aparicion.y },
     mapa,
-  })
+    obstaculos: datos.obstaculos,
+    edificios: datos.edificios,
+    cauce: datos.cauce,
+  }
+  porEdificios.set(datos.edificios, entrada)
+  ultima = entrada
   return mapa
+}
+
+/** Un plantón aún no bloquea el paso: solo lo hace al crecer y ser un árbol. */
+function bloqueaPaso(o: Obstaculo): boolean {
+  return o.tipo !== 'planton'
+}
+
+/**
+ * Última entrada calculada. Golpear un árbol o una roca rehace la lista de obstáculos sin mover
+ * ninguno: si el cauce, el valle, los edificios y la aparición son los mismos y los obstáculos que
+ * bloquean ocupan las mismas casillas (comparación lineal), se reutiliza el mapa sin repetir el BFS.
+ */
+let ultima: EntradaCache | undefined
+
+function reutilizable(datos: DatosMapa): MapaTransitabilidad | undefined {
+  const u = ultima
+  if (
+    !u ||
+    u.cauce !== datos.cauce ||
+    u.edificios !== datos.edificios ||
+    u.valle !== datos.valle ||
+    u.aparicion.x !== datos.aparicion.x ||
+    u.aparicion.y !== datos.aparicion.y
+  ) {
+    return undefined
+  }
+  const a = u.obstaculos
+  const b = datos.obstaculos
+  if (a === b) return u.mapa
+  if (a.length !== b.length) return undefined
+  for (let i = 0; i < a.length; i++) {
+    const p = a[i]
+    const q = b[i]
+    if (!p || !q || p.x !== q.x || p.y !== q.y || bloqueaPaso(p) !== bloqueaPaso(q)) {
+      return undefined
+    }
+  }
+  return u.mapa
 }
 
 /** Fuera del valle cuenta como bloqueado. Acepta casillas enteras. */
