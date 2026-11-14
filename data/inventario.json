@@ -1,0 +1,27 @@
+{
+  "capacidadBase": 12,
+  "ranurasPorEdificio": {
+    "casa": 0,
+    "caja-envio": 0,
+    "cobertizo": 12
+  },
+  "herramientaInicial": "azada",
+  "loteInicial": [
+    { "objeto": "semilla-rabano", "cantidad": 10 },
+    { "objeto": "semilla-patata", "cantidad": 10 },
+    { "objeto": "semilla-fresa", "cantidad": 5 }
+  ],
+  "objetos": {
+    "semilla-patata": { "categoria": "semilla", "pilaMaxima": 99 },
+    "semilla-zanahoria": { "categoria": "semilla", "pilaMaxima": 99 },
+    "semilla-lechuga": { "categoria": "semilla", "pilaMaxima": 99 },
+    "semilla-rabano": { "categoria": "semilla", "pilaMaxima": 99 },
+    "semilla-fresa": { "categoria": "semilla", "pilaMaxima": 99 },
+    "patata": { "categoria": "producto", "pilaMaxima": 99 },
+    "zanahoria": { "categoria": "producto", "pilaMaxima": 99 },
+    "lechuga": { "categoria": "producto", "pilaMaxima": 99 },
+    "rabano": { "categoria": "producto", "pilaMaxima": 99 },
+    "fresa": { "categoria": "producto", "pilaMaxima": 99 },
+    "planton": { "categoria": "planton", "pilaMaxima": 99 }
+  }
+}

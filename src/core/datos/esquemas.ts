@@ -2,9 +2,12 @@ import * as v from 'valibot'
 import {
   AGUAS,
   AGUAS_SIN_RIO,
+  CATEGORIAS_OBJETO,
   FERTILIDADES,
+  HERRAMIENTAS,
   LADOS,
   MATERIALES,
+  OBJETOS,
   TERRENOS,
   TIPOS_EDIFICIO,
   ZONAS,
@@ -179,3 +182,58 @@ export const EsquemaConfigEdificios = v.strictObject({
 })
 
 export type ConfigEdificios = v.InferOutput<typeof EsquemaConfigEdificios>
+
+const ranurasEnteras = v.pipe(v.number(), v.safeInteger(), v.minValue(0), v.maxValue(1000))
+const idObjeto = v.picklist(OBJETOS)
+
+export const EsquemaObjeto = v.strictObject({
+  categoria: v.picklist(CATEGORIAS_OBJETO),
+  /** Cantidad máxima de una ranura (≥ 1). */
+  pilaMaxima: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(9999)),
+})
+
+export type DefObjeto = v.InferOutput<typeof EsquemaObjeto>
+
+export const EsquemaConfigInventario = v.pipe(
+  v.strictObject({
+    /** Ranuras del inventario sin ningún edificio (≥ 1). */
+    capacidadBase: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(1000)),
+    /** Ranuras que suma cada edificio **terminado** de cada tipo (una obra o un demolido no suman). */
+    ranurasPorEdificio: v.strictObject(
+      Object.fromEntries(TIPOS_EDIFICIO.map((t) => [t, ranurasEnteras])) as Record<
+        (typeof TIPOS_EDIFICIO)[number],
+        typeof ranurasEnteras
+      >,
+    ),
+    /** Herramienta activa al empezar una partida. */
+    herramientaInicial: v.picklist(HERRAMIENTAS),
+    /** Regalo de bienvenida (sin tienda hasta M6): objetos con los que empieza el inventario. */
+    loteInicial: v.array(
+      v.strictObject({
+        objeto: idObjeto,
+        cantidad: v.pipe(v.number(), v.safeInteger(), v.minValue(1)),
+      }),
+    ),
+    /** Catálogo: exactamente un registro por cada objeto de `OBJETOS`. */
+    objetos: v.strictObject(
+      Object.fromEntries(OBJETOS.map((o) => [o, EsquemaObjeto])) as Record<
+        (typeof OBJETOS)[number],
+        typeof EsquemaObjeto
+      >,
+    ),
+  }),
+  v.check(
+    (c) => new Set(c.loteInicial.map((l) => l.objeto)).size === c.loteInicial.length,
+    'Objetos repetidos en el lote inicial',
+  ),
+  v.check((c) => {
+    // El lote cabe en el inventario base, con las pilas completas y a lo sumo una incompleta por objeto.
+    const ranuras = c.loteInicial.reduce(
+      (n, l) => n + Math.ceil(l.cantidad / c.objetos[l.objeto].pilaMaxima),
+      0,
+    )
+    return ranuras <= c.capacidadBase
+  }, 'El lote inicial no cabe en la capacidad base'),
+)
+
+export type ConfigInventario = v.InferOutput<typeof EsquemaConfigInventario>

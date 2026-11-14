@@ -10,6 +10,14 @@ import { generarMundo, ladoValle, type Cauce } from './mapa'
 import { zonasVacias } from './zonas'
 import type { Edificio, Materiales } from './edificios'
 import { personajeEnAparicion, type Personaje } from './personaje'
+import { CONFIG_INVENTARIO } from './datos/inventario'
+import {
+  inventarioInicial,
+  inventarioValido,
+  type Herramienta,
+  type Inventario,
+  type ObjetoId,
+} from './inventario'
 
 /**
  * Versión del formato del estado. Cualquier cambio exige una migración (ADR 0001).
@@ -26,8 +34,10 @@ import { personajeEnAparicion, type Personaje } from './personaje'
  * Sin migración: sigue sin haber partidas guardadas.
  * v8 (M4-02): se añaden `materiales` (madera y piedra), `edificios` (obras y edificios
  * colocados) y `siguienteIdEdificio`. Sin migración: sigue sin haber partidas guardadas.
+ * v9 (M5-01): se añaden `inventario` (ranuras `{objeto, cantidad}`), `herramienta` (la activa) y
+ * `semillaElegida` (objeto o `null`). Sin migración: sigue sin haber partidas guardadas.
  */
-export const VERSION_FORMATO = 8
+export const VERSION_FORMATO = 9
 
 /** Velocidad del tiempo al empezar una partida. */
 export const VELOCIDAD_INICIAL = 1
@@ -53,6 +63,15 @@ export interface EstadoJuego {
   readonly dinero: number
   /** Materiales de construcción (enteros ≥ 0); el lote de bienvenida está en `data/edificios.json`. */
   readonly materiales: Materiales
+  /**
+   * Objetos del jugador (semillas, productos, plantones) en ranuras; la capacidad depende de los
+   * cobertizos terminados (`capacidadInventario`). Madera y piedra no van aquí (`materiales`).
+   */
+  readonly inventario: Inventario
+  /** Herramienta activa del Modo Vida (no ocupa ranura). */
+  readonly herramienta: Herramienta
+  /** Semilla que planta la herramienta «semillas» (un objeto del inventario), o `null` si no hay ninguna elegida. */
+  readonly semillaElegida: ObjetoId | null
   /** Parcelas compradas hasta ahora; cada una encarece las siguientes (`precioParcela`). */
   readonly comprasHechas: number
   readonly valle: Valle
@@ -83,6 +102,8 @@ export interface OpcionesNuevaPartida {
   readonly dineroInicial?: number
   /** Materiales iniciales; por defecto `CONFIG_EDIFICIOS.materialesIniciales` (data/edificios.json). */
   readonly materialesIniciales?: Materiales
+  /** Inventario inicial; por defecto el lote de regalo de `data/inventario.json`. */
+  readonly inventarioInicial?: Inventario
   /** Configuración del valle; por defecto `CONFIG_VALLE` (data/valle.json). */
   readonly configValle?: ConfigValle
   /**
@@ -117,6 +138,8 @@ export function crearEstadoInicial(opciones: OpcionesNuevaPartida): EstadoJuego 
   ) {
     throw new RangeError('materialesIniciales inválidos')
   }
+  const inventario = opciones.inventarioInicial ?? inventarioInicial()
+  if (!inventarioValido(inventario)) throw new RangeError('inventarioInicial inválido')
   const mundo = generarMundo(valle, semilla, config, CONFIG_PERSONAJE)
   return {
     versionFormato: VERSION_FORMATO,
@@ -129,6 +152,9 @@ export function crearEstadoInicial(opciones: OpcionesNuevaPartida): EstadoJuego 
     velocidad: VELOCIDAD_INICIAL,
     dinero,
     materiales: { madera: materiales.madera, piedra: materiales.piedra },
+    inventario: inventario.map((r) => ({ ...r })),
+    herramienta: CONFIG_INVENTARIO.herramientaInicial,
+    semillaElegida: null,
     comprasHechas: 0,
     valle,
     zonas: zonasVacias(ladoValle(valle)),
