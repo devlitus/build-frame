@@ -27,6 +27,8 @@ export interface FocusCheck {
   /** Covered area in px². */
   covered: number
   ok: boolean
+  /** The measured area in viewport CSS px (for overlays); absent if it could not be computed. */
+  area?: Rect
   /** Why it failed, if it did. */
   detail: string
 }
@@ -289,6 +291,7 @@ export async function measureInterface(
         inside,
         covered,
         ok: reasons.length === 0,
+        area,
         detail: reasons.join('; '),
       })
     }

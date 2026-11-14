@@ -162,7 +162,7 @@ Las historias se gestionan como **GitHub Issues**, con el *milestone* del hito y
 | Simulación | Scripts sobre `core/` | Partidas automáticas de N días con acciones aleatorias; detecta bloqueos y desequilibrios | Rompedor |
 | Extremo a extremo | Playwright (escritorio y móvil emulado) | Solo lo que necesita navegador: humo, **un** recorrido por flujo crítico, entrada real (toque, teclado, ratón → efecto), regresiones `[S]` de interfaz y robustez de render (una por tipo) | Rompedor |
 | Regla de interfaz | Playwright (`interface-rule.spec.ts`) | La interfaz no tapa el juego: cobertura máxima del lienzo, foco libre alrededor del personaje y de lo elegido, controles alcanzables; en 1280×720, 412×915, 915×412 y 640×320 | Rompedor |
-| Visual | `npm run capturas` (escritorio, móvil horizontal y vertical) | Que se **vea** bien: nada cortado, solapado, ilegible ni descolocado; contraste; botones alcanzables con el dedo | Rompedor |
+| Visual | `npm run capturas` (4 viewports por escenas, con cobertura) | Que se **vea** bien: nada cortado, solapado, ilegible ni descolocado; contraste; botones alcanzables con el dedo | Rompedor |
 | Manual | El humano | Diversión, sensaciones, móvil real | Humano |
 
 ### Reglas de arquitectura (las vigila el Revisor)
@@ -187,7 +187,7 @@ Las historias se gestionan como **GitHub Issues**, con el *milestone* del hito y
 ### Verificación visual
 Los tests e2e comprueban que los elementos **existen**, no que se **vean** bien. Por eso, en toda historia que cambie lo que se ve:
 
-1. El **Rompedor** ejecuta `npm run capturas -- <rutas>` (p. ej. `/` y `/?semilla=42`), **mira** cada captura y revisa en las tres vistas:
+1. El **Rompedor** ejecuta `npm run capturas` (unos 2 min; construye antes), abre `capturas/index.html` y **mira** cada captura en los cuatro viewports de la regla de interfaz (1280×720 escritorio; 412×915, 915×412 y 640×320 como móvil real con `hasTouch`/`isMobile`). Escenas: portada; Vida (aparición, esquina del valle, inventario, aviso, noche); Plano (sin panel, parcela, confirmación de compra); zonas con pincel; construir (catálogo, silueta, confirmación); edificio elegido; mover. Cada PNG es `capturas/<viewport>/<escena>.png` y el índice muestra el % de cobertura, el foco y los controles fuera de regla de cada uno. Opciones: `-- --overlay` pinta encima las cajas opacas medidas, el % y el cuadrado de foco (verde libre, rojo tapado); `-- --scene=plano,move` y `-- --viewport=412x915` filtran (separados por comas). El código está en `scripts/screenshots.ts` y reutiliza los helpers de `tests/e2e/apoyo/`. Se revisa en las capturas:
    - texto legible y sin solapes; nada cortado ni fuera de pantalla;
    - en móvil: botones de al menos 44 px y nada que dependa de *hover*;
    - coherencia con el GDD y con el estilo de arte (acuarela) cuando ya haya arte final.
