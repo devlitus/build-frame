@@ -113,7 +113,7 @@ export function BotonAccion() {
 }
 
 /**
- * Botón «Dormir»: se activa solo donde se puede dormir (Vida y junto a la puerta de la casa terminada,
+ * Botón «Dormir»: aparece solo donde se puede dormir (Vida y junto a la puerta de la casa terminada,
  * o de la aparición si aún no hay casa), con la misma comprobación que el comando. Tecla Z.
  */
 export function BotonDormir() {
@@ -121,17 +121,7 @@ export function BotonDormir() {
   const puede = useEstado((e) => comprobarDormir(e) === undefined)
   // Con el panel de inventario abierto se esconde, como el botón de inventario: no tapa sus ranuras.
   const { abierto } = useInventarioAbierto()
-  const vida = useEstado((e) => e.modo === 'vida')
-  if (!vida) return null
-  // Sin poder dormir (o con el inventario abierto) deja su hueco invisible: la barra no se mueve
-  // cuando el botón aparece o desaparece.
-  if (!puede || abierto) {
-    return (
-      <span class="boton-dormir boton-hueco" aria-hidden="true">
-        {t('dormirBoton')}
-      </span>
-    )
-  }
+  if (!puede || abierto) return null
   return (
     <button
       type="button"

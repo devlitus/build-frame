@@ -62,14 +62,21 @@ test('al pulsar una tecla de movimiento el personaje se mueve y la cámara lo si
     const vp = page.viewportSize()
     const columna = !!barra && barra.width < barra.height
     const extraIzq = barra && columna ? barra.x + barra.width + 24 : 0
-    const extraAbajo = barra && vp && !columna ? vp.height - barra.y + 24 : 0
+    // HUD-01: más el radio libre alrededor del personaje (3 casillas) en el borde del valle.
+    const radio = 3 * 32 * c2.zoom
+    const hudArriba = await page.locator('.hud-arriba').boundingBox()
+    const extraAbajo = barra && vp && !columna ? vp.height - barra.y + 24 + radio : 0
+    const extraArriba = Math.max(
+      16 * c2.zoom,
+      hudArriba ? hudArriba.y + hudArriba.height + 8 + radio : 0,
+    )
     const ajustar = (v: number, mitad: number, lo = 0, hi = 0) =>
       Math.min(Math.max(v, mitad - lo / c2.zoom), mundo - mitad + hi / c2.zoom)
     const pf = await personaje(page)
     if (!pf) throw new Error('sin personaje')
     const esperado = {
       x: ajustar(pf.x * 32, c2.ancho / c2.zoom / 2, extraIzq),
-      y: ajustar(pf.y * 32, c2.alto / c2.zoom / 2, 16 * c2.zoom, extraAbajo),
+      y: ajustar(pf.y * 32, c2.alto / c2.zoom / 2, extraArriba, extraAbajo),
     }
     expect(
       Math.hypot(c2.scrollX + c2.ancho / 2 - esperado.x, c2.scrollY + c2.alto / 2 - esperado.y),

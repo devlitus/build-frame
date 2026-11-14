@@ -137,7 +137,8 @@ body {
 
 .barra-inferior-caja {
   position: relative;
-  pointer-events: auto;
+  /* Sin fondo ni toques propios: entre los botones el dedo llega al lienzo (joystick, destino). */
+  pointer-events: none;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -153,6 +154,10 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
+}
+
+.barra-inferior-caja button {
+  pointer-events: auto;
 }
 
 /* Dentro de la caja los botones no llevan sombra propia. */
@@ -1199,6 +1204,15 @@ body {
   background: var(--tierra);
   color: var(--crema);
   border-color: var(--tinta);
+}
+
+/* «Dormir» y su hueco comparten sitio: el botón se pone sobre el hueco invisible. */
+.dormir-ranura {
+  display: inline-grid;
+}
+
+.dormir-ranura > * {
+  grid-area: 1 / 1;
 }
 
 /* Hueco del botón Inventario con el panel abierto: guarda su sitio sin verse ni enfocarse. */

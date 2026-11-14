@@ -4,6 +4,7 @@ import { BotonZonas } from './BarraZonas'
 import { BotonModo } from './BotonModo'
 import { BotonConstruir } from './PanelConstruir'
 import { BotonInventario } from './PanelInventario'
+import { t } from './textos'
 import {
   useConstruccion,
   useEdificioSeleccionado,
@@ -41,7 +42,7 @@ function useReservaBarra(caja: { current: HTMLElement | null }): void {
  * Barra inferior única, compacta y centrada (petición de la PO tras M5): reúne lo que antes estaba
  * suelto abajo a la derecha, para dejar libres las esquinas (la parcela de aparición y la casa).
  * - Vida: ranuras de herramientas (1–6), «Usar …» (E o Espacio), «Inventario» (I) y el modo (M).
- *   «Dormir» (Z) aparece encima de la barra, junto al modo, sin mover los demás botones.
+ *   «Dormir» (Z) se activa donde se puede dormir; su hueco está siempre, así los demás botones no se mueven.
  * - Plano: «Construir», «Zonas» y el modo.
  * En apaisado bajo, con un panel de Plano abierto a la izquierda, la barra se arrima a la derecha.
  */
@@ -64,7 +65,15 @@ export function BarraInferior() {
           <BotonConstruir />
           <BotonZonas />
           <BotonModo />
-          <BotonDormir />
+          {vida && (
+            // Hueco invisible bajo «Dormir»: el botón aparece o desaparece sin mover los demás.
+            <span class="dormir-ranura">
+              <span class="boton-dormir boton-hueco" aria-hidden="true">
+                {t('dormirBoton')}
+              </span>
+              <BotonDormir />
+            </span>
+          )}
         </div>
       </div>
     </div>
