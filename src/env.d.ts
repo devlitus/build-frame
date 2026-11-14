@@ -85,6 +85,20 @@ interface Window {
           rectangulo: { x0: number; y0: number; x1: number; y1: number } | undefined
         }
       | undefined
+    /** Herramienta activa y semilla elegida; undefined si no hay partida. */
+    herramienta(): { herramienta: string; semilla: string | null } | undefined
+    /** Inventario: ranuras, capacidad y si el panel está abierto; undefined si no hay partida. */
+    inventario():
+      | {
+          ranuras: { objeto: string; cantidad: number }[]
+          capacidad: number
+          abierto: boolean
+        }
+      | undefined
+    /** Último uso de una herramienta (acción o clic): cuántos van, dónde y el motivo del rechazo. */
+    ultimoUso():
+      | { n: number; herramienta: string; x: number; y: number; error: string | undefined }
+      | undefined
     /** Madera y piedra de la partida; undefined si no hay partida. */
     materiales(): { madera: number; piedra: number } | undefined
     /** Estado del modo Construir: catálogo, edificio elegido, cursor y silueta con su veredicto. */

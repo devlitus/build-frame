@@ -1,7 +1,9 @@
 import Phaser from 'phaser'
 import {
   aplicarComando,
+  casillaAlAlcance,
   casillasOcupadas,
+  HERRAMIENTAS,
   casillasRio,
   crearEstadoInicial,
   defEdificio,
@@ -14,6 +16,7 @@ import {
 } from '../../core'
 import { CONFIG_CAMARA } from '../camara/config'
 import { ControlCamara } from '../camara/controlCamara'
+import type { Margenes } from '../camara/matematica'
 import { conPropiasDeDepuracion } from '../valle/debug'
 import type { EstadoVisualParcela } from '../valle/estadoVisual'
 import { VistaParcelas } from '../valle/vistaParcelas'
@@ -90,6 +93,8 @@ export class EscenaValle extends Phaser.Scene {
   /** Modo ya aplicado a la cámara y al teclado; si el estado cambia, `update()` lo reaplica. */
   private modoAplicado: ModoJuego = 'vida'
   private control: ControlCamara | undefined = undefined
+  private inventarioAbiertoVisto = false
+  private remedirMargenes = 0
   private entrada: EntradaMovimiento | undefined = undefined
   private vista: VistaPersonaje | undefined = undefined
   private luz: VistaLuz | undefined = undefined
@@ -351,6 +356,12 @@ export class EscenaValle extends Phaser.Scene {
     this.scale.on('resize', this.alRedimensionar, this)
     this.quitarEsc?.()
     const alEsc = (): void => {
+      // El inventario (Modo Vida) se cierra con Esc y el foco vuelve al lienzo.
+      if (partida.inventario.abierto) {
+        document.getElementById('juego')?.focus({ preventScroll: true })
+        partida.inventario.cerrar()
+        return
+      }
       // Modo Construir: Esc cancela la confirmación y, si no hay, sale del modo.
       if (partida.construccion.abierto) {
         if (partida.construccion.cancelarConfirmacion()) return
@@ -380,7 +391,26 @@ export class EscenaValle extends Phaser.Scene {
     const lienzo = this.game.canvas
     const contenedor = lienzo.parentElement
     contenedor?.addEventListener('keydown', this.alTeclaLienzo)
-    this.quitarTeclasLienzo = () => contenedor?.removeEventListener('keydown', this.alTeclaLienzo)
+    // Con el foco perdido en `<body>` el evento no pasa por el contenedor: en Vida se escucha también en `window`.
+    const alTeclaCuerpo = (ev: KeyboardEvent): void => {
+      if (
+        this.modoAplicado === 'vida' &&
+        (ev.target === document.body || ev.target === document.documentElement)
+      )
+        this.teclaVida(ev)
+    }
+    // Un clic o toque en el lienzo devuelve el foco al juego (Phaser cancela `mousedown`, que no lo mueve).
+    const alPunteroLienzo = (): void => {
+      if (this.modoAplicado !== 'vida' || !contenedor) return
+      if (document.activeElement !== contenedor) contenedor.focus({ preventScroll: true })
+    }
+    window.addEventListener('keydown', alTeclaCuerpo)
+    lienzo.addEventListener('pointerdown', alPunteroLienzo, true)
+    this.quitarTeclasLienzo = () => {
+      contenedor?.removeEventListener('keydown', this.alTeclaLienzo)
+      window.removeEventListener('keydown', alTeclaCuerpo)
+      lienzo.removeEventListener('pointerdown', alPunteroLienzo, true)
+    }
     this.ajustarLienzoAccesible(inicial.modo)
     this.tactil = new ControlTactil(this)
     this.tactil.activo = inicial.modo === 'vida'
@@ -447,8 +477,9 @@ export class EscenaValle extends Phaser.Scene {
   }
 
   /**
-   * Pone al día los márgenes de la cámara del Modo Plano: el valle puede pasar de su borde lo que
-   * tapa la interfaz, para ver lo que queda debajo (más un poco de aire). En Vida no hay márgenes.
+   * Pone al día los márgenes de la cámara: en Plano, el valle puede pasar de su borde lo que tapa
+   * la interfaz, para ver lo que queda debajo (más un poco de aire); en Vida, márgenes fijos en
+   * los extremos según la barra y el panel (ver `margenesVida`).
    * Se llama cuando cambian la selección, el modo, el tamaño o las guías (nunca desde una consulta).
    */
   private actualizarMargenes(): void {
@@ -456,6 +487,11 @@ export class EscenaValle extends Phaser.Scene {
     const pantalla = pantallaLogica(this)
     const libre = this.zonaLibre(pantalla)
     const h = CONFIG_CAMARA.holguraBordePx
+    if (this.modoAplicado === 'vida') {
+      // Tras abrir el panel o cambiar el tamaño, la vista salta (sin deslizarse) a su sitio.
+      this.control.fijarMargenes(this.margenesVida(pantalla), this.remedirMargenes > 0)
+      return
+    }
     this.control.fijarMargenes(
       this.modoAplicado === 'plano'
         ? {
@@ -466,6 +502,28 @@ export class EscenaValle extends Phaser.Scene {
           }
         : undefined,
     )
+  }
+
+  /**
+   * Márgenes fijos de la cámara en Vida: solo se amplían los extremos, lo que ocupa la interfaz
+   * (barra de herramientas abajo o en columna, panel de inventario abierto a la izquierda) más
+   * un poco de aire, y arriba lo que sobresale el sprite. No dependen de la posición del
+   * personaje, así que `seguir` se desliza sin saltos; solo se miden al cambiar el tamaño o el panel.
+   */
+  private margenesVida(pantalla: { ancho: number; alto: number }): Margenes | undefined {
+    const { barra, panel } = medirReservasHud()
+    const c = this.control
+    if (!barra || !c) return undefined
+    const h = CONFIG_CAMARA.holguraBordePx
+    const columna = barra.right - barra.left < barra.bottom - barra.top
+    let izq = 0
+    let abajo = 0
+    if (columna) izq = barra.right + h
+    else abajo = Math.max(0, pantalla.alto - barra.top + h)
+    // Con el inventario abierto a la izquierda (no en vertical, donde ya queda a la derecha de la columna).
+    if (panel && !columna) izq = Math.max(izq, panel.right + h)
+    const arriba = Math.ceil((TAM_CASILLA / 2) * c.vista.zoom)
+    return { arriba, abajo, izq: Math.max(0, Math.ceil(izq)), der: 0, soloExtremos: true }
   }
 
   /** La cámara se desliza (guía o vuelta de la extensión): gancho de prueba. */
@@ -502,7 +560,45 @@ export class EscenaValle extends Phaser.Scene {
     return a !== null && (a === this.game.canvas || a === this.game.canvas.parentElement)
   }
 
+  /** Destino válido para los atajos de Vida: el lienzo, su contenedor o `<body>` (foco perdido al cerrar un panel). */
+  private focoNeutro(destino: EventTarget | null): boolean {
+    return (
+      destino === this.game.canvas ||
+      destino === this.game.canvas.parentElement ||
+      destino === document.body ||
+      destino === document.documentElement
+    )
+  }
+
+  /**
+   * Teclado del Modo Vida con el foco en el lienzo: 1 a 6 eligen la herramienta, E o Espacio la usan
+   * en la casilla de enfrente e I abre o cierra el inventario; también con el foco en `<body>`.
+   * (Con el foco en un botón o campo del HUD,
+   * Espacio y Enter son del botón.)
+   */
+  private teclaVida(ev: KeyboardEvent): void {
+    const partida = this._partida
+    if (!partida || ev.ctrlKey || ev.altKey || ev.metaKey || ev.shiftKey) return
+    if (!this.focoNeutro(ev.target)) return
+    const digito = /^(?:Digit|Numpad)([1-6])$/.exec(ev.code)
+    const herramienta = digito ? HERRAMIENTAS[Number(digito[1]) - 1] : undefined
+    if (herramienta) {
+      ev.preventDefault()
+      if (!ev.repeat) partida.elegirHerramienta(herramienta)
+    } else if (ev.code === 'KeyE' || ev.code === 'Space') {
+      ev.preventDefault()
+      if (!ev.repeat) partida.usarEnfrente()
+    } else if (ev.code === 'KeyI') {
+      ev.preventDefault()
+      if (!ev.repeat) partida.inventario.alternar('teclado')
+    }
+  }
+
   private readonly alTeclaLienzo = (ev: KeyboardEvent): void => {
+    if (this.modoAplicado === 'vida') {
+      this.teclaVida(ev)
+      return
+    }
     const partida = this._partida
     const g = this.geometria()
     if (!partida || !g || !this.control || this.modoAplicado !== 'plano') return
@@ -748,17 +844,20 @@ export class EscenaValle extends Phaser.Scene {
             : 'ayuda-plano',
       )
       if (contenedor) contenedor.dataset['modo'] = 'plano'
+      contenedor?.removeAttribute('aria-describedby')
     } else {
       if (document.activeElement === lienzo) contenedor?.focus({ preventScroll: true })
       lienzo.removeAttribute('tabindex')
       lienzo.removeAttribute('aria-labelledby')
       lienzo.removeAttribute('aria-describedby')
       if (contenedor) delete contenedor.dataset['modo']
+      contenedor?.setAttribute('aria-describedby', 'ayuda-vida')
     }
   }
 
   private alRedimensionar(): void {
     this.claveGuia = ''
+    this.remedirMargenes = 20
     this.actualizarMargenes()
     if (this.idFotograma !== undefined) cancelAnimationFrame(this.idFotograma)
     this.idFotograma = requestAnimationFrame(() => {
@@ -869,13 +968,37 @@ export class EscenaValle extends Phaser.Scene {
           partida.construccion.activo) &&
         this.focoEnLienzo(),
     )
+    // Al abrir o cerrar el inventario se re-mide enseguida (la cámara esquiva el panel).
+    const inventarioAbierto = partida.inventario.abierto
+    if (inventarioAbierto !== this.inventarioAbiertoVisto) {
+      this.inventarioAbiertoVisto = inventarioAbierto
+      this.remedirMargenes = 20
+    }
+    if (modo === 'vida') {
+      // El panel se pinta un par de fotogramas después de abrirse: se re-mide fotograma a fotograma.
+      if (this.remedirMargenes > 0) {
+        this.remedirMargenes--
+        this.actualizarMargenes()
+      }
+    }
     const joystick = this.tactil?.leer() ?? { dx: 0, dy: 0 }
     // El teclado tiene prioridad sobre el joystick; cualquiera de los dos cancela el destino.
     const intencion = teclado.dx !== 0 || teclado.dy !== 0 ? teclado : joystick
     if (modo === 'vida') {
       const tocado = this.tactil?.tomarDestino()
+      const casillaTocada = tocado && {
+        x: Math.floor(tocado.x / TAM_CASILLA),
+        y: Math.floor(tocado.y / TAM_CASILLA),
+      }
       if (intencion.dx !== 0 || intencion.dy !== 0) this.seguidor.cancelar()
-      else if (tocado && !tiempoDetenido(partida.estado)) {
+      else if (
+        casillaTocada &&
+        casillaAlAlcance(partida.estado.personaje, casillaTocada.x, casillaTocada.y)
+      ) {
+        // Clic o toque en la casilla del personaje o en una vecina: usa la herramienta ahí.
+        this.seguidor.cancelar()
+        partida.usarHerramienta(casillaTocada.x, casillaTocada.y)
+      } else if (tocado && !tiempoDetenido(partida.estado)) {
         const e = partida.estado
         this.seguidor.fijar(e, e.personaje, {
           x: tocado.x / TAM_CASILLA,
@@ -950,6 +1073,8 @@ export class EscenaValle extends Phaser.Scene {
     const enVida = modo === 'vida'
     this.control.arrastreActivo = !enVida || ARRASTRE_EN_MODO_VIDA
     this.control.seguirActivo = enVida
+    // La interfaz de Vida se pinta un par de fotogramas después: se re-mide un rato (sin saltar de más).
+    if (enVida) this.remedirMargenes = 20
     this.actualizarMargenes()
   }
 

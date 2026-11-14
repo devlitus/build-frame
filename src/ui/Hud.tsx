@@ -1,6 +1,8 @@
 import type { ModoJuego } from '../core'
 import type { Partida } from '../game/partida'
 import { Aviso } from './Aviso'
+import { BarraHerramientas, BotonAccion } from './BarraHerramientas'
+import { BotonInventario, PanelInventario } from './PanelInventario'
 import { ControlesTiempo } from './ControlesTiempo'
 import { Dinero } from './Dinero'
 import { Materiales } from './Materiales'
@@ -38,6 +40,16 @@ export function BotonModo() {
       {modo === 'vida' ? t('modoVida') : t('modoPlano')}
     </button>
   )
+}
+
+/** Ayuda de teclado del Modo Vida para lectores de pantalla (la enlaza el contenedor del juego con `aria-describedby`). */
+function AyudaVida() {
+  const vida = useEstado((e) => e.modo === 'vida')
+  return vida ? (
+    <p id="ayuda-vida" class="solo-lector">
+      {t('ayudaVida')}
+    </p>
+  ) : null
 }
 
 /** Ayuda de teclado del Modo Plano para lectores de pantalla (la enlaza el lienzo con `aria-describedby`). */
@@ -90,10 +102,17 @@ export function Hud({ partida, debug = false }: { partida: Partida; debug?: bool
           <Aviso />
         </div>
         <AyudaPlano />
+        <AyudaVida />
         <PanelParcela />
         <PanelEdificio />
         <BarraZonas />
         <PanelConstruir />
+        <PanelInventario />
+        <BarraHerramientas />
+        <div class="botones-vida">
+          <BotonInventario />
+          <BotonAccion />
+        </div>
         <div class="botones-inferiores">
           <BotonConstruir />
           <BotonZonas />

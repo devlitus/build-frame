@@ -7,6 +7,16 @@ import { empezarDiaSiguiente, type ObraTerminada } from './obras'
 import { colocacionValida, type MotivoColocacion } from './construccion'
 import { defEdificio, edificiosValidos, type Coste, type TipoEdificio } from './edificios'
 import { reembolso } from './reembolso'
+import {
+  cantidadDe,
+  esHerramienta,
+  esObjeto,
+  esSemilla,
+  inventarioValido,
+  type Herramienta,
+  type ObjetoId,
+} from './inventario'
+import { usarHerramienta, type ErrorUsoHerramienta, type EventoHerramienta } from './herramientas'
 
 /**
  * Todo cambio de estado del juego ocurre mediante un comando (ADR 0004).
@@ -74,6 +84,18 @@ export type Comando =
   | { readonly tipo: 'DemolerEdificio'; readonly id: number }
   /** Cancela una obra en curso y devuelve todo lo pagado (`reembolso`). Solo en Modo Plano. */
   | { readonly tipo: 'CancelarObra'; readonly id: number }
+  /** Elige la herramienta activa (una de `HERRAMIENTAS`); vale en cualquier modo. */
+  | { readonly tipo: 'ElegirHerramienta'; readonly herramienta: Herramienta }
+  /**
+   * Elige la semilla que planta la herramienta «semillas»: una semilla de las que hay en el
+   * inventario, o `null` para soltarla. No cambia de herramienta.
+   */
+  | { readonly tipo: 'ElegirSemilla'; readonly objeto: ObjetoId | null }
+  /**
+   * Usa la herramienta activa sobre la casilla (x, y): la del personaje o una de sus 8 vecinas.
+   * Solo en Modo Vida. El efecto de cada herramienta vive en `herramientas.ts`.
+   */
+  | { readonly tipo: 'UsarHerramienta'; readonly x: number; readonly y: number }
 
 /**
  * Hechos ocurridos al aplicar un comando, para que la capa de juego reaccione (avisos, efectos).
@@ -119,6 +141,9 @@ export type EventoJuego =
       readonly reembolso: Coste
     }
 
+  /** La herramienta activa se aceptó sobre la casilla (x, y); los efectos concretos llegan con M5-03 a M5-06. */
+  | EventoHerramienta
+
 export type ResultadoComando =
   | { readonly ok: true; readonly estado: EstadoJuego; readonly eventos: readonly EventoJuego[] }
   | { readonly ok: false; readonly estado: EstadoJuego; readonly error: ErrorComando }
@@ -144,6 +169,11 @@ export type ErrorComando =
   | 'no-demolible'
   /** El reembolso desbordaría el dinero o los materiales (enteros seguros). */
   | 'limite-de-recursos'
+  /** `ElegirSemilla` con un objeto que no es una semilla. */
+  | 'no-es-semilla'
+  /** `ElegirSemilla` con una semilla que no hay en el inventario. */
+  | 'sin-semillas'
+  | ErrorUsoHerramienta
   | MotivoColocacion
 
 /** El estado trae lo que necesitan los comandos de edificios (un guardado manipulado podría no traerlo). */
@@ -429,6 +459,42 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
           edificios: estado.edificios.filter((b) => b.id !== e.id),
         },
       }
+    }
+    case 'ElegirHerramienta': {
+      if (!esHerramienta(comando.herramienta)) {
+        return { ok: false, estado, error: 'parametro-invalido' }
+      }
+      if (comando.herramienta === estado.herramienta)
+        return { ok: true, estado, eventos: SIN_EVENTOS }
+      return {
+        ok: true,
+        eventos: SIN_EVENTOS,
+        estado: { ...estado, herramienta: comando.herramienta },
+      }
+    }
+    case 'ElegirSemilla': {
+      const { objeto } = comando
+      if (objeto !== null && typeof objeto !== 'string') {
+        return { ok: false, estado, error: 'parametro-invalido' }
+      }
+      if (objeto === null) {
+        if (estado.semillaElegida === null) return { ok: true, estado, eventos: SIN_EVENTOS }
+        return { ok: true, eventos: SIN_EVENTOS, estado: { ...estado, semillaElegida: null } }
+      }
+      if (!esObjeto(objeto)) return { ok: false, estado, error: 'parametro-invalido' }
+      if (!esSemilla(objeto)) return { ok: false, estado, error: 'no-es-semilla' }
+      if (!inventarioValido(estado.inventario))
+        return { ok: false, estado, error: 'estado-invalido' }
+      if (cantidadDe(estado.inventario, objeto) < 1) {
+        return { ok: false, estado, error: 'sin-semillas' }
+      }
+      if (objeto === estado.semillaElegida) return { ok: true, estado, eventos: SIN_EVENTOS }
+      return { ok: true, eventos: SIN_EVENTOS, estado: { ...estado, semillaElegida: objeto } }
+    }
+    case 'UsarHerramienta': {
+      const r = usarHerramienta(estado, comando.x, comando.y)
+      if (!r.ok) return { ok: false, estado, error: r.error }
+      return { ok: true, eventos: r.eventos, estado: r.estado }
     }
     default:
       return { ok: false, estado, error: 'comando-desconocido' }

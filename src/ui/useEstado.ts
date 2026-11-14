@@ -3,6 +3,7 @@ import { useContext, useEffect, useRef, useState } from 'preact/hooks'
 import type { EstadoJuego, TipoEdificio } from '../core'
 import type { OrigenConfirmacion, Silueta } from '../game/construir'
 import type { AccionConfirmable, OrigenConfirmacionEdificio } from '../game/edificioSeleccion'
+import type { OrigenInventario } from '../game/panelInventario'
 import type { HerramientaPincel } from '../game/pincel'
 import type { Partida } from '../game/partida'
 
@@ -161,4 +162,21 @@ export function useSilueta(): Silueta | undefined {
     }
   }, [partida])
   return partida.silueta()
+}
+
+/** ¿Está abierto el panel de inventario (y quién lo abrió)? Repinta al cambiar. */
+export function useInventarioAbierto(): { abierto: boolean; origen: OrigenInventario } {
+  const { inventario } = usePartida()
+  const [, repintar] = useState(0)
+  useEffect(() => {
+    let visto = inventario.abierto
+    const actualizar = () => {
+      if (visto === inventario.abierto) return
+      visto = inventario.abierto
+      repintar((n) => n + 1)
+    }
+    actualizar() // por si cambió entre el render y la suscripción
+    return inventario.suscribir(actualizar)
+  }, [inventario])
+  return { abierto: inventario.abierto, origen: inventario.origen }
 }

@@ -1141,3 +1141,390 @@ body {
   }
 }
 /* === Fin M4-06 === */
+
+/* === M5-01 · Herramientas e inventario (Modo Vida) === */
+/*
+ * Botones del Modo Vida (Inventario y acción): una columna a la derecha, sobre el botón de modo.
+ * El resto de la franja inferior queda libre para apoyar el pulgar y arrastrar el joystick.
+ */
+.botones-vida {
+  position: absolute;
+  right: 12px;
+  bottom: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.boton-accion,
+.boton-inventario {
+  pointer-events: auto;
+  font: inherit;
+  font-weight: 700;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0.4rem 0.9rem;
+  border: 2px solid var(--tierra);
+  border-radius: 999px;
+  background: var(--crema);
+  color: var(--tierra);
+  box-shadow: 0 2px 8px var(--sombra);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.boton-accion {
+  background: var(--tierra);
+  color: var(--crema);
+  border-color: var(--tinta);
+}
+
+.boton-accion:focus-visible,
+.boton-inventario:focus-visible,
+.herramienta-boton:focus-visible,
+.ranura-boton:focus-visible {
+  outline: 3px solid var(--crema);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px var(--tinta),
+    0 4px 12px var(--sombra);
+}
+
+/*
+ * Barra de herramientas: abajo a la izquierda, nunca bajo el centro de la pantalla (el personaje
+ * puede quedar pegado al borde del valle y no debe taparla). En vertical pasa a una columna en el
+ * borde izquierdo (ver más abajo). Solo la caja interior recoge los toques.
+ */
+.barra-herramientas {
+  position: absolute;
+  left: 8px;
+  bottom: 12px;
+  display: flex;
+  pointer-events: none;
+}
+
+.barra-herramientas-caja {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px 4px;
+  border-radius: 16px;
+  background: rgb(246 236 214 / 96%);
+  border: 2px solid var(--tierra);
+  box-shadow: 0 4px 16px var(--sombra);
+}
+
+.herramientas-fila {
+  display: flex;
+  gap: 4px;
+}
+
+.herramienta-boton {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  padding: 0;
+  border: 2px solid var(--tierra);
+  border-radius: 12px;
+  background: var(--crema);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* La activa no depende solo del color: borde grueso, fondo claro y su nombre en el rótulo. */
+.herramienta-boton[aria-pressed='true'] {
+  border: 4px solid var(--tinta);
+  background: #ffe9a8;
+}
+
+.herramienta-boton img {
+  display: block;
+  pointer-events: none;
+}
+
+.herramienta-tecla {
+  position: absolute;
+  top: 1px;
+  left: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--tinta);
+}
+
+.herramienta-activa {
+  margin: 0;
+  max-width: 100%;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--tinta);
+  text-align: center;
+}
+
+/* Con el dedo no hay teclas que enseñar. */
+@media (pointer: coarse) {
+  .herramienta-tecla {
+    display: none;
+  }
+}
+
+/* Encima de la barra de herramientas; solo la caja interior recoge los toques. */
+.panel-inventario {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 108px;
+  display: flex;
+  justify-content: flex-start;
+  pointer-events: none;
+}
+
+.panel-inventario:focus {
+  outline: none;
+}
+
+.panel-inventario-caja {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(100%, 620px);
+  max-height: min(55vh, calc(100dvh - 250px));
+  overflow-y: auto;
+  padding: 8px 10px 10px;
+  border-radius: 16px;
+  background: rgb(246 236 214 / 96%);
+  color: var(--tinta);
+  border: 2px solid var(--tierra);
+  box-shadow: 0 4px 16px var(--sombra);
+  touch-action: pan-y;
+}
+
+/* Pista de desplazamiento: degradado con flecha pegado al borde inferior mientras queden ranuras por ver. */
+.panel-inventario-caja.hay-mas::after {
+  content: '▼';
+  position: sticky;
+  bottom: -10px;
+  flex: none;
+  height: 26px;
+  margin: -20px -10px -10px;
+  padding-top: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--tinta);
+  background: linear-gradient(rgb(246 236 214 / 0%), rgb(246 236 214) 60%);
+  pointer-events: none;
+}
+
+.panel-inventario:focus-visible .panel-inventario-caja {
+  outline: 3px solid var(--tinta);
+  outline-offset: 2px;
+}
+
+.inventario-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.inventario-titulo {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.inventario-cabecera .boton-cerrar {
+  flex: none;
+}
+
+.inventario-capacidad {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventario-capacidad-sobra {
+  color: #8a1f11;
+}
+
+.inventario-aviso {
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: #f4d9cf;
+  border: 2px solid #8a1f11;
+  font-size: 0.85rem;
+}
+
+.inventario-ayuda {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.ranuras {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ranura {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 92px;
+  padding: 4px;
+  border: 2px solid var(--tierra);
+  border-radius: 10px;
+  background: #fff8e6;
+  font-size: 0.72rem;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.ranura-vacia {
+  border-style: dashed;
+  background: transparent;
+  opacity: 0.65;
+}
+
+/* Fuera de capacidad: borde discontinuo rojo y fondo rayado (no solo color). */
+.ranura-fuera {
+  border: 2px dashed #8a1f11;
+  background: repeating-linear-gradient(135deg, #fff8e6 0 6px, #f4d9cf 6px 12px);
+}
+
+.ranura-boton {
+  all: unset;
+  box-sizing: border-box;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px;
+  min-height: 44px;
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.ranura-boton[aria-pressed='true'] {
+  background: #ffe9a8;
+  box-shadow: inset 0 0 0 3px var(--tinta);
+}
+
+.ranura-boton[aria-pressed='true']::after {
+  content: '✓';
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.ranura-icono {
+  display: block;
+  width: 32px;
+  height: 32px;
+}
+
+.ranura-placeholder {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--hierba);
+  border: 2px solid var(--tierra);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.ranura-nombre {
+  overflow-wrap: anywhere;
+}
+
+.ranura-cantidad {
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Apaisado y bajo: sin el rótulo, la barra es más baja y el panel queda a su izquierda. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .herramienta-activa {
+    display: none;
+  }
+
+  .panel-inventario {
+    bottom: 84px;
+    right: auto;
+    width: min(440px, 58vw);
+  }
+
+  .panel-inventario-caja {
+    width: 100%;
+    max-height: calc(100dvh - 215px);
+  }
+
+  .inventario-ayuda {
+    display: none;
+  }
+}
+
+/*
+ * Vertical: la barra pasa a una columna en el borde izquierdo (el rótulo queda solo para lectores
+ * de pantalla) y el panel de inventario ocupa el resto del ancho, sobre los botones de abajo.
+ */
+@media (orientation: portrait) {
+  .herramientas-fila {
+    flex-direction: column;
+  }
+
+  .herramienta-activa {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /*
+   * A la derecha de la columna de herramientas (76 px) con holgura, y más bajo que el centro de la
+   * pantalla: la cámara centra al personaje, así que la hoja solo ocupa la mitad inferior.
+   */
+  .panel-inventario {
+    left: 88px;
+    bottom: 136px;
+  }
+
+  .panel-inventario-caja {
+    max-height: max(214px, calc(50dvh - 160px));
+  }
+
+  .inventario-ayuda {
+    display: none;
+  }
+
+  .ranuras {
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  }
+}
+/* === Fin herramientas e inventario === */
