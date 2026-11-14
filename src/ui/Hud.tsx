@@ -109,9 +109,11 @@ export function Hud({ partida, debug = false }: { partida: Partida; debug?: bool
         <PanelConstruir />
         <PanelInventario />
         <BarraHerramientas />
-        <div class="botones-inferiores">
+        <div class="botones-vida">
           <BotonInventario />
           <BotonAccion />
+        </div>
+        <div class="botones-inferiores">
           <BotonConstruir />
           <BotonZonas />
           <BotonModo />
