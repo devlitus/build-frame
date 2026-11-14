@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Recursos | `cultivos/<patata\|zanahoria\|lechuga\|rabano\|fresa>`; `objetos/planton` |
-| Estado | Cultivos aprobados en la PARADA 1 de M5 (2026-11-13) |
+| Estado | Cultivos aprobados en la PARADA 1 de M5 (2026-11-13); plantón entregado en el lote 2 (2026-11-14) |
 | Modelo 3D | `assets-src/cultivos/blender/cultivos.py` (reutiliza material, cámara y luz de `edificios/blender/edificios.py`) |
 | Acuarela | Qwen-Image 2512 fp8 img2img, *denoise* **0,5**, 30 pasos, CFG 4, euler/simple, AuraFlow 3.1, ControlNet InstantX Union (Canny) a 0,8 hasta el 80 %, **semilla 8201** |
 | Generador | `assets-src/cultivos/comfy/acuarela_cultivos.py` (*prompts* en `CULTIVOS` y para `planton`) |
