@@ -168,14 +168,7 @@ export function empezarDiaSiguiente(
     minutoDelDia: CONFIG_TIEMPO.horaInicio,
     energia: energiaAlEmpezarDia(motivo),
   })
-<<<<<<< HEAD
   // Los plantones crecen con el personaje ya recolocado: si despierta sobre uno, espera un día.
   const despierto = { ...r.estado, personaje: personajeAlDespertar(r.estado) }
-  return { estado: crecerPlantones(despierto), eventos: r.eventos }
-=======
-  return {
-    estado: { ...r.estado, personaje: personajeAlDespertar(r.estado) },
-    eventos: [...r.eventos, ...c.eventos],
-  }
->>>>>>> 6865d53 (feat(riego): regadera, crecimiento diario y marchitarse con necesidad de agua por cultivo (M5-04))
+  return { estado: crecerPlantones(despierto), eventos: [...r.eventos, ...c.eventos] }
 }

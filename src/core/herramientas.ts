@@ -51,7 +51,6 @@ export interface EventoHerramientaUsada {
   readonly y: number
 }
 
-<<<<<<< HEAD
 /** Un golpe de hacha o pico que aún no acaba con el obstáculo; quedan `restantes` golpes. */
 export interface EventoObstaculoGolpeado {
   readonly tipo: 'obstaculo-golpeado'
@@ -94,10 +93,7 @@ export type EventoHerramienta =
   | EventoObstaculoQuitado
   | EventoPlantonPlantado
   | EventoPlantonPerdido
-=======
-export type EventoHerramienta =
-  EventoHerramientaUsada | EventoTierraArada | EventoPlantaSembrada | EventoPlantaRegada
->>>>>>> 6865d53 (feat(riego): regadera, crecimiento diario y marchitarse con necesidad de agua por cultivo (M5-04))
+  | EventoPlantaRegada
 
 export type ResultadoEfecto =
   | {
