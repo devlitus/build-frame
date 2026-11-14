@@ -253,9 +253,9 @@ describe('M5-04 · guardados manipulados', () => {
     expect(r.tierra.slice(5, 9)).toBe('xZ0@')
   })
 
-  // S3 (guardado manipulado): con diasSinAgua = MAX_SAFE_INTEGER la suma sale del rango seguro y
-  // `tierraValida` deja de aceptar el estado: toda la granja queda congelada para siempre.
-  it.fails('diasSinAgua gigante en una planta viva la marchita y no desborda', () => {
+  // Regresión del S3 hallado por el Rompedor (guardado manipulado): con diasSinAgua = MAX_SAFE_INTEGER
+  // la suma salía del rango seguro y congelaba la granja; `crecerPlantas` ahora satura el contador.
+  it('diasSinAgua gigante en una planta viva la marchita y no desborda', () => {
     const e: EstadoJuego = {
       ...poner(campo, i, 'a'),
       plantas: [[i, 0, 0, 0, Number.MAX_SAFE_INTEGER, 0]],

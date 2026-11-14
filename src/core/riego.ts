@@ -164,7 +164,8 @@ export function crecerPlantas(estado: EstadoJuego): {
     } else if (mojada) {
       nueva = [p[0], p[1], p[2] + 1, 0, 0, 0]
     } else {
-      const sinAgua = p[4] + 1
+      // Saturado: al marchitarse deja de contar, así un guardado con un valor enorme no desborda.
+      const sinAgua = Math.min(p[4] + 1, def.necesidadAgua.diasSinRegar)
       nueva = [p[0], p[1], p[2], 0, sinAgua, sinAgua >= def.necesidadAgua.diasSinRegar ? 1 : 0]
     }
     if (nueva !== p) cambioPlantas = true
