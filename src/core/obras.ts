@@ -171,9 +171,26 @@ export function casillaDeCama(estado: EstadoJuego): { x: number; y: number } {
   return { x: Math.floor(p.x), y: Math.floor(p.y) }
 }
 
-/** ¿Está el personaje en la casilla de la cama o en una de sus 8 vecinas (Chebyshev ≤ 1)? */
+/** Casilla de la puerta de la casa terminada de menor id (sin casa, la de la aparición). */
+function casillaDePuerta(estado: EstadoJuego): { x: number; y: number } {
+  const casa = estado.edificios
+    .filter((e) => e.tipo === 'casa' && e.obra === null)
+    .sort((a, b) => a.id - b.id)[0]
+  const def = casa && defEdificio(casa.tipo)
+  if (!casa || !def) return casillaDeCama(estado)
+  const puerta = puertaDe(def, casa.x, casa.y)
+  return { x: puerta.x, y: puerta.y }
+}
+
+/**
+ * ¿Está el personaje a Chebyshev <= 1 de la casilla de despertar (la cama) o de la puerta de la
+ * casa? Si la puerta está tapada, la cama se desplaza y valen ambas.
+ */
 export function juntoALaCama(estado: EstadoJuego): boolean {
-  const c = casillaDeCama(estado)
   const p = estado.personaje
-  return Math.max(Math.abs(Math.floor(p.x) - c.x), Math.abs(Math.floor(p.y) - c.y)) <= 1
+  const px = Math.floor(p.x)
+  const py = Math.floor(p.y)
+  return [casillaDeCama(estado), casillaDePuerta(estado)].some(
+    (c) => Math.max(Math.abs(px - c.x), Math.abs(py - c.y)) <= 1,
+  )
 }

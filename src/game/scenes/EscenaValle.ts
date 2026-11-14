@@ -298,7 +298,7 @@ export class EscenaValle extends Phaser.Scene {
         this.zonas?.actualizar(partida.estado)
         this.edificios?.actualizar(partida.estado, zoomLogico(this))
       }
-      if (cambio.eventos.some((e) => e.tipo === 'desmayo')) {
+      if (cambio.eventos.some((e) => e.tipo === 'desmayo' || e.tipo === 'dormido')) {
         this.seguidor.cancelar()
         this.desmayoVisto = true
       }
@@ -590,7 +590,8 @@ export class EscenaValle extends Phaser.Scene {
       if (!ev.repeat) partida.usarEnfrente()
     } else if (ev.code === 'KeyZ') {
       ev.preventDefault()
-      if (!ev.repeat) partida.dormir()
+      // Con el inventario abierto el botón Dormir está oculto: la tecla tampoco duerme.
+      if (!ev.repeat && !partida.inventario.abierto) partida.dormir()
     } else if (ev.code === 'KeyI') {
       ev.preventDefault()
       if (!ev.repeat) partida.inventario.alternar('teclado')
