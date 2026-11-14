@@ -134,7 +134,9 @@ async function franjasPermitidas(p: Page) {
   const columna = barra.width < barra.height
   return {
     izq: columna ? barra.x + barra.width + HOLGURA : 0,
-    arriba: 0,
+    // Orquestador (M5-01, ronda 3): con los pies en la fila 0 la cabeza sobresale del valle; el
+    // test de «cabeza visible» manda, así que arriba se tolera lo que sobresale el sprite (≤ 16 px).
+    arriba: 16,
     der: 0,
     abajo: columna ? 0 : vp.height - barra.y + HOLGURA,
   }

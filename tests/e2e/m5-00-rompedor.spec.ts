@@ -422,6 +422,9 @@ test.describe('giro y cambio de tamaño con DPR 2', () => {
       expect(r.cw).toBe(w)
       expect(r.c?.ancho).toBeCloseTo(w, 0)
       expect(r.c?.alto).toBeCloseTo(h, 0)
+      // Orquestador (M5-01): desde M5-01 un toque al alcance (≤ 1 casilla) usa la herramienta. Hay
+      // que esperar a que el personaje termine la vuelta anterior antes de medir a 2 casillas.
+      await expect.poll(() => page.evaluate(() => window.__raices?.destino() ?? null)).toBeNull()
       const p = await personaje(page)
       const objetivo = { x: Math.floor(p.x) + 2, y: Math.floor(p.y) - 1 }
       const pt = await page.evaluate(
