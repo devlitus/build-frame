@@ -28,3 +28,13 @@ describe('parámetros de depuración del tiempo', () => {
     expect(minutoDeHora(null)).toBeUndefined()
   })
 })
+
+describe('parámetro de depuración del aviso', () => {
+  it('?aviso solo vale con ?debug y se acota', () => {
+    expect(leerParametros('?aviso=300').aviso).toBeUndefined()
+    expect(leerParametros('?debug&aviso=300').aviso).toBe(300)
+    expect(leerParametros('?debug&aviso=0').aviso).toBeUndefined()
+    expect(leerParametros('?debug&aviso=abc').aviso).toBeUndefined()
+    expect(leerParametros('?debug&aviso=999999').aviso).toBe(60_000)
+  })
+})

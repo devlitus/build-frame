@@ -21,7 +21,12 @@ export interface ParametrosUrl {
   readonly hora?: number
   /** Solo con `debug`: dinero con el que empieza la partida (`?debug&dinero=0`). */
   readonly dinero?: number
+  /** Solo con `debug`: milisegundos que se muestra el aviso (`?debug&aviso=300`); lo usan los e2e. */
+  readonly aviso?: number
 }
+
+/** Máximo de `?aviso` en milisegundos (un minuto). */
+export const AVISO_MAXIMO_MS = 60_000
 
 /** Máximo de `?acelerar`: más allá no aporta nada y solo agranda los saltos de reloj. */
 export const ACELERAR_MAXIMO = 2000
@@ -76,6 +81,7 @@ export function leerParametros(busqueda: string): ParametrosUrl {
   const seleccion = debug ? entero(q.get('seleccion')) : undefined
   const hora = debug ? minutoDeHora(q.get('hora')) : undefined
   const dinero = debug ? entero(q.get('dinero')) : undefined
+  const aviso = debug ? entero(q.get('aviso')) : undefined
   return {
     ...(semilla === undefined ? {} : { semilla }),
     debug,
@@ -88,6 +94,7 @@ export function leerParametros(busqueda: string): ParametrosUrl {
     ...(seleccion === undefined ? {} : { seleccion }),
     ...(hora === undefined ? {} : { hora }),
     ...(dinero === undefined || dinero < 0 ? {} : { dinero }),
+    ...(aviso === undefined || aviso < 1 ? {} : { aviso: Math.min(aviso, AVISO_MAXIMO_MS) }),
   }
 }
 

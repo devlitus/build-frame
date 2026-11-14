@@ -63,5 +63,25 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // E2E: avoid fixed sleeps; wait for conditions with the helpers in tests/e2e/apoyo/.
+    // "warn" while the legacy specs are migrated (E2E-05..07).
+    files: ['tests/e2e/**/*.ts'],
+    rules: {
+      'no-restricted-properties': [
+        'warn',
+        {
+          object: 'page',
+          property: 'waitForTimeout',
+          message:
+            'Wait for a condition (poll, waitFrames, unchanged). A real wait goes in tests/e2e/apoyo/ with `// real-wait: <reason>`.',
+        },
+      ],
+    },
+  },
+  {
+    files: ['tests/e2e/apoyo/**/*.ts'],
+    rules: { 'no-restricted-properties': 'off' },
+  },
   prettier,
 )

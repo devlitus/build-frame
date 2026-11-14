@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useState } from 'preact/hooks'
+import { leerParametros } from '../game/parametros'
 import { casaTerminada, despiertaEnCasa } from '../core'
 import { nombreEdificio, textoColocacion, textoReembolso } from './construirTextos'
 import { nombreParcela, textoPrecio } from './parcelaTextos'
 import { existeTexto, t, tp, type ClaveTexto } from './textos'
 import { usePartida } from './useEstado'
 
-/** Milisegundos que se muestra el aviso. */
+/** Milisegundos que se muestra el aviso (`?debug&aviso=<ms>` lo acorta en los e2e). */
 const MS_AVISO = 6000
 /** Pausa entre quitar y volver a poner el texto, para que se anuncie de nuevo. */
 const MS_REANUNCIO = 80
@@ -28,6 +29,7 @@ export function Aviso() {
   const partida = usePartida()
   const [texto, setTexto] = useState<string | undefined>(undefined)
   useEffect(() => {
+    const msAviso = leerParametros(window.location.search).aviso ?? MS_AVISO
     let mostrar: ReturnType<typeof setTimeout> | undefined
     let ocultar: ReturnType<typeof setTimeout> | undefined
     const mostrarAviso = (nuevo: string): void => {
@@ -36,7 +38,7 @@ export function Aviso() {
       setTexto(undefined)
       mostrar = setTimeout(() => {
         setTexto(nuevo)
-        ocultar = setTimeout(() => setTexto(undefined), MS_AVISO)
+        ocultar = setTimeout(() => setTexto(undefined), msAviso)
       }, MS_REANUNCIO)
     }
     const baja = partida.suscribir(({ eventos, estado }) => {
