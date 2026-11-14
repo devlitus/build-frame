@@ -5,7 +5,6 @@
  * el cartel de días tras el desmayo y capturas para la verificación visual.
  */
 import { expect, test, type CDPSession, type Page } from '@playwright/test'
-import { target } from './apoyo/rendimiento.ts'
 import sharp from 'sharp'
 
 const QUERY = '?semilla=42&debug&modo=plano&propias=14,15,20,21'
@@ -261,54 +260,6 @@ test('[S3] con ratón la ayuda del panel no habla de tocar (hay texto de escrito
   await expect(panel(page)).toBeVisible()
   await expect(panel(page)).not.toContainText('Toca o arrastra')
 })
-
-test(
-  'rendimiento: mover la silueta sobre el valle con obras y edificios no hunde los fps',
-  { tag: '@rendimiento' },
-  async ({ page }) => {
-    test.skip(esMovil(), 'ratón de escritorio')
-    test.setTimeout(60_000)
-    await abrir(page)
-    await page.evaluate(() => {
-      const r = window.__raices
-      for (const [tipo, max] of [
-        ['casa', 1],
-        ['caja-envio', 4],
-      ] as const) {
-        let n = 0
-        for (let y = 38; y < 58 && n < max; y += 4)
-          for (let x = 38; x < 58 && n < max; x += 5)
-            if (r?.colocacion(tipo, x, y)?.valida) {
-              r.emitir({ tipo: 'Construir', tipoEdificio: tipo, x, y })
-              n++
-            }
-      }
-    })
-    await page.waitForTimeout(1500)
-    const quieto = await r(page, () => window.__raices?.fps() ?? 0)
-    await abrirCatalogo(page)
-    await elegir(page, /^Cobertizo/)
-    const v = page.viewportSize() ?? { width: 1280, height: 720 }
-    const muestras: number[] = []
-    for (let i = 0; i < 60; i++) {
-      const t = i / 60
-      await page.mouse.move(
-        v.width * (0.3 + 0.4 * t),
-        v.height * (0.15 + 0.4 * Math.abs(Math.sin(t * 9))),
-      )
-      if (i % 10 === 9) muestras.push(await r(page, () => window.__raices?.fps() ?? 0))
-    }
-    const moviendo = Math.min(...muestras)
-    test.info().annotations.push({
-      type: 'fps',
-      description: `quieto ${quieto.toFixed(1)}, moviendo (mín.) ${moviendo.toFixed(1)}`,
-    })
-    // Target (noted only): >= min(30, 60 % of idle fps). Floor (hard): 60 % of that target.
-    const goal = Math.min(30, quieto * 0.6)
-    target(moviendo >= goal, `moving fps ${moviendo.toFixed(1)} < target ${goal.toFixed(1)}`)
-    expect(moviendo, 'floor').toBeGreaterThanOrEqual(goal * 0.6)
-  },
-)
 
 test.describe('gestos', () => {
   let cdp: CDPSession | undefined

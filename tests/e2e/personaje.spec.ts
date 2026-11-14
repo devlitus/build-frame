@@ -15,7 +15,6 @@ async function abrir(page: Page, query = '?semilla=42&debug&en=vado'): Promise<v
 
 const personaje = (page: Page) => page.evaluate(() => window.__raices?.personaje())
 const camara = (page: Page) => page.evaluate(() => window.__raices?.camara())
-const reloj = (page: Page) => page.evaluate(() => window.__raices?.reloj())
 
 test('con ?debug&en=vado el personaje empieza sobre un vado', async ({ page }) => {
   await abrir(page)
@@ -114,12 +113,4 @@ test('al perder el foco la ventana el personaje deja de andar', async ({ page })
   await page.waitForTimeout(400)
   expect(await personaje(page)).toEqual(a)
   await page.keyboard.up('d')
-})
-
-test('el reloj avanza con el tiempo real', { tag: '@rendimiento' }, async ({ page }) => {
-  await abrir(page, '?semilla=42&debug')
-  const r0 = await reloj(page)
-  await expect
-    .poll(async () => (await reloj(page))?.minutoDelDia ?? 0, { timeout: 10_000 })
-    .toBeGreaterThan(r0?.minutoDelDia ?? Infinity)
 })

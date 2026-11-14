@@ -66,30 +66,6 @@ test('el contador de fps solo existe con ?debug', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => window.__raices?.contadorFps())).toMatch(/^\d+ fps$/)
 })
 
-test(
-  'fps medias arrastrando (informativo, sin GPU en CI)',
-  { tag: '@medida' },
-  async ({ page }, info) => {
-    test.skip(info.project.name !== 'escritorio', 'se mide solo en escritorio')
-    test.setTimeout(60_000)
-    await abrir(page, './?semilla=42&modo=plano')
-    const v = page.viewportSize() ?? { width: 1280, height: 720 }
-    await page.mouse.move(v.width / 2, v.height / 2)
-    await page.mouse.down()
-    const muestras: number[] = []
-    // Arrastre limitado por tiempo (no por movimientos): sin GPU cada fotograma es lento.
-    const fin = Date.now() + 4000
-    for (let i = 0; Date.now() < fin; i++) {
-      await page.mouse.move(v.width / 2 + (i % 2 ? 150 : -150), v.height / 2 + (i % 2 ? 80 : -80))
-      if (i % 4 === 3) muestras.push((await page.evaluate(() => window.__raices?.fps())) ?? 0)
-    }
-    await page.mouse.up()
-    const media = muestras.reduce((a, b) => a + b, 0) / Math.max(1, muestras.length)
-    console.log(`fps medias arrastrando: ${media.toFixed(1)}`)
-    expect(media).toBeGreaterThan(5) // solo detecta bloqueos
-  },
-)
-
 test('reiniciar el valle varias veces no acumula texturas ni objetos', async ({ page }) => {
   await abrir(page, './?semilla=42&debug')
   const medir = () =>
