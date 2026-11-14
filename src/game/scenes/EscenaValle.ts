@@ -103,7 +103,7 @@ export class EscenaValle extends Phaser.Scene {
   private dineroDepuracion: number | undefined = undefined
   private hora: number | undefined = undefined
   private tactil: ControlTactil | undefined = undefined
-  private desmayoVisto = false
+  private despertarVisto = false
   private desuscribir: (() => void) | undefined = undefined
   private marca: MarcaDestino | undefined = undefined
   private readonly seguidor = new SeguidorCamino()
@@ -289,7 +289,7 @@ export class EscenaValle extends Phaser.Scene {
     this.seguidor.cancelar()
     // El desmayo puede emitirse fuera de `update()` (p. ej. dormir desde la interfaz): se
     // atiende al evento de la partida, no a lo visto en el bucle.
-    this.desmayoVisto = false
+    this.despertarVisto = false
     this.desuscribir?.()
     this.desuscribir = partida.suscribir((cambio) => {
       // Zonas y edificios se redibujan en cuanto cambian (no esperan al siguiente fotograma): así la
@@ -300,7 +300,7 @@ export class EscenaValle extends Phaser.Scene {
       }
       if (cambio.eventos.some((e) => e.tipo === 'desmayo' || e.tipo === 'dormido')) {
         this.seguidor.cancelar()
-        this.desmayoVisto = true
+        this.despertarVisto = true
       }
     })
     this.selector = new SelectorParcela(this, (p) => {
@@ -535,7 +535,7 @@ export class EscenaValle extends Phaser.Scene {
   centrarCamaraEn(cx: number, cy: number): void {
     if (!Number.isFinite(cx) || !Number.isFinite(cy)) return
     // Un centrado explícito gana al salto pendiente del desmayo.
-    this.desmayoVisto = false
+    this.despertarVisto = false
     this.control?.centrarEn({ x: (cx + 0.5) * TAM_CASILLA, y: (cy + 0.5) * TAM_CASILLA })
   }
 
@@ -1045,9 +1045,9 @@ export class EscenaValle extends Phaser.Scene {
     this.vista?.colocar(p, ms)
     const punto = { x: p.x * TAM_CASILLA, y: p.y * TAM_CASILLA }
     const real = Number.isFinite(delta) ? Math.min(Math.max(delta, 0), 1000) : 0
-    // Tras un desmayo el personaje reaparece lejos: la cámara salta, sin barrido.
-    if (this.desmayoVisto) {
-      this.desmayoVisto = false
+    // Tras un desmayo o al dormir el personaje reaparece lejos: la cámara salta, sin barrido.
+    if (this.despertarVisto) {
+      this.despertarVisto = false
       this.control?.centrarEn(punto)
     }
     // El suavizado de la cámara usa el tiempo real (no el acotado del juego): con pocos fps

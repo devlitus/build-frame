@@ -228,11 +228,13 @@
   "errorHerramienta_otro": "No se pudo usar la herramienta",
   "energiaAria": "Energía",
   "energiaValor": "{n} de {max}",
+  "energiaValorBaja": "{n} de {max}, baja",
   "avisoDormido": "Has dormido bien. Empieza un nuevo día",
   "avisoDormidoCasa": "Has dormido bien. Despiertas en casa",
   "dormirBoton": "Dormir",
   "dormirBotonAyuda": "Dormir y pasar al día siguiente (Z)",
   "errorDormir_lejos-de-la-cama": "Para dormir acércate a la puerta de tu casa",
+  "errorDormir_lejos-de-la-cama-sin-casa": "Para dormir vuelve a la entrada del valle",
   "errorDormir_solo-en-vida": "Solo se duerme en el Modo Vida",
   "errorDormir_otro": "No se pudo dormir",
   "ayudaVida": "Modo Vida. WASD o las flechas mueven al personaje. Las teclas 1 a 6 eligen la herramienta: azada, regadera, semillas, mano, hacha y pico. E o Espacio la usan en la casilla de enfrente, y un clic en una casilla pegada al personaje la usa ahí. I abre y cierra el inventario. Junto a la puerta de tu casa, Z duerme y pasa al día siguiente. Cada uso de una herramienta gasta energía."

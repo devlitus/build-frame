@@ -83,6 +83,13 @@ export function despiertaEnCasa(estado: EstadoJuego): boolean {
   return p.x !== a.x || p.y !== a.y
 }
 
+/** La casa terminada de menor id (la que hace de hogar), si hay alguna. */
+export function casaTerminada(estado: EstadoJuego): Edificio | undefined {
+  return estado.edificios
+    .filter((e) => e.tipo === 'casa' && e.obra === null)
+    .sort((a, b) => a.id - b.id)[0]
+}
+
 /**
  * Dónde despierta el personaje al empezar un día, con las obras ya actualizadas: en la puerta
  * de la casa terminada (la de menor id) o, si no hay, en la aparición.
@@ -95,9 +102,7 @@ export function despiertaEnCasa(estado: EstadoJuego): boolean {
  */
 export function personajeAlDespertar(estado: EstadoJuego): Personaje {
   const aparicion = personajeEnAparicion(estado.aparicion)
-  const casa = estado.edificios
-    .filter((e) => e.tipo === 'casa' && e.obra === null)
-    .sort((a, b) => a.id - b.id)[0]
+  const casa = casaTerminada(estado)
   const def = casa && defEdificio(casa.tipo)
   if (!casa || !def) return aparicion
   const mapa = mapaTransitabilidad(estado)
@@ -148,7 +153,7 @@ export function personajeAlDespertar(estado: EstadoJuego): Personaje {
  */
 export function empezarDiaSiguiente(
   estado: EstadoJuego,
-  motivo: MotivoCambioDeDia = 'desmayo',
+  motivo: MotivoCambioDeDia,
 ): {
   readonly estado: EstadoJuego
   readonly eventos: readonly ObraTerminada[]
@@ -160,37 +165,4 @@ export function empezarDiaSiguiente(
     energia: energiaAlEmpezarDia(motivo),
   })
   return { estado: { ...r.estado, personaje: personajeAlDespertar(r.estado) }, eventos: r.eventos }
-}
-
-/**
- * Casilla de la cama: donde despierta el personaje (la puerta de la casa terminada o, si no hay,
- * la aparición).
- */
-export function casillaDeCama(estado: EstadoJuego): { x: number; y: number } {
-  const p = personajeAlDespertar(estado)
-  return { x: Math.floor(p.x), y: Math.floor(p.y) }
-}
-
-/** Casilla de la puerta de la casa terminada de menor id (sin casa, la de la aparición). */
-function casillaDePuerta(estado: EstadoJuego): { x: number; y: number } {
-  const casa = estado.edificios
-    .filter((e) => e.tipo === 'casa' && e.obra === null)
-    .sort((a, b) => a.id - b.id)[0]
-  const def = casa && defEdificio(casa.tipo)
-  if (!casa || !def) return casillaDeCama(estado)
-  const puerta = puertaDe(def, casa.x, casa.y)
-  return { x: puerta.x, y: puerta.y }
-}
-
-/**
- * ¿Está el personaje a Chebyshev <= 1 de la casilla de despertar (la cama) o de la puerta de la
- * casa? Si la puerta está tapada, la cama se desplaza y valen ambas.
- */
-export function juntoALaCama(estado: EstadoJuego): boolean {
-  const p = estado.personaje
-  const px = Math.floor(p.x)
-  const py = Math.floor(p.y)
-  return [casillaDeCama(estado), casillaDePuerta(estado)].some(
-    (c) => Math.max(Math.abs(px - c.x), Math.abs(py - c.y)) <= 1,
-  )
 }

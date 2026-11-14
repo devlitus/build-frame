@@ -304,7 +304,7 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
           return { ok: false, estado, error: 'estado-invalido' }
         }
         // Único punto de cambio de día: termina obras y recoloca al personaje (obras.ts).
-        const r = empezarDiaSiguiente(estado)
+        const r = empezarDiaSiguiente(estado, 'desmayo')
         return { ok: true, eventos: [{ tipo: 'desmayo' }, ...r.eventos], estado: r.estado }
       }
       return { ok: true, eventos: SIN_EVENTOS, estado: { ...estado, minutoDelDia: minuto } }

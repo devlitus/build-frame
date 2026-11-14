@@ -105,7 +105,7 @@ test('la tecla Z duerme y el botón solo se ve donde se puede dormir', async ({
   await page.keyboard.up('w')
   const dia = (await reloj(page))?.dia ?? 0
   await page.keyboard.press('z')
-  await expect(page.locator('.aviso')).toHaveText('Para dormir acércate a la puerta de tu casa')
+  await expect(page.locator('.aviso')).toHaveText('Para dormir vuelve a la entrada del valle')
   expect((await reloj(page))?.dia).toBe(dia)
   // De vuelta junto a la cama, Z duerme.
   await page.keyboard.down('s')

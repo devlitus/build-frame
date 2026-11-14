@@ -9,6 +9,7 @@ import { useEstado } from './useEstado'
 export function Energia() {
   const energia = useEstado((e) => e.energia)
   const porcentaje = Math.max(0, Math.min(100, (energia / ENERGIA_MAXIMA) * 100))
+  const baja = energia * 4 <= ENERGIA_MAXIMA
   return (
     <div
       class="energia"
@@ -17,9 +18,12 @@ export function Energia() {
       aria-valuemin={0}
       aria-valuemax={ENERGIA_MAXIMA}
       aria-valuenow={energia}
-      aria-valuetext={tp('energiaValor', { n: energia, max: ENERGIA_MAXIMA })}
+      aria-valuetext={tp(baja ? 'energiaValorBaja' : 'energiaValor', {
+        n: energia,
+        max: ENERGIA_MAXIMA,
+      })}
       data-energia={energia}
-      data-baja={energia * 4 <= ENERGIA_MAXIMA ? 'true' : 'false'}
+      data-baja={baja ? 'true' : 'false'}
     >
       <svg
         class="energia-simbolo"
@@ -43,6 +47,11 @@ export function Energia() {
       <span class="energia-cifra" aria-hidden="true">
         {energia}
       </span>
+      {baja && (
+        <span class="energia-marca" aria-hidden="true">
+          !
+        </span>
+      )}
     </div>
   )
 }

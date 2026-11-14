@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from 'preact/hooks'
-import { despiertaEnCasa } from '../core'
+import { casaTerminada, despiertaEnCasa } from '../core'
 import { nombreEdificio, textoColocacion, textoReembolso } from './construirTextos'
 import { nombreParcela, textoPrecio } from './parcelaTextos'
 import { existeTexto, t, tp, type ClaveTexto } from './textos'
@@ -85,7 +85,10 @@ export function Aviso() {
         const clave = `errorHerramienta_${aviso.error}`
         mostrarAviso(t(existeTexto(clave) ? clave : ('errorHerramienta_otro' as ClaveTexto)))
       } else if (aviso.tipo === 'dormir-rechazado') {
-        const clave = `errorDormir_${aviso.error}`
+        const sinCasa = aviso.error === 'lejos-de-la-cama' && !casaTerminada(partida.estado)
+        const clave = sinCasa
+          ? 'errorDormir_lejos-de-la-cama-sin-casa'
+          : `errorDormir_${aviso.error}`
         mostrarAviso(t(existeTexto(clave) ? clave : ('errorDormir_otro' as ClaveTexto)))
       } else if (aviso.tipo === 'edificio-rechazado') {
         mostrarAviso(
