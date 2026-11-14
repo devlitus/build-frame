@@ -26,11 +26,10 @@ export function nombreHerramienta(h: Herramienta): string {
  * lo dice el botón «Usar …»). Con «Semillas» la semilla elegida se ve en una insignia de la ranura
  * y del botón «Usar …».
  */
-/** Icono pequeño de la semilla elegida (nada si no hay ninguna). Solo decorativo: el nombre va en el rótulo. */
-function InsigniaSemilla({ semilla }: { semilla: ObjetoId | null }) {
+/** Estilo con el icono de la semilla elegida (lo pinta el `::after` de la ranura y del botón «Usar …»). */
+function estiloSemilla(semilla: ObjetoId | null): string | undefined {
   const ruta = semilla === null ? undefined : rutaIconoObjeto(semilla)
-  if (!ruta) return null
-  return <img class="semilla-insignia" src={ruta} alt="" width="18" height="18" draggable={false} />
+  return ruta ? `--semilla-icono: url("${ruta}")` : undefined
 }
 
 export function BarraHerramientas() {
@@ -57,6 +56,7 @@ export function BarraHerramientas() {
             type="button"
             class="herramienta-boton"
             data-herramienta={h}
+            style={h === 'semillas' ? estiloSemilla(semilla) : undefined}
             aria-pressed={actual === h}
             aria-label={nombreHerramienta(h)}
             aria-keyshortcuts={String(i + 1)}
@@ -77,7 +77,6 @@ export function BarraHerramientas() {
             <span class="herramienta-tecla" aria-hidden="true">
               {i + 1}
             </span>
-            {h === 'semillas' && <InsigniaSemilla semilla={semilla} />}
           </button>
         ))}
       </div>
@@ -111,6 +110,7 @@ export function BotonAccion() {
     <button
       type="button"
       class="boton-accion"
+      style={actual === 'semillas' ? estiloSemilla(semilla) : undefined}
       aria-keyshortcuts="E Space"
       title={t('accionBotonAyuda')}
       onClick={(ev) => {
@@ -119,7 +119,6 @@ export function BotonAccion() {
       }}
     >
       {cosecha ? t('accionBotonCosechar') : tp('accionBoton', { herramienta: nombre })}
-      {actual === 'semillas' && <InsigniaSemilla semilla={semilla} />}
     </button>
   )
 }

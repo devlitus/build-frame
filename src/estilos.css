@@ -1843,13 +1843,16 @@ body {
   }
 }
 
-/* Insignia de la semilla elegida (en la ranura «Semillas» y en el botón «Usar …»). */
-.semilla-insignia {
+/* Insignia de la semilla elegida (en la ranura «Semillas» y en el botón «Usar …»): `--semilla-icono`. */
+.boton-accion::after,
+.herramienta-boton[data-herramienta='semillas']::after {
+  content: '';
   position: absolute;
   right: 1px;
   bottom: 1px;
   width: 18px;
   height: 18px;
+  background: var(--semilla-icono) center / contain no-repeat;
   pointer-events: none;
 }
 
@@ -1879,7 +1882,8 @@ body {
     visibility: hidden;
   }
 
-  .semilla-insignia {
+  .boton-accion::after,
+  .herramienta-boton[data-herramienta='semillas']::after {
     width: 14px;
     height: 14px;
   }

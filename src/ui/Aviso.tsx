@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useState } from 'preact/hooks'
 import { leerParametros } from '../game/parametros'
 import { casaTerminada, despiertaEnCasa } from '../core'
 import { nombreEdificio, textoColocacion, textoReembolso } from './construirTextos'
@@ -31,9 +31,6 @@ export function unirFrases(partes: readonly string[]): string {
 export function Aviso() {
   const partida = usePartida()
   const [texto, setTexto] = useState<string | undefined>(undefined)
-  const [completo, setCompleto] = useState(false)
-  /** El jugador lo ha abierto para leerlo: el temporizador no lo quita. */
-  const fijo = useRef(false)
   useEffect(() => {
     const msAviso = leerParametros(window.location.search).aviso ?? MS_AVISO
     let mostrar: ReturnType<typeof setTimeout> | undefined
@@ -42,12 +39,12 @@ export function Aviso() {
       clearTimeout(mostrar)
       clearTimeout(ocultar)
       setTexto(undefined)
-      setCompleto(false)
-      fijo.current = false
       mostrar = setTimeout(() => {
         setTexto(nuevo)
         ocultar = setTimeout(() => {
-          if (!fijo.current) setTexto(undefined)
+          // Abierto por el jugador para leerlo (`data-fijo`): el temporizador no lo quita.
+          if (document.querySelector('.aviso')?.getAttribute('data-fijo') !== 'true')
+            setTexto(undefined)
         }, msAviso)
       }, MS_REANUNCIO)
     }
@@ -158,17 +155,16 @@ export function Aviso() {
     <div class="aviso-zona" role="status">
       {texto !== undefined && (
         <p
-          class={completo ? 'aviso aviso-completo' : 'aviso'}
+          class="aviso"
           title={texto}
-          onClick={() => {
-            // Primer toque: se lee entero y se queda; segundo: se quita.
-            if (completo) {
-              fijo.current = false
-              setCompleto(false)
-              setTexto(undefined)
-            } else {
-              fijo.current = true
-              setCompleto(true)
+          onClick={(ev) => {
+            // Primer toque: se lee entero y se queda; segundo: se quita. El estado vive en el DOM
+            // (el elemento se crea de nuevo con cada aviso), no en un hook.
+            const el = ev.currentTarget
+            if (el.classList.contains('aviso-completo')) setTexto(undefined)
+            else {
+              el.classList.add('aviso-completo')
+              el.setAttribute('data-fijo', 'true')
             }
           }}
         >
