@@ -240,6 +240,7 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
       return s && { lado: ladoValle(s.valle), claves: [...s.cauce.vados] }
     },
     dinero: () => partida?.estado.dinero,
+    energia: () => partida?.estado.energia,
     herramienta: () =>
       partida && {
         herramienta: partida.estado.herramienta,

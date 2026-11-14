@@ -1,4 +1,4 @@
-import { HERRAMIENTAS, type Herramienta } from '../core'
+import { comprobarDormir, HERRAMIENTAS, type Herramienta } from '../core'
 import { rutaIconoHerramienta } from './iconos'
 import { t, tp, type ClaveTexto } from './textos'
 import { useEstado, usePartida } from './useEstado'
@@ -92,6 +92,30 @@ export function BotonAccion() {
       }}
     >
       {tp('accionBoton', { herramienta: nombre })}
+    </button>
+  )
+}
+
+/**
+ * Botón «Dormir»: aparece solo donde se puede dormir (Vida y junto a la puerta de la casa terminada,
+ * o de la aparición si aún no hay casa), con la misma comprobación que el comando. Tecla Z.
+ */
+export function BotonDormir() {
+  const partida = usePartida()
+  const puede = useEstado((e) => comprobarDormir(e) === undefined)
+  if (!puede) return null
+  return (
+    <button
+      type="button"
+      class="boton-dormir"
+      aria-keyshortcuts="Z"
+      title={t('dormirBotonAyuda')}
+      onClick={(ev) => {
+        partida.dormir()
+        devolverFoco(ev)
+      }}
+    >
+      {t('dormirBoton')}
     </button>
   )
 }

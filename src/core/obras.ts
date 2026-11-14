@@ -1,6 +1,7 @@
 import { CONFIG_PERSONAJE } from './datos/personaje'
 import { CONFIG_TIEMPO } from './datos/tiempo'
 import { defEdificio, huellaDe, type Edificio, type Obra, type TipoEdificio } from './edificios'
+import { energiaAlEmpezarDia, type MotivoCambioDeDia } from './energia'
 import type { EstadoJuego } from './estado'
 import { casillaBloqueada, mapaTransitabilidad, type MapaTransitabilidad } from './mapa'
 import { ORIENTACION_INICIAL, personajeEnAparicion, type Personaje } from './personaje'
@@ -139,12 +140,16 @@ export function personajeAlDespertar(estado: EstadoJuego): Personaje {
 }
 
 /**
- * Único punto de cambio de día (desmayo hoy, dormir en M7): pasa al día siguiente a la hora de
- * inicio, termina las obras y coloca al personaje (en la casa si existe). No toca dinero,
- * materiales, zonas ni parcelas. El llamador debe haber comprobado antes que `dia + 1` es un
- * entero seguro y que `edificiosValidos(estado.edificios)` (lo hace `AvanzarTiempo`).
+ * Único punto de cambio de día (desmayo y dormir; M5-04 enganchará aquí el crecimiento): pasa al
+ * día siguiente a la hora de inicio, termina las obras, repone la energía según el `motivo`
+ * (dormir: al máximo; desmayo: la fracción de `data/energia.json`) y coloca al personaje (en la
+ * casa si existe). No toca dinero, materiales, zonas ni parcelas. El llamador debe haber
+ * comprobado antes que `dia + 1` es un entero seguro y que `edificiosValidos(estado.edificios)`.
  */
-export function empezarDiaSiguiente(estado: EstadoJuego): {
+export function empezarDiaSiguiente(
+  estado: EstadoJuego,
+  motivo: MotivoCambioDeDia = 'desmayo',
+): {
   readonly estado: EstadoJuego
   readonly eventos: readonly ObraTerminada[]
 } {
@@ -152,6 +157,23 @@ export function empezarDiaSiguiente(estado: EstadoJuego): {
     ...estado,
     dia: estado.dia + 1,
     minutoDelDia: CONFIG_TIEMPO.horaInicio,
+    energia: energiaAlEmpezarDia(motivo),
   })
   return { estado: { ...r.estado, personaje: personajeAlDespertar(r.estado) }, eventos: r.eventos }
+}
+
+/**
+ * Casilla de la cama: donde despierta el personaje (la puerta de la casa terminada o, si no hay,
+ * la aparición).
+ */
+export function casillaDeCama(estado: EstadoJuego): { x: number; y: number } {
+  const p = personajeAlDespertar(estado)
+  return { x: Math.floor(p.x), y: Math.floor(p.y) }
+}
+
+/** ¿Está el personaje en la casilla de la cama o en una de sus 8 vecinas (Chebyshev ≤ 1)? */
+export function juntoALaCama(estado: EstadoJuego): boolean {
+  const c = casillaDeCama(estado)
+  const p = estado.personaje
+  return Math.max(Math.abs(Math.floor(p.x) - c.x), Math.abs(Math.floor(p.y) - c.y)) <= 1
 }

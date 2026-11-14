@@ -11,6 +11,7 @@ import { zonasVacias } from './zonas'
 import type { Edificio, Materiales } from './edificios'
 import { personajeEnAparicion, type Personaje } from './personaje'
 import { CONFIG_INVENTARIO } from './datos/inventario'
+import { CONFIG_ENERGIA } from './datos/energia'
 import {
   inventarioInicial,
   inventarioValido,
@@ -36,8 +37,10 @@ import {
  * colocados) y `siguienteIdEdificio`. Sin migración: sigue sin haber partidas guardadas.
  * v9 (M5-01): se añaden `inventario` (ranuras `{objeto, cantidad}`), `herramienta` (la activa) y
  * `semillaElegida` (objeto o `null`). Sin migración: sigue sin haber partidas guardadas.
+ * v10 (M5-02): se añade `energia` (entero en 0..máximo de `data/energia.json`). Sin migración:
+ * sigue sin haber partidas guardadas.
  */
-export const VERSION_FORMATO = 9
+export const VERSION_FORMATO = 10
 
 /** Velocidad del tiempo al empezar una partida. */
 export const VELOCIDAD_INICIAL = 1
@@ -61,6 +64,8 @@ export interface EstadoJuego {
   /** Velocidad del tiempo (una de `CONFIG_TIEMPO.velocidades`). */
   readonly velocidad: number
   readonly dinero: number
+  /** Energía del personaje: entero en 0..`CONFIG_ENERGIA.maximo`. Cada uso de herramienta gasta; dormir la llena. */
+  readonly energia: number
   /** Materiales de construcción (enteros ≥ 0); el lote de bienvenida está en `data/edificios.json`. */
   readonly materiales: Materiales
   /**
@@ -151,6 +156,7 @@ export function crearEstadoInicial(opciones: OpcionesNuevaPartida): EstadoJuego 
     modo: 'vida',
     velocidad: VELOCIDAD_INICIAL,
     dinero,
+    energia: CONFIG_ENERGIA.maximo,
     materiales: { madera: materiales.madera, piedra: materiales.piedra },
     inventario: inventario.map((r) => ({ ...r })),
     herramienta: CONFIG_INVENTARIO.herramientaInicial,

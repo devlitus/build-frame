@@ -1,4 +1,5 @@
 import { fechaDe, horaDe } from '../core'
+import { Energia } from './Energia'
 import { nombreEstacion, t, tp } from './textos'
 import { useEstado } from './useEstado'
 
@@ -35,6 +36,7 @@ export function Reloj() {
     <div class="reloj">
       <Hora />
       <Fecha />
+      <Energia />
     </div>
   )
 }

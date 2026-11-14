@@ -1,5 +1,6 @@
 import type { EstadoJuego } from './estado'
 import { tiempoDetenido } from './estado'
+import { costeEnergia, energiaValida, gastarEnergia } from './energia'
 import { ladoValle } from './mapa'
 import {
   cantidadDe,
@@ -24,6 +25,8 @@ export type ErrorUsoHerramienta =
   | 'sin-semilla-elegida'
   /** «Semillas» con una semilla elegida que ya no queda en el inventario. */
   | 'sin-semillas'
+  /** No queda energía para el coste de la herramienta (nunca bloquea moverse ni cambiar de modo). */
+  | 'sin-energia'
 
 /** Hecho que anuncia que la herramienta se aceptó (aún sin efecto en el mundo; lo darán M5-03 a M5-06). */
 export interface EventoHerramientaUsada {
@@ -55,7 +58,7 @@ const sinEfecto: EfectoHerramienta = (estado) => ({ ok: true, estado, eventos: [
 
 /**
  * PUNTO DE ENGANCHE de los efectos de las herramientas. Cada historia sustituye aquí su entrada:
- * M5-02 (energía, en el despachador), M5-03 azada (arar), M5-04 regadera, M5-05 semillas
+ * M5-03 azada (arar), M5-04 regadera, M5-05 semillas
  * (plantar) y mano (cosechar), M5-06 hacha y pico (talar y picar).
  */
 export const EFECTOS_HERRAMIENTA: Readonly<Record<Herramienta, EfectoHerramienta>> = {
@@ -97,6 +100,7 @@ export function comprobarUsarHerramienta(
   const lado = ladoValle(estado.valle)
   if (x < 0 || y < 0 || x >= lado || y >= lado) return 'fuera-del-valle'
   if (!casillaAlAlcance(p, x, y)) return 'fuera-de-alcance'
+  if (!energiaValida(estado.energia)) return 'estado-invalido'
   if (estado.herramienta === 'semillas') {
     if (estado.semillaElegida === null) return 'sin-semilla-elegida'
     if (!inventarioValido(estado.inventario)) return 'estado-invalido'
@@ -107,13 +111,16 @@ export function comprobarUsarHerramienta(
       return 'sin-semillas'
     }
   }
+  // La energía se mira la última: cualquier otro rechazo gana y nunca gasta.
+  if (estado.energia < costeEnergia(estado.herramienta)) return 'sin-energia'
   return undefined
 }
 
 /**
- * Despacha el uso de la herramienta activa sobre (x, y) tras validar. Hoy todas se aceptan sin
- * efecto y solo anuncian `herramienta-usada`; cada historia posterior enchufa su efecto en
- * `EFECTOS_HERRAMIENTA`.
+ * Despacha el uso de la herramienta activa sobre (x, y) tras validar (incluida la energía). Un uso
+ * aceptado gasta el coste de la herramienta aunque su efecto esté vacío o no llegue a talar del
+ * todo; un rechazo (de cualquier motivo) deja el estado intacto. Cada historia posterior enchufa
+ * su efecto en `EFECTOS_HERRAMIENTA`.
  */
 export function usarHerramienta(estado: EstadoJuego, x: number, y: number): ResultadoEfecto {
   const error = comprobarUsarHerramienta(estado, x, y)
@@ -124,7 +131,7 @@ export function usarHerramienta(estado: EstadoJuego, x: number, y: number): Resu
   const ny = y + 0
   return {
     ok: true,
-    estado: r.estado,
+    estado: gastarEnergia(r.estado, costeEnergia(estado.herramienta)),
     eventos: [
       { tipo: 'herramienta-usada', herramienta: estado.herramienta, x: nx, y: ny },
       ...r.eventos,

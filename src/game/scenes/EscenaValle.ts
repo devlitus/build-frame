@@ -572,7 +572,7 @@ export class EscenaValle extends Phaser.Scene {
 
   /**
    * Teclado del Modo Vida con el foco en el lienzo: 1 a 6 eligen la herramienta, E o Espacio la usan
-   * en la casilla de enfrente e I abre o cierra el inventario; también con el foco en `<body>`.
+   * en la casilla de enfrente, I abre o cierra el inventario y Z duerme; también con el foco en `<body>`.
    * (Con el foco en un botón o campo del HUD,
    * Espacio y Enter son del botón.)
    */
@@ -588,6 +588,9 @@ export class EscenaValle extends Phaser.Scene {
     } else if (ev.code === 'KeyE' || ev.code === 'Space') {
       ev.preventDefault()
       if (!ev.repeat) partida.usarEnfrente()
+    } else if (ev.code === 'KeyZ') {
+      ev.preventDefault()
+      if (!ev.repeat) partida.dormir()
     } else if (ev.code === 'KeyI') {
       ev.preventDefault()
       if (!ev.repeat) partida.inventario.alternar('teclado')

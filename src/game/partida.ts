@@ -31,6 +31,8 @@ export type AvisoInterfaz =
   | 'zona-sin-casillas'
   /** El núcleo rechazó `UsarHerramienta` (lejos, en pausa, sin semilla...). */
   | { readonly tipo: 'herramienta-rechazada'; readonly error: ErrorComando }
+  /** El núcleo rechazó `Dormir` (lejos de la cama, en Plano...). */
+  | { readonly tipo: 'dormir-rechazado'; readonly error: ErrorComando }
   /** El núcleo rechazó `Construir` (el estado cambió entre la silueta y la confirmación). */
   | {
       readonly tipo: 'construir-rechazado'
@@ -277,6 +279,13 @@ export class Partida {
   usarEnfrente(): ResultadoComando {
     const c = casillaDeEnfrente(this._estado.personaje)
     return this.usarHerramienta(c.x, c.y)
+  }
+
+  /** Duerme (tecla Z y botón): si el núcleo lo rechaza avisa de por qué. */
+  dormir(): ResultadoComando {
+    const r = this.emitir({ tipo: 'Dormir' })
+    if (!r.ok) this.avisarInterfaz({ tipo: 'dormir-rechazado', error: r.error })
+    return r
   }
 
   /** Aplica un comando; si lo rechaza el estado no cambia y no se avisa. */

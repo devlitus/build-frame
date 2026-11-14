@@ -4,6 +4,7 @@ import { parcelaComprable } from './parcelas'
 import { aplicarZonas, CARACTER_SIN_ZONA, CARACTER_ZONA, ZONAS, type Zona } from './zonas'
 import { moverPersonaje } from './personaje'
 import { empezarDiaSiguiente, type ObraTerminada } from './obras'
+import { comprobarDormir, type ErrorDormir } from './dormir'
 import { colocacionValida, type MotivoColocacion } from './construccion'
 import { defEdificio, edificiosValidos, type Coste, type TipoEdificio } from './edificios'
 import { reembolso } from './reembolso'
@@ -96,6 +97,12 @@ export type Comando =
    * Solo en Modo Vida. El efecto de cada herramienta vive en `herramientas.ts`.
    */
   | { readonly tipo: 'UsarHerramienta'; readonly x: number; readonly y: number }
+  /**
+   * Duerme: pasa al día siguiente a las 06:00 con la energía al máximo, por el mismo cambio de día
+   * que el desmayo. Solo en Modo Vida y junto a la puerta de la casa terminada (o de la aparición
+   * si aún no hay casa).
+   */
+  | { readonly tipo: 'Dormir' }
 
 /**
  * Hechos ocurridos al aplicar un comando, para que la capa de juego reaccione (avisos, efectos).
@@ -143,6 +150,8 @@ export type EventoJuego =
 
   /** La herramienta activa se aceptó sobre la casilla (x, y); los efectos concretos llegan con M5-03 a M5-06. */
   | EventoHerramienta
+  /** El personaje durmió: empieza el día siguiente (las obras que tocan traen su `obra-terminada`). */
+  | { readonly tipo: 'dormido' }
 
 export type ResultadoComando =
   | { readonly ok: true; readonly estado: EstadoJuego; readonly eventos: readonly EventoJuego[] }
@@ -174,6 +183,7 @@ export type ErrorComando =
   /** `ElegirSemilla` con una semilla que no hay en el inventario. */
   | 'sin-semillas'
   | ErrorUsoHerramienta
+  | ErrorDormir
   | MotivoColocacion
 
 /** El estado trae lo que necesitan los comandos de edificios (un guardado manipulado podría no traerlo). */
@@ -495,6 +505,13 @@ export function aplicarComando(estado: EstadoJuego, comando: Comando): Resultado
       const r = usarHerramienta(estado, comando.x, comando.y)
       if (!r.ok) return { ok: false, estado, error: r.error }
       return { ok: true, eventos: r.eventos, estado: r.estado }
+    }
+    case 'Dormir': {
+      const error = comprobarDormir(estado)
+      if (error) return { ok: false, estado, error }
+      // Mismo cambio de día que el desmayo: obras, energía y despertar en casa (obras.ts).
+      const r = empezarDiaSiguiente(estado, 'dormir')
+      return { ok: true, eventos: [{ tipo: 'dormido' }, ...r.eventos], estado: r.estado }
     }
     default:
       return { ok: false, estado, error: 'comando-desconocido' }
