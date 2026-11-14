@@ -326,3 +326,18 @@ test('elegir una herramienta y abrir y cerrar el inventario', HUMO, async ({ pag
   else await cerrar.click(LENTO)
   await expect(panel).toHaveCount(0, LENTO)
 })
+
+test('dormir junto a la aparición pasa de día con la energía al máximo', HUMO, async ({ page }) => {
+  await abrirValle(page)
+  await page.evaluate(() => {
+    const r = window.__raices
+    const p = r?.personaje()
+    if (!r || !p) return
+    r.emitir({ tipo: 'ElegirHerramienta', herramienta: 'hacha' })
+    r.emitir({ tipo: 'UsarHerramienta', x: Math.floor(p.x), y: Math.floor(p.y) })
+  })
+  await expect.poll(() => page.evaluate(() => window.__raices?.energia()), LENTO).toBe(96)
+  await page.getByRole('button', { name: 'Dormir', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => window.__raices?.energia()), LENTO).toBe(100)
+  await expect.poll(() => page.evaluate(() => window.__raices?.reloj()?.dia), LENTO).toBe(2)
+})
