@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion -- catálogo conocido en tests */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   aplicarComando,
   crearEstadoInicial,
@@ -10,7 +10,13 @@ import {
 } from '../../src/core'
 import { Construccion, calcularSilueta, esquinaDeSilueta } from '../../src/game/construir'
 import { Partida } from '../../src/game/partida'
+import { ColocadorEdificio } from '../../src/game/colocador'
+import { fakeCameraScene, fakePointer } from './fixtures/fake-scene'
 import { textoColocacion, textoCoste, textoResto } from '../../src/ui/construirTextos'
+
+vi.mock('phaser', () => ({
+  default: { Core: { Events: { BLUR: 'blur', HIDDEN: 'hidden' } } },
+}))
 
 const LADO = 96
 const base = crearEstadoInicial({ semilla: 42 })
@@ -206,5 +212,140 @@ describe('textos de construcción', () => {
       '0 monedas, 0 de madera y 0 de piedra',
     )
     expect(ladoValle(base.valle)).toBe(LADO)
+  })
+})
+
+// E2E-16 · Rompedor: the building silhouette gestures (`ColocadorEdificio`, src/game/colocador.ts)
+// and the confirmation state, with a fake scene. Replaces the logic of construir.spec «la silueta
+// sigue al cursor o al dedo…», construir-rompedor «doble clic en el valle con la silueta válida:
+// abre la confirmación y no construye», «doble clic o doble toque en «Construir aquí» no
+// construye», «segundo dedo a mitad de arrastre: la silueta vuelve a donde estaba…», «Esc a
+// destiempo…» and m5-00-rompedor «construir: tocar una casilla coloca la silueta en esa casilla» (DPR).
+describe('ColocadorEdificio and the confirmation (fake scene)', () => {
+  function montar(dpr = 1) {
+    const f = fakeCameraScene(412, 915, dpr)
+    const k = 1 / f.scale.zoom
+    f.main.setZoom(k)
+    f.main.setScroll(40 * 32 - f.scale.width / 2, 40 * 32 - f.scale.height / 2)
+    const construccion = new Construccion()
+    const clics = { n: 0 }
+    new ColocadorEdificio(f.scene as never, construccion, LADO, 32, () => {
+      clics.n++
+      construccion.pedirConfirmacion('puntero')
+    })
+    construccion.abrir()
+    construccion.elegir('caja-envio')
+    return { f, construccion, clics }
+  }
+
+  it.each([1, 1.25, 2, 2.625, 3])(
+    'DPR %f: tapping a tile puts the silhouette on that tile and a finger never confirms',
+    (dpr) => {
+      const { f, construccion, clics } = montar(dpr)
+      const pt = f.tileCentre(43, 38)
+      const p = fakePointer(1, pt.x, pt.y, true)
+      f.down(p)
+      f.up(p)
+      expect(construccion.centro).toEqual({ x: 43, y: 38 })
+      expect(clics.n).toBe(0)
+      expect(construccion.confirmando).toBeUndefined()
+    },
+  )
+
+  it('mouse: the silhouette follows the cursor without pressing; a click asks for confirmation', () => {
+    const { f, construccion, clics } = montar()
+    const p = fakePointer(0, 0, 0, false)
+    const a = f.tileCentre(41, 41)
+    f.move(p, a.x, a.y)
+    expect(construccion.centro).toEqual({ x: 41, y: 41 })
+    f.down(p)
+    f.up(p)
+    expect(clics.n).toBe(1)
+    expect(construccion.confirmando).toBe('puntero')
+  })
+
+  it('double click on the valley with a valid silhouette: opens the confirmation once, the 2nd click does nothing', () => {
+    const { f, construccion, clics } = montar()
+    const a = f.tileCentre(41, 41)
+    const p = fakePointer(0, a.x, a.y, false)
+    f.move(p, a.x, a.y)
+    f.down(p)
+    f.up(p)
+    const b = f.tileCentre(45, 45)
+    f.move(p, b.x, b.y)
+    f.down(p)
+    f.up(p)
+    expect(clics.n).toBe(1)
+    // With the confirmation open the silhouette does not move and nothing is built.
+    expect(construccion.centro).toEqual({ x: 41, y: 41 })
+    expect(construccion.confirmando).toBe('puntero')
+  })
+
+  it('a second finger mid-drag puts the silhouette back where it was and confirms nothing', () => {
+    const { f, construccion, clics } = montar()
+    construccion.colocar({ x: 40, y: 40 })
+    const a = f.tileCentre(42, 42)
+    const p1 = fakePointer(1, a.x, a.y, true)
+    f.down(p1)
+    const b = f.tileCentre(46, 44)
+    f.move(p1, b.x, b.y)
+    expect(construccion.centro).toEqual({ x: 46, y: 44 })
+    const p2 = fakePointer(2, 300, 300, true)
+    f.down(p2)
+    expect(construccion.centro).toEqual({ x: 40, y: 40 })
+    f.move(p1, a.x + 50, a.y + 50)
+    f.up(p1)
+    f.up(p2)
+    expect(construccion.centro).toEqual({ x: 40, y: 40 })
+    expect(clics.n).toBe(0)
+    // After both fingers are up, one finger places again.
+    const c = fakePointer(3, a.x, a.y, true)
+    f.down(c)
+    f.up(c)
+    expect(construccion.centro).toEqual({ x: 42, y: 42 })
+  })
+
+  it('right click, a cancelled touch and a mouse drag released outside never confirm by themselves', () => {
+    const { f, construccion, clics } = montar()
+    const a = f.tileCentre(41, 41)
+    const der = fakePointer(0, a.x, a.y, false, 2)
+    f.down(der)
+    f.up(der)
+    const dedo = fakePointer(1, a.x, a.y, true)
+    f.down(dedo)
+    f.up(dedo, true)
+    expect(clics.n).toBe(0)
+    expect(construccion.confirmando).toBeUndefined()
+  })
+
+  it('Esc out of turn: cancelling twice, closing, then cancelling again leaves nothing half done', () => {
+    const { construccion } = montar()
+    construccion.colocar({ x: 41, y: 41 })
+    construccion.pedirConfirmacion('teclado')
+    expect(construccion.cancelarConfirmacion()).toBe(true)
+    expect(construccion.cancelarConfirmacion()).toBe(false)
+    expect(construccion.activo).toBe(true)
+    construccion.cerrar()
+    expect(construccion.cancelarConfirmacion()).toBe(false)
+    expect([
+      construccion.abierto,
+      construccion.tipo,
+      construccion.centro,
+      construccion.confirmando,
+    ]).toEqual([false, undefined, undefined, undefined])
+  })
+
+  it('«Construir aquí» twice (double tap) builds once and goes back to the catalogue', () => {
+    const { estado, x, y } = escenario()
+    const partida = new Partida(estado)
+    partida.construccion.abrir()
+    partida.construccion.elegir('caja-envio')
+    partida.construccion.colocar({ x, y })
+    partida.construccion.pedirConfirmacion('puntero')
+    expect(partida.construirAqui()?.ok).toBe(true)
+    expect(partida.construirAqui()).toBeUndefined()
+    expect(partida.estado.edificios).toHaveLength(1)
+    expect(partida.construccion.tipo).toBeUndefined()
+    expect(partida.construccion.abierto).toBe(true)
   })
 })

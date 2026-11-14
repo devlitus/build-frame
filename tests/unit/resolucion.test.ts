@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   escalaArte,
   factorDe,
@@ -84,4 +84,66 @@ describe('conversión entre píxeles CSS y de dispositivo', () => {
     ;(e.scale as { zoom: number }).zoom = 0
     expect(factorDe(e)).toBe(1)
   })
+})
+
+// E2E-16 · Rompedor: the per-DPR tiers of m5-00-rompedor «el lienzo mide CSS×min(DPR,2), zoom de
+// pantalla coherente y arte @Nx», «DPR n: el arte y el lienzo son los de su tramo» and
+// m1-global-rompedor «DPR alto: el lienzo se dibuja a la resolución del dispositivo (nitidez)».
+describe('DPR tiers: canvas size and art scale', () => {
+  const TRAMOS = [1, 1.25, 1.49, 1.5, 1.75, 2, 2.625, 3] as const
+
+  it.each(TRAMOS)(
+    'DPR %f: canvas = round(CSS × min(DPR, 2)) on both axes, logical screen = CSS',
+    (dpr) => {
+      const f = factorResolucion(dpr)
+      expect(f).toBe(Math.min(dpr, 2))
+      for (const [w, h] of [
+        [412, 915],
+        [915, 412],
+        [1280, 720],
+        [413, 917],
+      ] as const) {
+        const ancho = tamanoLienzo(w, f)
+        const alto = tamanoLienzo(h, f)
+        expect(ancho).toBe(Math.round(w * f))
+        expect(alto).toBe(Math.round(h * f))
+        // Phaser displays it at CSS size (`scale.zoom = 1 / factor`): the logical screen is the CSS
+        // one, up to the rounding of the canvas to whole device pixels (< 1 device px).
+        const p = pantallaLogica({ scale: { zoom: 1 / f, width: ancho, height: alto } })
+        expect(Math.abs(p.ancho - w)).toBeLessThan(1 / f + 1e-9)
+        expect(Math.abs(p.alto - h)).toBeLessThan(1 / f + 1e-9)
+      }
+    },
+  )
+
+  it.each(TRAMOS)(
+    'DPR %f: every art file requested by cargarArte has the tier suffix, never the other',
+    async (dpr) => {
+      const { cargarArte } = await import('../../src/game/valle/arte')
+      const urls: string[] = []
+      const tamanos: number[] = []
+      const cargador = {
+        atlas: (_k: string, png: string, json: string) => urls.push(png, json),
+        image: (_k: string, u: string) => urls.push(u),
+        spritesheet: (_k: string, u: string, o: { frameWidth: number }) => {
+          urls.push(u)
+          tamanos.push(o.frameWidth)
+        },
+      }
+      vi.stubGlobal('devicePixelRatio', dpr)
+      try {
+        cargarArte({ load: cargador } as never)
+      } finally {
+        vi.unstubAllGlobals()
+      }
+      const sufijo = dpr >= 1.5 ? '@2x' : '@1x'
+      const otro = dpr >= 1.5 ? '@1x' : '@2x'
+      expect(urls.length).toBeGreaterThan(20)
+      expect(urls.filter((u) => !u.includes(sufijo))).toEqual([])
+      expect(urls.filter((u) => u.includes(otro))).toEqual([])
+      // Tile frames are 32 px at @1x and 64 px at @2x.
+      expect(tamanos).toContain(dpr >= 1.5 ? 64 : 32)
+      expect(tamanos).not.toContain(dpr >= 1.5 ? 32 : 64)
+    },
+  )
 })

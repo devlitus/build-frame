@@ -1,11 +1,14 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion -- índices con noUncheckedIndexedAccess */
 import { describe, expect, it } from 'vitest'
 import {
+  aplicarComando,
   buscarCamino,
   casillaBloqueada,
   crearEstadoInicial,
   mapaTransitabilidad,
+  type EstadoJuego,
 } from '../../src/core'
+import { SeguidorCamino } from '../../src/game/seguirCamino'
 
 const estado = crearEstadoInicial({ semilla: 42, dineroInicial: 0 })
 const mapa = mapaTransitabilidad(estado)
@@ -140,5 +143,80 @@ describe('buscarCamino', () => {
     const fin = r[r.length - 1]!
     expect(casillaBloqueada(m, Math.floor(fin.x), Math.floor(fin.y))).toBe(false)
     expect(Math.hypot(fin.x - p.x, fin.y - p.y)).toBeLessThan(4)
+  })
+})
+
+// E2E-16 · Rompedor: what a click or tap on the ground ends up doing, end to end on the core
+// (route + `SeguidorCamino` + `MoverPersonaje`). Replaces the logic of tactil.spec «un clic en el
+// suelo lleva al personaje rodeando los obstáculos» / «tocar un punto lleva al personaje hasta allí
+// rodeando obstáculos», tactil-rompedor «clic en el agua (casilla bloqueada) va a la casilla libre
+// más cercana», «clic fuera del valle lleva a una casilla dentro del valle» and «clic en la propia
+// casilla: llega y se cancela sin quedarse oscilando».
+describe('walking to a tapped point (route + follower + core movement)', () => {
+  function caminar(e0: EstadoJuego, meta: { x: number; y: number }) {
+    let e = e0
+    const s = new SeguidorCamino()
+    s.fijar(e, e.personaje, meta)
+    const fin = s.destino
+    let comandos = 0
+    while (s.destino && comandos < 5000) {
+      const c = s.siguiente(e.personaje, 16)
+      if (c) {
+        comandos++
+        e = aplicarComando(e, c).estado
+      }
+    }
+    return { e, fin, comandos, sigue: s.destino !== undefined }
+  }
+
+  it('a far free tile: arrives at its centre going around obstacles, then the route ends', () => {
+    const meta = libre(3)
+    const { e, sigue } = caminar(estado, meta)
+    expect(sigue).toBe(false)
+    expect(Math.hypot(e.personaje.x - meta.x, e.personaje.y - meta.y)).toBeLessThan(0.05)
+    expect(casillaBloqueada(mapa, Math.floor(e.personaje.x), Math.floor(e.personaje.y))).toBe(false)
+  })
+
+  it('water or an obstacle: it stops on the nearest free tile', () => {
+    const bloq = mapa.bloqueada.findIndex((v) => v === 1)
+    const meta = { x: (bloq % mapa.lado) + 0.5, y: Math.floor(bloq / mapa.lado) + 0.5 }
+    const { e, fin, sigue } = caminar(estado, meta)
+    expect(sigue).toBe(false)
+    expect(fin).toBeDefined()
+    expect(Math.hypot(e.personaje.x - fin!.x, e.personaje.y - fin!.y)).toBeLessThan(0.05)
+    expect(casillaBloqueada(mapa, Math.floor(fin!.x), Math.floor(fin!.y))).toBe(false)
+  })
+
+  it('outside the valley: it stops on a tile inside the valley', () => {
+    for (const meta of [
+      { x: -40, y: 10 },
+      { x: 200, y: 200 },
+      { x: 48, y: -3 },
+    ]) {
+      const { e, sigue } = caminar(estado, meta)
+      expect(sigue).toBe(false)
+      for (const v of [e.personaje.x, e.personaje.y]) {
+        expect(v).toBeGreaterThan(0)
+        expect(v).toBeLessThan(mapa.lado)
+      }
+    }
+  })
+
+  it('its own tile: one short move to the centre and the route ends (no oscillation)', () => {
+    // Off-centre inside its tile after a short walk, as after using the keyboard.
+    const desplazado = aplicarComando(estado, {
+      tipo: 'MoverPersonaje',
+      dx: 1,
+      dy: 0,
+      ms: 50,
+    }).estado
+    const p = desplazado.personaje
+    expect(Math.floor(p.x)).toBe(Math.floor(estado.personaje.x))
+    expect(p.x).not.toBe(estado.personaje.x)
+    const { e, comandos, sigue } = caminar(desplazado, p)
+    expect(sigue).toBe(false)
+    expect(comandos).toBeLessThanOrEqual(10)
+    expect(e.personaje.x).toBeCloseTo(Math.floor(p.x) + 0.5, 1)
+    expect(e.personaje.y).toBeCloseTo(Math.floor(p.y) + 0.5, 1)
   })
 })
