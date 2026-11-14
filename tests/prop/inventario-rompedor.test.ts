@@ -18,6 +18,9 @@ import {
   capacidadInventario,
   aguaDe,
   CARACTER_ARADA,
+  CARACTER_REGADA,
+  diasHastaMadurar,
+  esCaracterArada,
   casillaConEdificio,
   CONFIG_CULTIVOS,
   CONFIG_INVENTARIO,
@@ -90,17 +93,27 @@ function motivoEfecto(e: EstadoJuego, x: number, y: number): string | undefined 
   const obstaculo = e.obstaculos.some((o) => o.x === x && o.y === y)
   const edificio = casillaConEdificio(e, x, y)
   const zona = e.zonas[i]
+  const planta = e.plantas.find((pl) => pl[0] === i)
   if (e.herramienta === 'azada') {
+    // Una marchita se limpia sin más comprobaciones (M5-04).
+    if (planta?.[5] === 1) return undefined
     if (propia?.estado !== 'propia') return 'no-propia'
     if (agua) return 'agua'
     if (obstaculo) return 'obstaculo'
     if (edificio) return 'ocupada'
     if (zona !== 'c' && zona !== 'h') return 'zona'
-    if (e.tierra[i] === CARACTER_ARADA) return 'ya-arada'
+    if (esCaracterArada(e.tierra[i])) return 'ya-arada'
+  } else if (e.herramienta === 'regadera') {
+    // M5-04: orden no-arada, ya-regada, planta-marchita, planta-madura.
+    if (!esCaracterArada(e.tierra[i])) return 'no-arada'
+    if (e.tierra[i] === CARACTER_REGADA) return 'ya-regada'
+    if (planta?.[5] === 1) return 'planta-marchita'
+    if (planta && planta[2] >= diasHastaMadurar(CONFIG_CULTIVOS.cultivos[CULTIVOS[planta[1]]!]))
+      return 'planta-madura'
   } else if (e.herramienta === 'semillas') {
     const cultivo = cultivoDeSemilla(e.semillaElegida)
     if (!cultivo) return 'semilla-invalida'
-    if (e.tierra[i] !== CARACTER_ARADA) return 'no-arada'
+    if (!esCaracterArada(e.tierra[i])) return 'no-arada'
     if (e.plantas.some((pl) => pl[0] === i) || edificio || obstaculo || agua) return 'ocupada'
     const letra: Record<string, string> = { cultivo: 'c', huerto: 'h' }
     if (!CONFIG_CULTIVOS.cultivos[cultivo].zonas.some((z) => letra[z] === zona)) return 'zona'
@@ -119,7 +132,11 @@ interface Preparacion {
   propia: boolean
   zona: string
   arada: boolean
+  /** Carácter de tierra arada (M5-04): seca `a`, regada `A` o `1`..`9` días secos. */
+  car: string
   planta: boolean
+  /** Estado de la planta que se deja (M5-04). */
+  estadoPlanta: 'viva' | 'marchita' | 'madura'
   obstaculo: boolean
   /** Tipo del obstáculo que se deja (M5-06) y golpes que ya lleva. */
   tipoObs: 'arbol' | 'roca' | 'planton'
@@ -135,7 +152,11 @@ const preparacion: fc.Arbitrary<Preparacion> = fc.record({
   propia: fc.oneof({ weight: 2, arbitrary: fc.constant(true) }, fc.boolean()),
   zona: fc.constantFrom('c', 'c', 'h', 'h', 'v', 'a', '.'),
   arada: fc.oneof({ weight: 3, arbitrary: fc.constant(true) }, fc.boolean()),
+  car: fc.constantFrom('a', 'a', 'A', 'A', '1', '2', '5', '9'),
   planta: fc.oneof({ weight: 4, arbitrary: fc.constant(false) }, fc.boolean()),
+  estadoPlanta: fc.constantFrom('viva', 'viva', 'marchita', 'madura') as fc.Arbitrary<
+    'viva' | 'marchita' | 'madura'
+  >,
   obstaculo: fc.oneof({ weight: 2, arbitrary: fc.constant(false) }, fc.boolean()),
   tipoObs: fc.constantFrom('arbol', 'roca', 'planton') as fc.Arbitrary<
     'arbol' | 'roca' | 'planton'
@@ -166,17 +187,23 @@ function preparar(e: EstadoJuego, x: unknown, y: unknown, q0: Preparacion): Esta
           obstaculo: false,
           energia: ENERGIA_MAXIMA,
         }
-      : q0.facilita && (e.herramienta === 'hacha' || e.herramienta === 'pico')
+      : q0.facilita && e.herramienta === 'regadera'
         ? {
             ...q0,
-            propia: true,
-            obstaculo: true,
-            planta: false,
-            tipoObs:
-              e.herramienta === 'pico' ? 'roca' : q0.tipoObs === 'roca' ? 'arbol' : q0.tipoObs,
+            arada: true,
             energia: ENERGIA_MAXIMA,
           }
-        : q0
+        : q0.facilita && (e.herramienta === 'hacha' || e.herramienta === 'pico')
+          ? {
+              ...q0,
+              propia: true,
+              obstaculo: true,
+              planta: false,
+              tipoObs:
+                e.herramienta === 'pico' ? 'roca' : q0.tipoObs === 'roca' ? 'arbol' : q0.tipoObs,
+              energia: ENERGIA_MAXIMA,
+            }
+          : q0
   const fuera =
     !Number.isSafeInteger(x) ||
     !Number.isSafeInteger(y) ||
@@ -223,8 +250,19 @@ function preparar(e: EstadoJuego, x: unknown, y: unknown, q0: Preparacion): Esta
       ),
     },
     zonas: reemplaza(e.zonas, q.zona),
-    tierra: reemplaza(e.tierra, arada ? CARACTER_ARADA : '.'),
-    plantas: q.planta ? [[i, CULTIVOS.indexOf('patata'), 0, 0, 0, 0]] : [],
+    tierra: reemplaza(e.tierra, arada ? q.car : '.'),
+    plantas: q.planta
+      ? [
+          [
+            i,
+            CULTIVOS.indexOf('patata'),
+            q.estadoPlanta === 'madura' ? diasHastaMadurar(CONFIG_CULTIVOS.cultivos.patata) : 0,
+            0,
+            0,
+            q.estadoPlanta === 'marchita' ? 1 : 0,
+          ],
+        ]
+      : [],
     obstaculos: [
       ...e.obstaculos.filter((o) => o.x !== cx || o.y !== cy),
       ...(q.obstaculo
@@ -326,13 +364,31 @@ describe('M5-01 · rompedor del núcleo', () => {
               const i = (y as number) * LADO + (x as number)
               let previsto: EstadoJuego = e
               const eventosPropios: unknown[] = []
-              if (e.herramienta === 'azada') {
+              const poner = (car: string) => e.tierra.slice(0, i) + car + e.tierra.slice(i + 1)
+              const marchita = e.plantas.some((pl) => pl[0] === i && pl[5] === 1)
+              if (e.herramienta === 'azada' && marchita) {
                 previsto = {
                   ...e,
-                  tierra: e.tierra.slice(0, i) + CARACTER_ARADA + e.tierra.slice(i + 1),
+                  tierra: poner(CARACTER_ARADA),
+                  plantas: e.plantas.filter((pl) => pl[0] !== i),
                 }
                 eventosPropios.push({
+                  tipo: 'marchita-limpiada',
+                  x: (x as number) + 0,
+                  y: (y as number) + 0,
+                })
+                vistos.set('marchita-limpiada', (vistos.get('marchita-limpiada') ?? 0) + 1)
+              } else if (e.herramienta === 'azada') {
+                previsto = { ...e, tierra: poner(CARACTER_ARADA) }
+                eventosPropios.push({
                   tipo: 'tierra-arada',
+                  x: (x as number) + 0,
+                  y: (y as number) + 0,
+                })
+              } else if (e.herramienta === 'regadera') {
+                previsto = { ...e, tierra: poner(CARACTER_REGADA) }
+                eventosPropios.push({
+                  tipo: 'tierra-regada',
                   x: (x as number) + 0,
                   y: (y as number) + 0,
                 })
@@ -340,6 +396,8 @@ describe('M5-01 · rompedor del núcleo', () => {
                 const cultivo = cultivoDeSemilla(e.semillaElegida)!
                 previsto = {
                   ...e,
+                  // Sembrar deja la tierra seca (`a`) salvo que estuviera regada (`A`).
+                  tierra: poner(e.tierra[i] === CARACTER_REGADA ? CARACTER_REGADA : CARACTER_ARADA),
                   inventario: quitarObjeto(e.inventario, e.semillaElegida!, 1)!,
                   plantas: [...e.plantas, [i, CULTIVOS.indexOf(cultivo), 0, 0, 0, 0] as const].sort(
                     (a, b) => a[0] - b[0],
@@ -488,6 +546,7 @@ describe('M5-01 · rompedor del núcleo', () => {
     for (const v of [
       'ok:azada',
       'ok:semillas',
+      'ok:regadera',
       'ok:mano',
       'parametro-invalido',
       'solo-en-vida',
@@ -506,6 +565,10 @@ describe('M5-01 · rompedor del núcleo', () => {
       'ya-arada',
       'obstaculo',
       'no-arada',
+      'ya-regada',
+      'planta-marchita',
+      'planta-madura',
+      'marchita-limpiada',
       'fuera-de-estacion',
       'sin-energia',
       'golpe',
