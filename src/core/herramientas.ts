@@ -2,6 +2,7 @@ import type { EstadoJuego } from './estado'
 import { tiempoDetenido } from './estado'
 import { costeEnergia, energiaValida, gastarEnergia } from './energia'
 import { ladoValle } from './mapa'
+import { efectoCosechar, efectoLimpiarMarchita, type EventoPlantaCosechada } from './cosecha'
 import { efectoHacha, efectoPico, efectoPlantarPlanton } from './recursos'
 import {
   cantidadDe,
@@ -50,6 +51,8 @@ export type ErrorUsoHerramienta =
   | ErrorLabranza
   /** Motivos propios de la regadera (`riego.ts`). */
   | ErrorRiego
+  /** Cosechar: el producto no cabe en el inventario (la planta se queda). */
+  | 'inventario-lleno'
   /** El botín desbordaría los materiales (enteros seguros). */
   | 'limite-de-recursos'
 
@@ -105,6 +108,7 @@ export type EventoHerramienta =
   | EventoPlantonPerdido
   | EventoTierraRegada
   | EventoMarchitaLimpiada
+  | EventoPlantaCosechada
 
 export type ResultadoEfecto =
   | {
@@ -162,9 +166,9 @@ export const EFECTOS_HERRAMIENTA: Readonly<Record<Herramienta, EfectoHerramienta
   },
   regadera: { comprobar: motivoNoRegar, aplicar: regar },
   semillas: { comprobar: motivoNoSembrar, aplicar: plantar },
-  // Mano: cosechar tiene prioridad (M5-05 lo antepondrá aquí) y, si no hay nada que cosechar,
-  // planta un plantón del inventario (M5-06).
-  mano: encadenar(efectoPlantarPlanton),
+  // Mano: cosechar tiene prioridad, luego limpia una marchita y, si no hay nada de eso, planta un
+  // plantón del inventario (M5-06).
+  mano: encadenar(efectoCosechar, efectoLimpiarMarchita, efectoPlantarPlanton),
   hacha: efectoHacha,
   pico: efectoPico,
 }

@@ -118,6 +118,14 @@ function motivoEfecto(e: EstadoJuego, x: number, y: number): string | undefined 
     const letra: Record<string, string> = { cultivo: 'c', huerto: 'h' }
     if (!CONFIG_CULTIVOS.cultivos[cultivo].zonas.some((z) => letra[z] === zona)) return 'zona'
     if (!cultivoDeEstacion(cultivo, e)) return 'fuera-de-estacion'
+  } else if (e.herramienta === 'mano') {
+    // M5-05: cosechar una madura viva exige sitio para el producto; sin él se rechaza.
+    if (planta && planta[5] !== 1 && planta[2] >= madurezDe(planta[1])) {
+      const d = CONFIG_CULTIVOS.cultivos[CULTIVOS[planta[1]]!]
+      const cap = capacidadInventario(e.edificios)
+      if (!guardarEsperado(e.inventario, d.cosecha.producto, d.cosecha.cantidad, cap))
+        return 'inventario-lleno'
+    }
   } else if (e.herramienta === 'hacha' || e.herramienta === 'pico') {
     // M5-06: golpear algo ajeno se rechaza; el golpe al aire (o a lo que no es su objetivo) se acepta.
     const o = e.obstaculos.find((b) => b.x === x && b.y === y)
@@ -125,6 +133,41 @@ function motivoEfecto(e: EstadoJuego, x: number, y: number): string | undefined 
     if (o && objetivo && propia?.estado !== 'propia') return 'no-propia'
   }
   return undefined
+}
+
+/** Cultivos de la planta que se deja en la casilla (M5-05: la fresa rebrota, el resto no). */
+const CULTIVOS_PRUEBA = ['patata', 'fresa', 'zanahoria', 'rabano'] as const
+
+const madurezDe = (c: number) => diasHastaMadurar(CONFIG_CULTIVOS.cultivos[CULTIVOS[c]!])
+
+/**
+ * Oráculo de «guardar `n` de `objeto`» escrito aparte: una ranura por cada 99 (pila máxima) por
+ * objeto, sin pasar de `cap`; rellena la incompleta en su sitio y abre ranuras al final.
+ */
+function guardarEsperado(
+  inv: Inventario,
+  objeto: ObjetoId,
+  n: number,
+  cap: number,
+): Inventario | undefined {
+  const pila = defObjeto(objeto)!.pilaMaxima
+  const total = cantidadDe(inv, objeto) + n
+  const ajenas = inv.filter((r) => r.objeto !== objeto).length
+  if (inv.length > cap || ajenas + Math.ceil(total / pila) > cap) return undefined
+  let resta = n
+  const dentro = inv.map((r) => {
+    if (r.objeto !== objeto || r.cantidad === pila || resta === 0) return r
+    const d = Math.min(pila - r.cantidad, resta)
+    resta -= d
+    return { objeto, cantidad: r.cantidad + d }
+  })
+  const nuevas: { objeto: ObjetoId; cantidad: number }[] = []
+  while (resta > 0) {
+    const d = Math.min(pila, resta)
+    nuevas.push({ objeto, cantidad: d })
+    resta -= d
+  }
+  return [...dentro, ...nuevas]
 }
 
 /** Cómo se deja la casilla de destino antes de usar la herramienta (para cubrir todos los motivos). */
@@ -143,6 +186,12 @@ interface Preparacion {
   golpes: number
   /** Deja un plantón en el inventario (para que la mano lo plante). */
   planton: boolean
+  /** Cultivo de la planta que se deja (M5-05). */
+  cultivoPlanta: (typeof CULTIVOS_PRUEBA)[number]
+  /** Tirada auxiliar 0..11 para repartir los casos forzados de la mano (M5-05). */
+  tirada: number
+  /** Inventario de la mano: tal cual, lleno de otros objetos o lleno con el producto a 97/98 (M5-05). */
+  llena: 'no' | 'otros' | 'prod97' | 'prod98'
   dia: number
   energia: number
   /** Deja la semilla elegida en el inventario y el día en su estación (si se puede). */
@@ -163,6 +212,11 @@ const preparacion: fc.Arbitrary<Preparacion> = fc.record({
   >,
   golpes: fc.constantFrom(0, 0, 1, 2, 4),
   planton: fc.boolean(),
+  cultivoPlanta: fc.constantFrom(...CULTIVOS_PRUEBA),
+  tirada: fc.integer({ min: 0, max: 11 }),
+  llena: fc.constantFrom('no', 'no', 'otros', 'prod97', 'prod98', 'prod98') as fc.Arbitrary<
+    'no' | 'otros' | 'prod97' | 'prod98'
+  >,
   facilita: fc.boolean(),
   dia: fc.integer({ min: 1, max: 120 }),
   energia: fc.oneof(
@@ -197,17 +251,29 @@ function preparar(e: EstadoJuego, x: unknown, y: unknown, q0: Preparacion): Esta
             car: q0.estadoPlanta !== 'viva' && q0.car === 'A' ? 'a' : q0.car,
             energia: ENERGIA_MAXIMA,
           }
-        : q0.facilita && (e.herramienta === 'hacha' || e.herramienta === 'pico')
+        : q0.facilita && e.herramienta === 'mano' && q0.tirada < 5
           ? {
               ...q0,
-              propia: true,
-              obstaculo: true,
-              planta: false,
-              tipoObs:
-                e.herramienta === 'pico' ? 'roca' : q0.tipoObs === 'roca' ? 'arbol' : q0.tipoObs,
+              // M5-05: casilla con una planta madura (cosecha: fresa, inventario variado) o marchita.
+              arada: true,
+              planta: true,
+              estadoPlanta: q0.tirada < 3 ? 'madura' : 'marchita',
+              cultivoPlanta: q0.tirada !== 1 ? 'fresa' : q0.cultivoPlanta,
+              llena: (['prod97', 'prod98', q0.llena, q0.llena, q0.llena] as const)[q0.tirada]!,
+              obstaculo: false,
               energia: ENERGIA_MAXIMA,
             }
-          : q0
+          : q0.facilita && (e.herramienta === 'hacha' || e.herramienta === 'pico')
+            ? {
+                ...q0,
+                propia: true,
+                obstaculo: true,
+                planta: false,
+                tipoObs:
+                  e.herramienta === 'pico' ? 'roca' : q0.tipoObs === 'roca' ? 'arbol' : q0.tipoObs,
+                energia: ENERGIA_MAXIMA,
+              }
+            : q0
   const fuera =
     !Number.isSafeInteger(x) ||
     !Number.isSafeInteger(y) ||
@@ -223,6 +289,15 @@ function preparar(e: EstadoJuego, x: unknown, y: unknown, q0: Preparacion): Esta
       q.planton && e.herramienta === 'mano'
         ? (anadirObjeto(e.inventario, 'planton', 1, 1000) ?? e.inventario)
         : e.inventario,
+  }
+  if (e.herramienta === 'mano' && q.llena !== 'no') {
+    const cap = capacidadInventario(dia.edificios)
+    const prod = CONFIG_CULTIVOS.cultivos[q.cultivoPlanta].cosecha.producto
+    let lleno = anadirObjeto([], 'semilla-fresa', 99 * (q.llena === 'otros' ? cap : cap - 1), cap)!
+    if (q.llena !== 'otros') {
+      lleno = anadirObjeto(lleno, prod, q.llena === 'prod97' ? 97 : 98, cap)!
+    }
+    dia = { ...dia, inventario: lleno }
   }
   const cultivo = cultivoDeSemilla(e.semillaElegida)
   if (q.facilita && cultivo) {
@@ -259,8 +334,10 @@ function preparar(e: EstadoJuego, x: unknown, y: unknown, q0: Preparacion): Esta
       ? [
           [
             i,
-            CULTIVOS.indexOf('patata'),
-            q.estadoPlanta === 'madura' ? diasHastaMadurar(CONFIG_CULTIVOS.cultivos.patata) : 0,
+            CULTIVOS.indexOf(q.cultivoPlanta),
+            q.estadoPlanta === 'madura'
+              ? diasHastaMadurar(CONFIG_CULTIVOS.cultivos[q.cultivoPlanta])
+              : 0,
             0,
             0,
             q.estadoPlanta === 'marchita' ? 1 : 0,
@@ -303,6 +380,8 @@ const estado: fc.Arbitrary<EstadoJuego> = fc
     herramienta: fc.oneof(
       fc.constant('semillas' as const),
       fc.constant('azada' as const),
+      fc.constant('mano' as const),
+      fc.constant('mano' as const),
       fc.constantFrom(...HERRAMIENTAS),
     ),
     semilla: fc.option(fc.constantFrom(...SEMILLAS), { nil: null }),
@@ -370,7 +449,51 @@ describe('M5-01 · rompedor del núcleo', () => {
               const eventosPropios: unknown[] = []
               const poner = (car: string) => e.tierra.slice(0, i) + car + e.tierra.slice(i + 1)
               const marchita = e.plantas.some((pl) => pl[0] === i && pl[5] === 1)
-              if (e.herramienta === 'azada' && marchita) {
+              const pl = e.plantas.find((q2) => q2[0] === i)
+              const madura = !!pl && pl[5] !== 1 && pl[2] >= madurezDe(pl[1])
+              if (e.herramienta === 'mano' && madura) {
+                const cult = CULTIVOS[pl[1]]!
+                const d = CONFIG_CULTIVOS.cultivos[cult]
+                const inv = guardarEsperado(
+                  e.inventario,
+                  d.cosecha.producto,
+                  d.cosecha.cantidad,
+                  capacidadInventario(e.edificios),
+                )!
+                previsto = {
+                  ...e,
+                  inventario: inv,
+                  tierra: poner(e.tierra[i] === CARACTER_REGADA ? CARACTER_REGADA : CARACTER_ARADA),
+                  plantas: d.rebrota
+                    ? e.plantas.map((q2) =>
+                        q2 === pl
+                          ? ([
+                              i,
+                              pl[1],
+                              Math.max(0, madurezDe(pl[1]) - d.rebrota!.dias),
+                              0,
+                              0,
+                              0,
+                            ] as const)
+                          : q2,
+                      )
+                    : e.plantas.filter((q2) => q2 !== pl),
+                }
+                eventosPropios.push({
+                  tipo: 'planta-cosechada',
+                  x: (x as number) + 0,
+                  y: (y as number) + 0,
+                  cultivo: cult,
+                  producto: d.cosecha.producto,
+                  cantidad: d.cosecha.cantidad,
+                  rebrota: d.rebrota !== null,
+                })
+                vistos.set('cosechada', (vistos.get('cosechada') ?? 0) + 1)
+                if (d.rebrota)
+                  vistos.set('cosecha-rebrota', (vistos.get('cosecha-rebrota') ?? 0) + 1)
+                if (e.inventario.length === capacidadInventario(e.edificios))
+                  vistos.set('cosecha-apila-lleno', (vistos.get('cosecha-apila-lleno') ?? 0) + 1)
+              } else if ((e.herramienta === 'azada' || e.herramienta === 'mano') && marchita) {
                 previsto = {
                   ...e,
                   tierra: poner(CARACTER_ARADA),
@@ -382,6 +505,8 @@ describe('M5-01 · rompedor del núcleo', () => {
                   y: (y as number) + 0,
                 })
                 vistos.set('marchita-limpiada', (vistos.get('marchita-limpiada') ?? 0) + 1)
+                if (e.herramienta === 'mano')
+                  vistos.set('mano-limpia', (vistos.get('mano-limpia') ?? 0) + 1)
               } else if (e.herramienta === 'azada') {
                 previsto = { ...e, tierra: poner(CARACTER_ARADA) }
                 eventosPropios.push({
@@ -499,6 +624,8 @@ describe('M5-01 · rompedor del núcleo', () => {
                 }
               } else if (
                 e.herramienta === 'mano' &&
+                !madura &&
+                !marchita &&
                 cantidadDe(e.inventario, 'planton') >= 1 &&
                 puedePlantarPlanton(e, x as number, y as number)
               ) {
@@ -545,7 +672,7 @@ describe('M5-01 · rompedor del núcleo', () => {
           expect(JSON.stringify(e)).toBe(copia)
         },
       ),
-      { numRuns: 8000 },
+      { numRuns: 12000 },
     )
     // Que la muestra cubra de verdad cada veredicto (no solo rechazos).
     for (const v of [
@@ -574,6 +701,11 @@ describe('M5-01 · rompedor del núcleo', () => {
       'planta-marchita',
       'planta-madura',
       'marchita-limpiada',
+      'mano-limpia',
+      'cosechada',
+      'cosecha-rebrota',
+      'cosecha-apila-lleno',
+      'inventario-lleno',
       'fuera-de-estacion',
       'sin-energia',
       'golpe',

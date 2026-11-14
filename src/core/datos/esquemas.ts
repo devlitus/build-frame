@@ -270,36 +270,44 @@ export const FASES_CRECIMIENTO = 3
 
 const diasEnteros = v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(365))
 
-export const EsquemaCultivo = v.strictObject({
-  /** Estaciones en las que se puede sembrar (al menos una, sin repetir). */
-  estaciones: v.pipe(
-    v.array(v.picklist(ESTACIONES)),
-    v.minLength(1),
-    v.check((e) => new Set(e).size === e.length, 'Estaciones repetidas'),
-  ),
-  /** Días que pasa en cada una de las fases 0, 1 y 2; su suma es el crecimiento total (enteros >= 1). */
-  diasPorFase: v.pipe(v.array(diasEnteros), v.length(FASES_CRECIMIENTO)),
-  /**
-   * Necesidad de agua (GDD §6.6): un cultivo sin regar no crece ese día (se detiene) y, al
-   * llegar a `diasSinRegar` días seguidos sin agua, se marchita.
-   */
-  necesidadAgua: v.strictObject({ diasSinRegar: diasEnteros }),
-  /** `null` si se cosecha una sola vez; si rebrota, días hasta volver a madurar tras cosechar (vuelve a la fase 2). */
-  rebrota: v.nullable(v.strictObject({ dias: diasEnteros })),
-  cosecha: v.strictObject({
-    /** Producto que se recoge (un cultivo del catálogo de objetos, categoría `producto`). */
-    producto: v.picklist(CULTIVOS),
-    cantidad: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(99)),
+export const EsquemaCultivo = v.pipe(
+  v.strictObject({
+    /** Estaciones en las que se puede sembrar (al menos una, sin repetir). */
+    estaciones: v.pipe(
+      v.array(v.picklist(ESTACIONES)),
+      v.minLength(1),
+      v.check((e) => new Set(e).size === e.length, 'Estaciones repetidas'),
+    ),
+    /** Días que pasa en cada una de las fases 0, 1 y 2; su suma es el crecimiento total (enteros >= 1). */
+    diasPorFase: v.pipe(v.array(diasEnteros), v.length(FASES_CRECIMIENTO)),
+    /**
+     * Necesidad de agua (GDD §6.6): un cultivo sin regar no crece ese día (se detiene) y, al
+     * llegar a `diasSinRegar` días seguidos sin agua, se marchita.
+     */
+    necesidadAgua: v.strictObject({ diasSinRegar: diasEnteros }),
+    /** `null` si se cosecha una sola vez; si rebrota, días hasta volver a madurar tras cosechar (vuelve a la fase 2). */
+    rebrota: v.nullable(v.strictObject({ dias: diasEnteros })),
+    cosecha: v.strictObject({
+      /** Producto que se recoge (un cultivo del catálogo de objetos, categoría `producto`). */
+      producto: v.picklist(CULTIVOS),
+      cantidad: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(99)),
+    }),
+    /** Precio base de venta del producto (lo usa M6). */
+    precioBase: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(1_000_000)),
+    /** Zonas en las que se puede plantar (en M5, cultivo y huerto). */
+    zonas: v.pipe(
+      v.array(v.picklist(['cultivo', 'huerto'] as const)),
+      v.minLength(1),
+      v.check((z) => new Set(z).size === z.length, 'Zonas repetidas'),
+    ),
   }),
-  /** Precio base de venta del producto (lo usa M6). */
-  precioBase: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(1_000_000)),
-  /** Zonas en las que se puede plantar (en M5, cultivo y huerto). */
-  zonas: v.pipe(
-    v.array(v.picklist(['cultivo', 'huerto'] as const)),
-    v.minLength(1),
-    v.check((z) => new Set(z).size === z.length, 'Zonas repetidas'),
+  // Al rebrotar la planta vuelve a la fase 2 (joven): solo cabe si `rebrota.dias` no supera la
+  // duración de esa fase, así que cosechar no necesita acotar los días.
+  v.check(
+    (c) => c.rebrota === null || c.rebrota.dias <= (c.diasPorFase[2] ?? 0),
+    'rebrota.dias no puede superar los días de la fase 2',
   ),
-})
+)
 
 export type DefCultivo = v.InferOutput<typeof EsquemaCultivo>
 

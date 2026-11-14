@@ -1,4 +1,10 @@
-import { comprobarDormir, HERRAMIENTAS, type Herramienta } from '../core'
+import {
+  casillaDeEnfrente,
+  comprobarDormir,
+  HERRAMIENTAS,
+  puedeCosechar,
+  type Herramienta,
+} from '../core'
 import { rutaIconoHerramienta } from './iconos'
 import { t, tp, type ClaveTexto } from './textos'
 import { useEstado, useInventarioAbierto, usePartida } from './useEstado'
@@ -78,6 +84,12 @@ export function BotonAccion() {
   const partida = usePartida()
   const vida = useEstado((e) => e.modo === 'vida')
   const actual = useEstado((e) => e.herramienta)
+  // Con la mano, delante de una planta madura y viva el botón dice «Cosechar» (la pista, sin avisos).
+  const cosecha = useEstado((e) => {
+    if (e.herramienta !== 'mano') return false
+    const c = casillaDeEnfrente(e.personaje)
+    return puedeCosechar(e, c.x, c.y)
+  })
   if (!vida) return null
   const nombre = nombreHerramienta(actual).toLowerCase()
   return (
@@ -91,7 +103,7 @@ export function BotonAccion() {
         devolverFoco(ev)
       }}
     >
-      {tp('accionBoton', { herramienta: nombre })}
+      {cosecha ? t('accionBotonCosechar') : tp('accionBoton', { herramienta: nombre })}
     </button>
   )
 }

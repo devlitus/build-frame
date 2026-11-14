@@ -39,7 +39,7 @@
     },
     "fresa": {
       "estaciones": ["primavera"],
-      "diasPorFase": [2, 3, 3],
+      "diasPorFase": [2, 2, 4],
       "necesidadAgua": { "diasSinRegar": 3 },
       "rebrota": { "dias": 4 },
       "cosecha": { "producto": "fresa", "cantidad": 2 },
