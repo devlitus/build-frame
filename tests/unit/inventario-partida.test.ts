@@ -1,9 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 import { casillaDeEnfrente, crearEstadoInicial, type EstadoJuego } from '../../src/core'
+import { conTierraLabrable } from './fixtures/labranza'
 import { Partida, type AvisoInterfaz } from '../../src/game/partida'
 
 const base = crearEstadoInicial({ semilla: 7 })
-const estado: EstadoJuego = { ...base, personaje: { x: 50.5, y: 50.5, orientacion: 'este' } }
+const estado: EstadoJuego = conTierraLabrable(
+  { ...base, personaje: { x: 50.5, y: 50.5, orientacion: 'este' } },
+  50,
+  50,
+)
 const nueva = () => new Partida(estado)
 
 describe('Partida: herramientas', () => {
@@ -74,6 +79,7 @@ describe('Partida: herramientas', () => {
     expect(f).toHaveBeenCalledTimes(1)
     expect(f.mock.calls[0]?.[0].eventos).toEqual([
       { tipo: 'herramienta-usada', herramienta: 'azada', x: 50, y: 51 },
+      { tipo: 'tierra-arada', x: 50, y: 51 },
     ])
   })
 })

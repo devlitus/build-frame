@@ -9,6 +9,13 @@ import {
   inventarioValido,
   type Herramienta,
 } from './inventario'
+import {
+  arar,
+  plantar,
+  type ErrorLabranza,
+  type EventoPlantaSembrada,
+  type EventoTierraArada,
+} from './labranza'
 
 /** Motivos por los que `UsarHerramienta` se rechaza (los textos están en `src/ui/textos/es.json`). */
 export type ErrorUsoHerramienta =
@@ -27,8 +34,10 @@ export type ErrorUsoHerramienta =
   | 'sin-semillas'
   /** No queda energía para el coste de la herramienta (nunca bloquea moverse ni cambiar de modo). */
   | 'sin-energia'
+  /** Motivos propios de la azada y las semillas (`labranza.ts`). */
+  | ErrorLabranza
 
-/** Hecho que anuncia que la herramienta se aceptó (aún sin efecto en el mundo; lo darán M5-03 a M5-06). */
+/** Hecho que anuncia que la herramienta se aceptó (el efecto concreto llega con sus propios eventos). */
 export interface EventoHerramientaUsada {
   readonly tipo: 'herramienta-usada'
   readonly herramienta: Herramienta
@@ -36,7 +45,7 @@ export interface EventoHerramientaUsada {
   readonly y: number
 }
 
-export type EventoHerramienta = EventoHerramientaUsada
+export type EventoHerramienta = EventoHerramientaUsada | EventoTierraArada | EventoPlantaSembrada
 
 export type ResultadoEfecto =
   | {
@@ -58,13 +67,13 @@ const sinEfecto: EfectoHerramienta = (estado) => ({ ok: true, estado, eventos: [
 
 /**
  * PUNTO DE ENGANCHE de los efectos de las herramientas. Cada historia sustituye aquí su entrada:
- * M5-03 azada (arar), M5-04 regadera, M5-05 semillas
- * (plantar) y mano (cosechar), M5-06 hacha y pico (talar y picar).
+ * M5-03 azada (arar) y semillas (plantar) ya están; faltan M5-04 regadera, M5-05 mano
+ * (cosechar) y M5-06 hacha y pico (talar y picar).
  */
 export const EFECTOS_HERRAMIENTA: Readonly<Record<Herramienta, EfectoHerramienta>> = {
-  azada: sinEfecto,
+  azada: arar,
   regadera: sinEfecto,
-  semillas: sinEfecto,
+  semillas: plantar,
   mano: sinEfecto,
   hacha: sinEfecto,
   pico: sinEfecto,

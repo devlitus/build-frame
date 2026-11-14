@@ -1,0 +1,44 @@
+{
+  "cultivos": {
+    "patata": {
+      "estaciones": ["primavera"],
+      "diasPorFase": [2, 2, 2],
+      "rebrota": null,
+      "cosecha": { "producto": "patata", "cantidad": 1 },
+      "precioBase": 40,
+      "zonas": ["cultivo", "huerto"]
+    },
+    "zanahoria": {
+      "estaciones": ["primavera"],
+      "diasPorFase": [2, 2, 3],
+      "rebrota": null,
+      "cosecha": { "producto": "zanahoria", "cantidad": 1 },
+      "precioBase": 50,
+      "zonas": ["cultivo", "huerto"]
+    },
+    "lechuga": {
+      "estaciones": ["primavera"],
+      "diasPorFase": [1, 2, 2],
+      "rebrota": null,
+      "cosecha": { "producto": "lechuga", "cantidad": 1 },
+      "precioBase": 35,
+      "zonas": ["cultivo", "huerto"]
+    },
+    "rabano": {
+      "estaciones": ["primavera"],
+      "diasPorFase": [1, 1, 2],
+      "rebrota": null,
+      "cosecha": { "producto": "rabano", "cantidad": 1 },
+      "precioBase": 25,
+      "zonas": ["cultivo", "huerto"]
+    },
+    "fresa": {
+      "estaciones": ["primavera"],
+      "diasPorFase": [2, 3, 3],
+      "rebrota": { "dias": 4 },
+      "cosecha": { "producto": "fresa", "cantidad": 2 },
+      "precioBase": 60,
+      "zonas": ["cultivo", "huerto"]
+    }
+  }
+}

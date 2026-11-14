@@ -122,8 +122,9 @@ describe('propiedades de la energía', () => {
           const r = aplicarComando(e, { tipo: 'UsarHerramienta', x, y })
           if (r.ok) expect(r.estado.energia).toBe(energia - costeEnergia(herramienta))
           else {
+            // Sin tierra labrable, la azada y las semillas también se rechazan por su motivo propio.
             expect(r.estado).toBe(e)
-            expect(energia).toBeLessThan(costeEnergia(herramienta))
+            if (r.error === 'sin-energia') expect(energia).toBeLessThan(costeEnergia(herramienta))
           }
         },
       ),

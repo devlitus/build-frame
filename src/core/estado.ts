@@ -8,6 +8,7 @@ import { CONFIG_PERSONAJE } from './datos/personaje'
 import type { Obstaculo } from './decoracion'
 import { generarMundo, ladoValle, type Cauce } from './mapa'
 import { zonasVacias } from './zonas'
+import { tierraVacia, type Planta } from './tierra'
 import type { Edificio, Materiales } from './edificios'
 import { personajeEnAparicion, type Personaje } from './personaje'
 import { CONFIG_INVENTARIO } from './datos/inventario'
@@ -39,8 +40,10 @@ import {
  * `semillaElegida` (objeto o `null`). Sin migración: sigue sin haber partidas guardadas.
  * v10 (M5-02): se añade `energia` (entero en 0..máximo de `data/energia.json`). Sin migración:
  * sigue sin haber partidas guardadas.
+ * v11 (M5-03): se añaden `tierra` (cadena de `lado*lado` caracteres: sin labrar o arada) y
+ * `plantas` (una tupla por casilla plantada). Sin migración: sigue sin haber partidas guardadas.
  */
-export const VERSION_FORMATO = 10
+export const VERSION_FORMATO = 11
 
 /** Velocidad del tiempo al empezar una partida. */
 export const VELOCIDAD_INICIAL = 1
@@ -82,6 +85,10 @@ export interface EstadoJuego {
   readonly valle: Valle
   /** Zona pintada por casilla (índice y*lado+x): `.` ninguna, `c` cultivo, `h` huerto, `v` vivienda, `a` almacén. */
   readonly zonas: string
+  /** Tierra trabajada por casilla (índice y*lado+x): `.` sin labrar, `a` arada (ver `tierra.ts`). */
+  readonly tierra: string
+  /** Plantas de las casillas aradas, ordenadas por casilla (ver `Planta` en `tierra.ts`). */
+  readonly plantas: readonly Planta[]
   /** Obras y edificios; bloquean el paso. `obra` es `null` cuando el edificio está terminado. */
   readonly edificios: readonly Edificio[]
   /** Id que tendrá el próximo edificio (crece siempre; los ids no se reutilizan). */
@@ -164,6 +171,8 @@ export function crearEstadoInicial(opciones: OpcionesNuevaPartida): EstadoJuego 
     comprasHechas: 0,
     valle,
     zonas: zonasVacias(ladoValle(valle)),
+    tierra: tierraVacia(ladoValle(valle)),
+    plantas: [],
     edificios: [],
     siguienteIdEdificio: 1,
     ...mundo,

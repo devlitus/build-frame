@@ -1,5 +1,12 @@
 import type Phaser from 'phaser'
-import { ZONAS, type Terreno, type TipoEdificio, type Zona } from '../../core'
+import {
+  CULTIVOS,
+  ZONAS,
+  type Cultivo,
+  type Terreno,
+  type TipoEdificio,
+  type Zona,
+} from '../../core'
 import { dprActual, escalaArte, sufijoArte } from '../resolucion'
 import {
   ANIMACIONES_PERSONAJE,
@@ -36,6 +43,20 @@ export const TILE_VADO: TileTerreno = 'camino'
 
 export const claveTile = (t: TileTerreno): string => `tile-${t}`
 export const claveZona = (z: Zona): string => `zona-${z}`
+export const CLAVE_TIERRA_ARADA = 'tierra-arada-seca'
+export const claveCultivo = (c: Cultivo): string => `cultivo-${c}`
+/** Marco de un cultivo en px @1x (pivote en el centro del borde inferior). */
+export const MARCO_CULTIVO = { ancho: 32, alto: 48 } as const
+/** Fotogramas de la tierra arada: 0 a 3 relleno y 4 a 7 borde arriba, derecha, abajo, izquierda. */
+export const FOTOGRAMAS_TIERRA = {
+  rellenos: 4,
+  arriba: 4,
+  derecha: 5,
+  abajo: 6,
+  izquierda: 7,
+} as const
+/** Fotograma de un cultivo marchito (los 0 a 3 son las fases de crecimiento). */
+export const FOTOGRAMA_MARCHITO = 4
 export const CLAVE_COLOCACION = 'colocacion'
 export const CLAVE_ARBOL = 'arbol'
 export const CLAVE_ROCA = 'roca'
@@ -143,6 +164,16 @@ export function cargarArte(escena: Phaser.Scene): void {
   }
   for (const z of ZONAS) {
     l.spritesheet(claveZona(z), rutaTiraZona(z, s), { frameWidth: c, frameHeight: c })
+  }
+  l.spritesheet(CLAVE_TIERRA_ARADA, ruta('terreno', 'tierra-arada-seca', s), {
+    frameWidth: c,
+    frameHeight: c,
+  })
+  for (const cultivo of CULTIVOS) {
+    l.spritesheet(claveCultivo(cultivo), ruta('cultivos', cultivo, s), {
+      frameWidth: c,
+      frameHeight: MARCO_CULTIVO.alto * e,
+    })
   }
   l.spritesheet(CLAVE_COLOCACION, ruta('zonas', 'colocacion', s), { frameWidth: c, frameHeight: c })
 }
