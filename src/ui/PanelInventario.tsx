@@ -25,12 +25,23 @@ export function nombreObjeto(o: ObjetoId): string {
   return t(`objeto_${o}` as ClaveTexto)
 }
 
-/** Botón «Inventario»: visible en el Modo Vida mientras el panel está cerrado. */
+/**
+ * Botón «Inventario» de la barra inferior: solo en el Modo Vida. Con el panel abierto deja su hueco
+ * invisible (fuera del árbol accesible y del orden de tabulación), para que el resto de la barra no
+ * se desplace bajo el dedo.
+ */
 export function BotonInventario() {
   const partida = usePartida()
   const vida = useEstado((e) => e.modo === 'vida')
   const { abierto } = useInventarioAbierto()
-  if (!vida || abierto) return null
+  if (!vida) return null
+  if (abierto) {
+    return (
+      <span class="boton-inventario boton-hueco" aria-hidden="true">
+        {t('inventarioBoton')}
+      </span>
+    )
+  }
   return (
     <button
       type="button"

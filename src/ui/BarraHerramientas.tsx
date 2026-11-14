@@ -19,9 +19,10 @@ export function nombreHerramienta(h: Herramienta): string {
 }
 
 /**
- * Barra de herramientas del Modo Vida (GDD §8: herramienta activa en el HUD): un botón de al menos
- * 48 px por herramienta, con su icono y su tecla (1 a 6). La activa va marcada con `aria-pressed`
- * y con su nombre en texto (no solo con el color). Con «Semillas» se ve qué semilla está elegida.
+ * Ranuras de herramientas del Modo Vida (GDD §8: herramienta activa en el HUD), el primer grupo de
+ * la barra inferior: un botón de al menos 44 px por herramienta, con su icono y su tecla (1 a 6).
+ * La activa va marcada con `aria-pressed` y con su nombre en texto (no solo con el color). Con
+ * «Semillas» se ve qué semilla está elegida.
  */
 export function BarraHerramientas() {
   const partida = usePartida()
@@ -39,47 +40,50 @@ export function BarraHerramientas() {
         })
       : tp('herramientaActiva', { herramienta: nombre })
   return (
-    <div class="barra-herramientas">
-      <div class="barra-herramientas-caja" role="group" aria-label={t('herramientasBarra')}>
-        <div class="herramientas-fila">
-          {HERRAMIENTAS.map((h, i) => (
-            <button
-              key={h}
-              type="button"
-              class="herramienta-boton"
-              data-herramienta={h}
-              aria-pressed={actual === h}
-              aria-label={nombreHerramienta(h)}
-              aria-keyshortcuts={String(i + 1)}
-              title={tp('herramientaTitulo', { herramienta: nombreHerramienta(h), n: i + 1 })}
-              onClick={(ev) => {
-                partida.elegirHerramienta(h)
-                devolverFoco(ev)
-              }}
-            >
-              <img
-                src={rutaIconoHerramienta(h)}
-                alt=""
-                width="32"
-                height="32"
-                draggable={false}
-                aria-hidden="true"
-              />
-              <span class="herramienta-tecla" aria-hidden="true">
-                {i + 1}
-              </span>
-            </button>
-          ))}
-        </div>
-        <p class="herramienta-activa" aria-live="polite">
-          {activa}
-        </p>
+    <div class="barra-herramientas-caja" role="group" aria-label={t('herramientasBarra')}>
+      <div class="herramientas-fila">
+        {HERRAMIENTAS.map((h, i) => (
+          <button
+            key={h}
+            type="button"
+            class="herramienta-boton"
+            data-herramienta={h}
+            aria-pressed={actual === h}
+            aria-label={nombreHerramienta(h)}
+            aria-keyshortcuts={String(i + 1)}
+            title={tp('herramientaTitulo', { herramienta: nombreHerramienta(h), n: i + 1 })}
+            onClick={(ev) => {
+              partida.elegirHerramienta(h)
+              devolverFoco(ev)
+            }}
+          >
+            <img
+              src={rutaIconoHerramienta(h)}
+              alt=""
+              width="32"
+              height="32"
+              draggable={false}
+              aria-hidden="true"
+            />
+            <span class="herramienta-tecla" aria-hidden="true">
+              {i + 1}
+            </span>
+          </button>
+        ))}
       </div>
+      <p class="herramienta-activa" aria-live="polite">
+        {activa}
+      </p>
     </div>
   )
 }
 
-/** Botón de acción contextual: usa la herramienta activa en la casilla de enfrente (como E o Espacio). Solo en Vida. */
+/**
+ * Botón de acción contextual: usa la herramienta activa en la casilla de enfrente (como E o
+ * Espacio). Solo en Vida. Se queda también en escritorio: el clic en el lienzo es para andar, así
+ * que sin él no habría forma de usar la herramienta solo con el ratón (GDD §4: «ratón para la acción»).
+ * En táctil es la única vía. Tiene un ancho mínimo para que la barra no baile al cambiar de herramienta.
+ */
 export function BotonAccion() {
   const partida = usePartida()
   const vida = useEstado((e) => e.modo === 'vida')
