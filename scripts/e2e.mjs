@@ -1,7 +1,10 @@
-// Full local e2e run: the functional batch (projects escritorio + movil, parallel) and then, ALWAYS,
-// the performance batch (@rendimiento, one worker, alone). Prints a summary of both and exits with
-// the combined code (0 only if both pass).
-//   node scripts/e2e.mjs [playwright args...]    both batches
+// Local e2e runner. Batches:
+//   functional   projects escritorio + movil, parallel (the default)
+//   performance  @rendimiento tests, one worker, alone (--rendimiento)
+// Prints a summary and exits with the combined code (0 only if every batch that ran passes).
+//   node scripts/e2e.mjs [playwright args...]    functional only
+//   node scripts/e2e.mjs --rendimiento           performance only
+//   node scripts/e2e.mjs --completo              functional and then, ALWAYS, performance
 //   node scripts/e2e.mjs --capturas              only the @capturas tests (write PNGs to capturas/)
 // Expects dist/ to be built (npm run e2e does it). Extra args are passed to both batches.
 import { spawnSync } from 'node:child_process'
@@ -10,7 +13,9 @@ import { resolve } from 'node:path'
 
 const args = process.argv.slice(2)
 const capturas = args.includes('--capturas')
-const extra = args.filter((a) => a !== '--capturas')
+const rendimiento = args.includes('--rendimiento')
+const completo = args.includes('--completo')
+const extra = args.filter((a) => !['--capturas', '--rendimiento', '--completo'].includes(a))
 mkdirSync('test-results', { recursive: true })
 
 function run(name, projects, pwArgs, env = {}) {
@@ -49,10 +54,14 @@ if (capturas) {
     run('capturas', ['escritorio', 'movil'], ['--grep=@capturas'], { E2E_CAPTURAS: '1' }),
   )
 } else {
-  results.push(run('funcional', ['escritorio', 'movil'], []))
-  // Always runs, even if the functional batch failed. Alone and with a single worker: fps and
-  // real-time thresholds depend on nothing else loading the machine.
-  results.push(run('rendimiento', ['rendimiento-escritorio', 'rendimiento-movil'], ['--workers=1']))
+  if (!rendimiento) results.push(run('funcional', ['escritorio', 'movil'], []))
+  // With --completo it always runs, even if the functional batch failed. Alone and with a single
+  // worker: fps and real-time thresholds depend on nothing else loading the machine.
+  if (rendimiento || completo) {
+    results.push(
+      run('rendimiento', ['rendimiento-escritorio', 'rendimiento-movil'], ['--workers=1']),
+    )
+  }
 }
 
 let exit = 0

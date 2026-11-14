@@ -17,6 +17,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "npm run build && node scripts/e2e.mjs",
+    "e2e:rendimiento": "npm run build && node scripts/e2e.mjs --rendimiento",
+    "e2e:completo": "npm run build && node scripts/e2e.mjs --completo",
     "e2e:rapido": "node scripts/e2e.mjs",
     "e2e:humo": "npm run build && playwright test --grep @humo",
     "e2e:capturas": "npm run build && node scripts/e2e.mjs --capturas",

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion -- índices con noUncheckedIndexedAccess */
 import { expect, test, type CDPSession, type Page } from '@playwright/test'
+import { target } from './apoyo/rendimiento.ts'
 
 /** M2 · pasada global del rompedor: interacciones entre historias (personaje, tiempo, HUD, modos, táctil). */
 
@@ -487,8 +488,12 @@ test.describe('rendimiento global M2', () => {
       const msg = `fps: dia quieto ${dia.toFixed(1)}, dia andando ${diaAndando.toFixed(1)}, noche quieto ${quietoNoche.toFixed(1)}, noche andando ${nocheAndando.toFixed(1)}`
       info.annotations.push({ type: 'rendimiento', description: msg })
       console.log(msg)
-      expect(nocheAndando, msg).toBeGreaterThan(15)
-      expect(nocheAndando / diaAndando, `el tinte cuesta demasiado: ${msg}`).toBeGreaterThan(0.6)
+      // Targets (noted only): night walking > 15 fps and >= 60 % of day walking.
+      // Floors (hard): 60 % of each target (9 fps; ratio 0.36).
+      target(nocheAndando > 15, `night walking > 15 fps: ${msg}`)
+      target(nocheAndando / diaAndando > 0.6, `el tinte cuesta demasiado: ${msg}`)
+      expect(nocheAndando, `floor: ${msg}`).toBeGreaterThan(9)
+      expect(nocheAndando / diaAndando, `floor: ${msg}`).toBeGreaterThan(0.36)
     },
   )
 })

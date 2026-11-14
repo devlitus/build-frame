@@ -17,10 +17,6 @@ const EXCLUDED_FROM_FUNCTIONAL: RegExp[] = [
   /@rendimiento/,
   ...(process.env.E2E_MEDIDA ? [] : [/@medida/]),
   ...(process.env.E2E_CAPTURAS ? [] : [/@capturas/]),
-  // TODO(E2E-07): m1-global-rompedor is not tagged yet (pending refactor); remove with the tag.
-  ...(process.env.E2E_MEDIDA
-    ? []
-    : [/rendimiento: fps medias durante 5 s de arrastre y zoom continuos/]),
 ]
 const PERFORMANCE_PROJECTS: Project[] = [
   {
