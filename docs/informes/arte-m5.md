@@ -11,8 +11,8 @@ casilla mide 32 px @1x.
 
 | Lote | Contenido | Estado |
 |---|---|---|
-| 1 | Tierra arada, 5 cultivos, 7 iconos de herramienta, efectos | Entregado (aprobado en la PARADA 1) |
-| 2 | Iconos `semilla-<cultivo>`, plantón plantado | En producción |
+| 1 | Tierra arada, 5 cultivos, 7 iconos de herramienta, efectos | Entregado (aprobado en la PARADA 1, PR #60) |
+| 2 | Iconos `semilla-<cultivo>`, plantón plantado | Entregado |
 | 3 | Animaciones de uso del protagonista | En producción |
 
 ## Tierra arada (M5-03/M5-04)
@@ -54,6 +54,17 @@ casilla mide 32 px @1x.
 `iconos/<azada|regadera|semillas|mano|hacha|pico|planton>`: **48 × 48 px @1x** (96 × 96 @2x),
 fondo transparente. Cumplen los 44 px mínimos de la barra táctil a @1x; con DPR 2 usar @2x a
 escala 0,5.
+
+Iconos de inventario de semillas: `iconos/semilla-<patata|zanahoria|lechuga|rabano|fresa>`, mismo
+tamaño. Son el sobre con el cultivo maduro pintado encima. `iconos/sobre` (vacío) queda por si
+hace falta un sobre genérico.
+
+## Plantón de árbol (M5-06)
+
+- Inventario: `iconos/planton`.
+- Plantado: `objetos/planton`, tira de **2 marcos de 32 × 48 px @1x**: `0` recién plantado
+  (con tutor) y `1` arbolito. Mismo pivote y profundidad que los cultivos. Cuando termina de
+  crecer se sustituye por `objetos/arbol`.
 
 ## Efectos
 
