@@ -527,3 +527,18 @@ describe('ControlCamara: reaching the edges and coming back from the Plano', () 
     }
   })
 })
+
+describe('ControlCamara: scene shutdown', () => {
+  it('removes every listener, so restarting the valley does not double the wheel zoom or the drag', () => {
+    // Original e2e: personaje-render-rompedor.spec.ts «reiniciar la escena varias veces no duplica
+    // el zoom de la rueda ni los objetos»; m1-global «reiniciarValle: … los gestos no se duplican».
+    const f = fakeCameraScene(1280, 720)
+    new ControlCamara(f.scene as never, MUNDO)
+    for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'pointerupoutside', 'wheel'])
+      expect(f.input.cuenta(ev), ev).toBe(1)
+    f.scene.events.emit('shutdown')
+    for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'pointerupoutside', 'wheel'])
+      expect(f.input.cuenta(ev), ev).toBe(0)
+    expect(f.scale.cuenta('resize')).toBe(0)
+  })
+})

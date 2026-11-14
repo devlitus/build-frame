@@ -417,3 +417,15 @@ describe('panels are mutually exclusive (Partida)', () => {
     )
   })
 })
+
+describe('ColocadorEdificio: scene shutdown', () => {
+  it('removes its pointer, blur and hidden listeners (restarting the valley leaves no duplicate gesture)', () => {
+    const f = fakeCameraScene(412, 915)
+    new ColocadorEdificio(f.scene as never, new Construccion(), LADO, 32, () => undefined)
+    f.scene.events.emit('shutdown')
+    for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'pointerupoutside'])
+      expect(f.input.cuenta(ev), ev).toBe(0)
+    expect(f.game.events.cuenta('blur')).toBe(0)
+    expect(f.game.events.cuenta('hidden')).toBe(0)
+  })
+})

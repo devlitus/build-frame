@@ -94,9 +94,26 @@ function tileUnderTouch(
     ancho: TAM,
     alto: TAM,
   })
-  if (!pt) return { pt: undefined, casilla: undefined }
+  if (!pt) return { pt: undefined, casilla: undefined, visible: 0 }
   const m = mundoDePantalla(f.scene as never, pt.x, pt.y)
-  return { pt, m, casilla: casillaEnPunto(LADO, TAM, m.x, m.y) }
+  // Smallest side (CSS px) of the part of the tile that is on screen and in the free area.
+  const z = control.vista.zoom
+  const x0 = Math.max(libre.x, (cx * TAM - control.vista.cx) * z + pantalla.ancho / 2)
+  const x1 = Math.min(
+    libre.x + libre.ancho,
+    ((cx + 1) * TAM - control.vista.cx) * z + pantalla.ancho / 2,
+  )
+  const y0 = Math.max(libre.y, (cy * TAM - control.vista.cy) * z + pantalla.alto / 2)
+  const y1 = Math.min(
+    libre.y + libre.alto,
+    ((cy + 1) * TAM - control.vista.cy) * z + pantalla.alto / 2,
+  )
+  return {
+    pt,
+    m,
+    casilla: casillaEnPunto(LADO, TAM, m.x, m.y),
+    visible: Math.min(x1 - x0, y1 - y0),
+  }
 }
 
 describe('a touch lands on the tile under the finger at any DPR', () => {
@@ -118,8 +135,9 @@ describe('a touch lands on the tile under the finger at any DPR', () => {
           control.zoomCentro((lim.min + fz * (lim.max - lim.min)) / control.vista.zoom)
           control.centrarEn({ x: fx * MUNDO, y: fy * MUNDO })
           expect(f.main.zoom).toBeCloseTo(control.vista.zoom * factorResolucion(dpr), 9)
-          const { pt, casilla } = tileUnderTouch(f, control, tx, ty)
-          if (!pt) return // not visible in the free area
+          const { pt, casilla, visible } = tileUnderTouch(f, control, tx, ty)
+          // Not visible in the free area, or only a floating-point sliver of it (see the [S3] below).
+          if (!pt || visible < 0.5) return
           expect(casilla, `DPR ${dpr} ${w}×${h} tile (${tx}, ${ty})`).toEqual({ x: tx, y: ty })
         },
       ),
@@ -177,6 +195,24 @@ describe('a touch lands on the tile under the finger at any DPR', () => {
       })
     }
   })
+
+  // [S3] (test hook) When only a floating-point sliver of the tile is in the free area,
+  // `puntoDeToque` (behind `__raices.puntoClicCasilla` / `puntoClic`) returns a point on the shared
+  // edge, which belongs to the next tile (semi-open intervals): a test that taps it lands on the
+  // neighbour. Found by the property above with DPR 1.25, 691×691, minimum zoom, tile (0, 9): the
+  // tile spans screen y 64.8…72.000000001 and the free area starts at 72.
+  it.fails(
+    '[S3] the hook point of a tile that is only a floating-point sliver in the free area lands on that tile',
+    () => {
+      const f = fakeCameraScene(691, 691, 1.25)
+      const control = new ControlCamara(f.scene as never, MUNDO)
+      const lim = limitesZoom(pantallaLogica(f.scene as never), MUNDO)
+      control.zoomCentro(lim.min / control.vista.zoom)
+      const { pt, casilla } = tileUnderTouch(f, control, 0, 9)
+      expect(pt).toBeDefined()
+      expect(casilla).toEqual({ x: 0, y: 9 })
+    },
+  )
 
   it('[mutant check] forgetting the resolution factor in the conversion would miss the tile at DPR 2', () => {
     const f = fakeCameraScene(412, 915, 2)
