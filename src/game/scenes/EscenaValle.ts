@@ -33,13 +33,11 @@ import {
   type RectCasillas,
 } from '../pincel'
 import { PintorZonas } from '../pintorZonas'
-import {
-  dibujarDecoracion,
-  dibujarResalte,
-  dibujarResalteEdificio,
-  dibujarTerreno,
-  tamanoMundoPx,
-} from '../valle/dibujar'
+import { dibujarResalte, dibujarResalteEdificio, tamanoMundoPx } from '../valle/dibujar'
+import { cargarArte } from '../valle/arte'
+import { objetosDeDecoracion, pintarTrozoTerreno } from '../valle/terrenoArte'
+import { CapaObjetos } from '../valle/capaObjetos'
+import { mundoDePantalla, pantallaLogica, zoomLogico } from '../resolucion'
 import { medirReservasHud } from '../areaHud'
 import type { RectPantalla } from '../seleccion'
 import { areaLibre, centroParaVer, parcelaEnPunto, puntoDeToque, rectParcela } from '../picking'
@@ -84,6 +82,8 @@ export interface DatosEscenaValle {
  * a `RenderTexture`; en WebGL un `Graphics` vivo se reprocesa en cada fotograma.
  */
 export class EscenaValle extends Phaser.Scene {
+  /** Partida recibida en `init`; no se expone a los ganchos hasta que `create()` la publica. */
+  private recibida: Partida | undefined = undefined
   private _partida: Partida | undefined = undefined
   private en: 'vado' | undefined = undefined
   private modoInicial: ModoJuego = 'vida'
@@ -119,8 +119,8 @@ export class EscenaValle extends Phaser.Scene {
     }
   }
   private partidaCompartida(): Partida {
-    if (!this._partida) throw new Error('La escena no se ha iniciado')
-    return this._partida
+    if (!this.recibida) throw new Error('La escena no se ha iniciado')
+    return this.recibida
   }
 
   private hornear: () => Phaser.GameObjects.RenderTexture[] = () => []
@@ -133,6 +133,7 @@ export class EscenaValle extends Phaser.Scene {
   private pintor: PintorZonas | undefined = undefined
   private desuscribirPincel: (() => void) | undefined = undefined
   private edificios: VistaEdificios | undefined = undefined
+  private capaObjetos: CapaObjetos | undefined = undefined
   private vistaSilueta: VistaSilueta | undefined = undefined
   private colocador: ColocadorEdificio | undefined = undefined
   private desuscribirConstruccion: (() => void) | undefined = undefined
@@ -150,9 +151,15 @@ export class EscenaValle extends Phaser.Scene {
     super('valle')
   }
 
+  /** Carga el arte final (terreno, objetos, edificios, zonas y protagonista); lo ya cargado se salta. */
+  preload(): void {
+    cargarArte(this)
+  }
+
   init(datos: DatosEscenaValle): void {
     this.semilla = datos.semilla
-    this._partida = datos.partida
+    this.recibida = datos.partida
+    this._partida = undefined
     this.propias = datos.propias ?? []
     this.en = datos.en
     this.acelerar = datos.acelerar ?? 1
@@ -172,7 +179,8 @@ export class EscenaValle extends Phaser.Scene {
     return this._partida?.estado
   }
 
-  /** La partida (estado, comandos y suscripción); undefined hasta `create()`. */
+  /** La partida (estado, comandos y suscripción); undefined hasta que `create()` la publica
+   * (mientras se carga el arte los ganchos no exponen nada). */
   get partida(): Partida | undefined {
     return this._partida
   }
@@ -217,19 +225,27 @@ export class EscenaValle extends Phaser.Scene {
     // La misma instancia de Partida: los suscriptores (HUD) siguen suscritos tras un reinicio.
     const partida = this.partidaCompartida()
     partida.reemplazar(inicial)
+    this._partida = partida
     this.tiempo = new AcumuladorTiempo()
     const valle = inicial.valle
     const rio = casillasRio(valle, inicial.cauce.ancho)
     const vados = new Set(inicial.cauce.vados)
 
     // Terreno y decoración no cambian: se hornean a texturas por trozos (M1-04).
-    const decoracion = inicial.obstaculos
+    const semilla = this.semilla
     this.hornear = () =>
-      hornearCapaBase(this, this.mundoPx, (region) => [
-        dibujarTerreno(this, valle, rio, vados, region),
-        dibujarDecoracion(this, decoracion, region),
-      ])
+      hornearCapaBase(this, this.mundoPx, (rt, trozo) =>
+        pintarTrozoTerreno(this, rt, trozo, { valle, rio, vados, semilla }),
+      )
     this.trozos = this.hornear()
+    // Árboles y rocas no se hornean: son objetos con profundidad por su base (como el personaje y los
+    // edificios), solo los de la vista de la cámara más un margen (`CapaObjetos`).
+    this.capaObjetos?.destruir()
+    this.capaObjetos = new CapaObjetos(this, this.mundoPx)
+    this.capaObjetos.reemplazar(
+      objetosDeDecoracion(this, inicial.obstaculos, ladoValle(inicial.valle)),
+    )
+    this.actualizarCapaObjetos()
     // Al perder y recuperar el contexto WebGL las texturas quedan vacías (Phaser no las
     // restaura): se vuelven a hornear con los mismos datos.
     if (this.renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer) {
@@ -242,7 +258,7 @@ export class EscenaValle extends Phaser.Scene {
     this.parcelas.repintar(inicial)
     // Zonas (M4-04): capa horneada por trozos, aparte del terreno; solo se rehornea el trozo que cambia.
     this.zonas?.destruir()
-    this.zonas = new VistaZonas(this, this.mundoPx, ladoValle(valle))
+    this.zonas = new VistaZonas(this, this.mundoPx, ladoValle(valle), this.semilla)
     this.zonas.actualizar(inicial)
     this.vistaPincel?.destruir()
     this.vistaPincel = new VistaPincel(this)
@@ -250,7 +266,7 @@ export class EscenaValle extends Phaser.Scene {
     this.edificios?.destruir()
     const textos = this.registry.get(CLAVE_TEXTOS_LIENZO) as TextosLienzo | undefined
     this.edificios = new VistaEdificios(this, textos?.cartelObra ?? ((dias) => String(dias)))
-    this.edificios.actualizar(inicial, this.cameras.main.zoom)
+    this.edificios.actualizar(inicial, zoomLogico(this))
     this.vistaSilueta?.destruir()
     this.vistaSilueta = new VistaSilueta(this)
     // Contorno de la parcela seleccionada (estado de interfaz): por encima del personaje y del
@@ -275,7 +291,7 @@ export class EscenaValle extends Phaser.Scene {
       // vista y los ganchos de prueba no se desfasan del estado de la partida.
       if (cambio.eventos.length > 0) {
         this.zonas?.actualizar(partida.estado)
-        this.edificios?.actualizar(partida.estado, this.cameras.main.zoom)
+        this.edificios?.actualizar(partida.estado, zoomLogico(this))
       }
       if (cambio.eventos.some((e) => e.tipo === 'desmayo')) {
         this.seguidor.cancelar()
@@ -385,6 +401,7 @@ export class EscenaValle extends Phaser.Scene {
       posicion,
     )
     this.alCambiarHerramienta()
+    this.actualizarCapaObjetos()
     // Los márgenes de la cámara se fijan explícitamente al terminar de crear (Plano: los del panel y el HUD).
     this.actualizarMargenes()
     const sel = this.seleccionInicial
@@ -419,7 +436,7 @@ export class EscenaValle extends Phaser.Scene {
     const g = this.geometria()
     const c = this.control
     if (!g || !c || !this._partida || !Number.isInteger(i)) return undefined
-    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const pantalla = pantallaLogica(this)
     const libre = this.zonaLibre(pantalla)
     return puntoDeToque(c.vista, pantalla, libre, rectParcela(g, i))
   }
@@ -436,7 +453,7 @@ export class EscenaValle extends Phaser.Scene {
    */
   private actualizarMargenes(): void {
     if (!this.control) return
-    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const pantalla = pantallaLogica(this)
     const libre = this.zonaLibre(pantalla)
     const h = CONFIG_CAMARA.holguraBordePx
     this.control.fijarMargenes(
@@ -468,7 +485,7 @@ export class EscenaValle extends Phaser.Scene {
   puntoClicCasilla(cx: number, cy: number): { x: number; y: number } | undefined {
     const c = this.control
     if (!c || !this._partida || !Number.isInteger(cx) || !Number.isInteger(cy)) return undefined
-    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const pantalla = pantallaLogica(this)
     const libre = this.zonaLibre(pantalla)
     const celda = {
       x: cx * TAM_CASILLA,
@@ -615,9 +632,9 @@ export class EscenaValle extends Phaser.Scene {
     const partida = this._partida
     if (!partida || !this.control) return { x: 0, y: 0 }
     const lado = ladoValle(partida.estado.valle)
-    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const pantalla = pantallaLogica(this)
     const libre = this.zonaLibre(pantalla)
-    const m = this.cameras.main.getWorldPoint(libre.x + libre.ancho / 2, libre.y + libre.alto / 2)
+    const m = mundoDePantalla(this, libre.x + libre.ancho / 2, libre.y + libre.alto / 2)
     return casillaMasCercana(lado, TAM_CASILLA, m.x, m.y) ?? { x: 0, y: 0 }
   }
 
@@ -634,7 +651,7 @@ export class EscenaValle extends Phaser.Scene {
     const s = partida?.silueta()
     if (!partida || !s || !this.control) return
     this.actualizarMargenes()
-    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const pantalla = pantallaLogica(this)
     const libre = this.zonaLibre(pantalla)
     const rect = {
       x: s.x * TAM_CASILLA,
@@ -652,7 +669,7 @@ export class EscenaValle extends Phaser.Scene {
     const c = partida?.pincel.cursor
     if (!partida || !c || !this.control) return
     this.actualizarMargenes()
-    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const pantalla = pantallaLogica(this)
     const libre = this.zonaLibre(pantalla)
     const celda = {
       x: c.x * TAM_CASILLA,
@@ -790,13 +807,13 @@ export class EscenaValle extends Phaser.Scene {
     }
     // Al girar, el panel avisa antes de que el lienzo cambie de tamaño: guiar con medidas a medias
     // mandaría la cámara a un sitio absurdo. Se espera al evento `resize` (que repite la guía).
-    // Esta guarda solo vale con `Phaser.Scale.RESIZE` (el lienzo mide lo mismo que su contenedor,
-    // como en `crearJuego`); con otro modo de escala nunca coincidirían y no habría guía.
+    // Esta guarda compara con la pantalla lógica (CSS): el lienzo mide CSS × factor de resolución (`juego.ts`).
     const padre = this.game.canvas.parentElement
+    const medida = pantallaLogica(this)
     if (
       padre &&
-      (Math.abs(padre.clientWidth - this.scale.width) > 1 ||
-        Math.abs(padre.clientHeight - this.scale.height) > 1)
+      (Math.abs(padre.clientWidth - medida.ancho) > 1 ||
+        Math.abs(padre.clientHeight - medida.alto) > 1)
     )
       return
     const o = partida.seleccion.ocupado
@@ -807,7 +824,7 @@ export class EscenaValle extends Phaser.Scene {
     const clave = `${sujeto}|${o ? `${o.x},${o.y},${o.ancho},${o.alto}` : ''}|${reservas.arriba},${reservas.abajo}`
     if (clave === this.claveGuia || !this.control) return
     this.claveGuia = clave
-    const pantalla = { ancho: this.scale.width, alto: this.scale.height }
+    const pantalla = pantallaLogica(this)
     const objetivo = huella
       ? {
           x: huella.x0 * TAM_CASILLA,
@@ -891,13 +908,14 @@ export class EscenaValle extends Phaser.Scene {
     this.parcelas?.repintar(partida.estado)
     this.zonas?.actualizar(partida.estado)
     this.vistaPincel?.actualizar(partida.pincel)
-    this.edificios?.actualizar(partida.estado, this.cameras.main.zoom)
+    this.edificios?.actualizar(partida.estado, zoomLogico(this))
+    this.actualizarCapaObjetos()
     this.vistaSilueta?.actualizar(partida.silueta())
     const destino = this.seguidor.destino
     if (destino) this.marca?.mostrar(destino.x * TAM_CASILLA, destino.y * TAM_CASILLA)
     else this.marca?.ocultar()
     const p = partida.estado.personaje
-    this.vista?.colocar(p)
+    this.vista?.colocar(p, ms)
     const punto = { x: p.x * TAM_CASILLA, y: p.y * TAM_CASILLA }
     const real = Number.isFinite(delta) ? Math.min(Math.max(delta, 0), 1000) : 0
     // Tras un desmayo el personaje reaparece lejos: la cámara salta, sin barrido.
@@ -935,9 +953,28 @@ export class EscenaValle extends Phaser.Scene {
     this.actualizarMargenes()
   }
 
+  /** Pone al día los objetos con profundidad según lo que ve la cámara (con un poco de margen). */
+  private actualizarCapaObjetos(): void {
+    const v = this.cameras.main.worldView
+    this.capaObjetos?.actualizar({ x0: v.x, y0: v.y, x1: v.right, y1: v.bottom })
+  }
+
+  /** Objetos con profundidad (árboles y rocas) vivos y los que caen en la vista más el margen (ganchos de prueba). */
+  objetosCapa(): { activos: number; enVista: number; obstaculos: number } | undefined {
+    const c = this.capaObjetos
+    if (!c) return undefined
+    const v = this.cameras.main.worldView
+    return {
+      activos: c.cantidad,
+      obstaculos: this.estado?.obstaculos.length ?? 0,
+      enVista: c.contarEn({ x0: v.x, y0: v.y, x1: v.right, y1: v.bottom }),
+    }
+  }
+
   private rehornear(): void {
     for (const t of this.trozos) t.destroy()
     this.trozos = this.hornear()
+    this.capaObjetos?.invalidar()
     this.zonas?.invalidar()
     this.edificios?.invalidar()
   }
@@ -965,6 +1002,8 @@ export class EscenaValle extends Phaser.Scene {
     this.vistaPincel = undefined
     this.edificios?.destruir()
     this.edificios = undefined
+    this.capaObjetos?.destruir()
+    this.capaObjetos = undefined
     this.vistaSilueta?.destruir()
     this.vistaSilueta = undefined
     this.desuscribirPincel?.()

@@ -50,5 +50,18 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // El puntero llega en píxeles CSS y se convierte con `mundoDePantalla` (resolucion.ts, issue #11).
+    files: ['src/game/**/*.ts'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        ...['worldX', 'worldY', 'positionToCamera', 'setInteractive'].map((property) => ({
+          property,
+          message: 'Usa mundoDePantalla (resolucion.ts); ver el aviso de la cabecera.',
+        })),
+      ],
+    },
+  },
   prettier,
 )

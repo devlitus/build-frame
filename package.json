@@ -22,7 +22,7 @@
     "capturas": "npm run build && node scripts/capturas.mjs"
   },
   "dependencies": {
-    "phaser": "^3.90.0",
+    "phaser": "~3.90.0",
     "preact": "^11.2.0",
     "valibot": "^1.5.0"
   },

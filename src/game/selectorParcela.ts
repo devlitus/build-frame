@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { esToqueDeSeleccion } from './picking'
+import { mundoDePantalla } from './resolucion'
 
 type Fase = 'libre' | 'candidato' | 'anulado'
 
@@ -57,7 +58,7 @@ export class SelectorParcela {
     this.inicioY = p.y
     this.movidoMax = 0
     this.t0 = performance.now()
-    const m = this.escena.cameras.main.getWorldPoint(p.x, p.y)
+    const m = mundoDePantalla(this.escena, p.x, p.y)
     this.mundo = { x: m.x, y: m.y }
   }
 

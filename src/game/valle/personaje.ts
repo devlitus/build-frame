@@ -1,40 +1,61 @@
-import Phaser from 'phaser'
-import type { Orientacion, Personaje } from '../../core'
-import { ESTILO_PERSONAJE as E, TAM_CASILLA } from './estilo'
-
-const DESPLAZAMIENTO: Readonly<Record<Orientacion, { x: number; y: number }>> = {
-  norte: { x: 0, y: -1 },
-  sur: { x: 0, y: 1 },
-  este: { x: 1, y: 0 },
-  oeste: { x: -1, y: 0 },
-}
+import type Phaser from 'phaser'
+import type { Personaje } from '../../core'
+import { MARCO_PERSONAJE, crearAnimacionesPersonaje, escalaNominal } from './arte'
+import {
+  CLAVE_PROTAGONISTA,
+  DetectorMovimiento,
+  animacionPersonaje,
+  nombreFotograma,
+} from './animacionPersonaje'
+import { TAM_CASILLA } from './estilo'
 
 /**
- * Personaje provisional: un círculo con un punto que marca hacia dónde mira. Se crea una vez
- * y `colocar` solo mueve los objetos. `depth` = y en píxeles (ADR 0003: ordenar por y).
+ * El protagonista (arte final, M5-00): un `Sprite` con el atlas `protagonista`. Anda en cuatro
+ * direcciones (la izquierda es la derecha espejada) y, quieto, respira mirando hacia la última
+ * dirección en que se movió (`Personaje.orientacion`, que conserva el núcleo). Se crea una vez y
+ * `colocar` solo lo mueve. `depth` = y de los pies en píxeles (ADR 0003: ordenar por y), con el
+ * pivote en los pies para que quede detrás de lo que está más al sur (p. ej. un edificio).
  */
 export class VistaPersonaje {
-  private readonly cuerpo: Phaser.GameObjects.Arc
-  private readonly indicador: Phaser.GameObjects.Arc
+  private readonly sprite: Phaser.GameObjects.Sprite
+  private readonly movimiento = new DetectorMovimiento()
+  private clave = ''
 
   constructor(escena: Phaser.Scene) {
-    this.cuerpo = escena.add.circle(0, 0, E.radio, E.cuerpo).setStrokeStyle(2, E.borde)
-    this.indicador = escena.add.circle(0, 0, E.radioIndicador, E.indicador)
+    crearAnimacionesPersonaje(escena)
+    const m = MARCO_PERSONAJE
+    this.sprite = escena.add
+      .sprite(0, 0, CLAVE_PROTAGONISTA, nombreFotograma('reposo-abajo', 0))
+      .setOrigin(m.pivoteX / m.ancho, m.pivoteY / m.alto)
+      .setScale(
+        escalaNominal(escena, CLAVE_PROTAGONISTA, m.ancho, nombreFotograma('reposo-abajo', 0)),
+      )
   }
 
-  colocar(p: Personaje): void {
+  /** Coloca al personaje; `ms` es el tiempo desde el fotograma anterior (para saber si anda). */
+  colocar(p: Personaje, ms = 16): void {
     const x = p.x * TAM_CASILLA
     const y = p.y * TAM_CASILLA
-    this.cuerpo.setPosition(x, y).setDepth(y)
-    const d = DESPLAZAMIENTO[p.orientacion]
-    // El indicador queda por delante del cuerpo.
-    this.indicador
-      .setPosition(x + d.x * E.distanciaIndicador, y + d.y * E.distanciaIndicador)
-      .setDepth(y + 0.5)
+    this.sprite.setPosition(x, y).setDepth(y)
+    const anda = this.movimiento.actualizar(p.x, p.y, ms)
+    const { clave, espejo } = animacionPersonaje(anda ? 'caminar' : 'reposo', p.orientacion)
+    this.sprite.setFlipX(espejo)
+    if (clave !== this.clave) {
+      this.clave = clave
+      this.sprite.play(clave)
+    }
+  }
+
+  /** Animación en curso (ganchos de prueba), p. ej. `caminar-derecha`. */
+  get animacion(): string {
+    return this.clave
+  }
+
+  get espejado(): boolean {
+    return this.sprite.flipX
   }
 
   destruir(): void {
-    this.cuerpo.destroy()
-    this.indicador.destroy()
+    this.sprite.destroy()
   }
 }

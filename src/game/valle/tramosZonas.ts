@@ -53,3 +53,31 @@ export function firmaVentana(zonas: string, lado: number, v: VentanaCasillas): s
   }
   return filas.join('|')
 }
+
+/** Qué lados de una casilla tienen vecina de otra zona (o el borde del valle): ahí va el borde del arte. */
+export interface BordesCasilla {
+  readonly arriba: boolean
+  readonly derecha: boolean
+  readonly abajo: boolean
+  readonly izquierda: boolean
+}
+
+/** Zona de la casilla `(x, y)`, o undefined si no tiene o cae fuera del valle. */
+export function zonaDeCasilla(zonas: string, lado: number, x: number, y: number): Zona | undefined {
+  if (x < 0 || y < 0 || x >= lado || y >= lado) return undefined
+  const c = zonas[y * lado + x]
+  return ZONAS.find((z) => CARACTER_ZONA[z] === c)
+}
+
+/** Bordes que se dibujan en la casilla `(x, y)` de la zona `zona`: los lados cuya vecina es de otra zona. */
+export function bordesDeCasilla(
+  zonas: string,
+  lado: number,
+  x: number,
+  y: number,
+  zona: Zona,
+): BordesCasilla {
+  const otra = (dx: number, dy: number): boolean =>
+    zonaDeCasilla(zonas, lado, x + dx, y + dy) !== zona
+  return { arriba: otra(0, -1), derecha: otra(1, 0), abajo: otra(0, 1), izquierda: otra(-1, 0) }
+}

@@ -13,6 +13,7 @@ import {
   type Punto,
   type Vista,
 } from './matematica'
+import { factorDe, pantallaLogica } from '../resolucion'
 
 interface Medida {
   readonly ids: readonly number[]
@@ -250,7 +251,7 @@ export class ControlCamara {
   }
 
   private get pantalla(): Pantalla {
-    return { ancho: this.escena.scale.width, alto: this.escena.scale.height }
+    return pantallaLogica(this.escena)
   }
 
   private aplicar(v: Vista): void {
@@ -260,7 +261,8 @@ export class ControlCamara {
     const l = this.recolocando
       ? limitarVista(v, this.pantalla, this.mundoPx, this.limitesAnchos())
       : limitarVista(v, this.pantalla, this.mundoPx, this.limites())
-    cam.setZoom(l.zoom)
+    // La cámara de Phaser trabaja en píxeles de dispositivo: zoom lógico × factor de resolución.
+    cam.setZoom(l.zoom * factorDe(this.escena))
     cam.setScroll(l.cx - cam.width / 2, l.cy - cam.height / 2)
     this.actual = l
   }

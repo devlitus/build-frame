@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import type { Construccion } from './construir'
 import { casillaEnPunto, casillaMasCercana, type Casilla } from './pincel'
+import { mundoDePantalla } from './resolucion'
 
 type Fase = 'libre' | 'colocando' | 'anulado'
 
@@ -45,7 +46,7 @@ export class ColocadorEdificio {
   }
 
   private casilla(p: Phaser.Input.Pointer, ajustar: boolean): Casilla | undefined {
-    const m = this.escena.cameras.main.getWorldPoint(p.x, p.y)
+    const m = mundoDePantalla(this.escena, p.x, p.y)
     return ajustar
       ? casillaMasCercana(this.lado, this.tamCasilla, m.x, m.y)
       : casillaEnPunto(this.lado, this.tamCasilla, m.x, m.y)

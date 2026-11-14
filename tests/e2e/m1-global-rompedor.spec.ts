@@ -205,7 +205,8 @@ test.describe('se recorre todo el valle', () => {
         isMobile,
       }) => {
         test.skip(isMobile !== caso.movil, 'otro dispositivo')
-        test.setTimeout(240_000)
+        // Orquestador (M5-00): con el lienzo a DPR 2 el barrido móvil tarda ~2,9 min sin GPU; margen para carga.
+        test.setTimeout(420_000)
         const errores = espiar(page)
         await page.setViewportSize(caso.tam)
         await abrir(page, './?semilla=42&modo=plano')
@@ -452,9 +453,7 @@ test('reiniciarValle: la cámara vuelve al encuadre inicial y los gestos no se d
 test('DPR alto: el lienzo se dibuja a la resolución del dispositivo (nitidez)', async ({
   browser,
 }) => {
-  // Decisión del orquestador: S3 al backlog (PROCESO §6), issue devlitus/build-frame#11.
-  // Fallo esperado: cuando se corrija, este test pasará y Playwright avisará para quitar `test.fail`.
-  test.fail()
+  // M5-00 (issue #11): el criterio aprobado es lienzo = CSS × min(DPR, 2); a DPR 3 el tope es 2.
   const ctx = await browser.newContext({
     baseURL: test.info().project.use.baseURL ?? '',
     viewport: { width: 412, height: 915 },
@@ -469,8 +468,9 @@ test('DPR alto: el lienzo se dibuja a la resolución del dispositivo (nitidez)',
     return { w: cv.width, cssW: cv.clientWidth, dpr: window.devicePixelRatio }
   })
   await ctx.close()
-  // S3: con RESIZE de Phaser 3 el búfer es de píxeles CSS; el navegador lo amplía x3 (borroso).
-  expect(r.w, JSON.stringify(r)).toBeGreaterThanOrEqual(Math.floor(r.cssW * r.dpr * 0.99))
+  const factor = Math.min(r.dpr, 2)
+  expect(r.w, JSON.stringify(r)).toBeGreaterThanOrEqual(Math.floor(r.cssW * factor * 0.99))
+  expect(r.w, JSON.stringify(r)).toBeLessThanOrEqual(Math.ceil(r.cssW * factor * 1.01))
 })
 
 test('rendimiento: fps medias durante 5 s de arrastre y zoom continuos (solo registro)', async ({

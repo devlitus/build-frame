@@ -1,7 +1,9 @@
 import { useLayoutEffect, useRef } from 'preact/hooks'
 import { ZONAS, type Zona } from '../core'
 import type { HerramientaPincel } from '../game/pincel'
-import { ESTILO_PREVIA, ESTILO_ZONAS } from '../game/valle/estilo'
+import { rutaTiraZona } from '../game/valle/arte'
+import { ESTILO_PREVIA } from '../game/valle/estilo'
+import { dprActual, sufijoArte } from '../game/resolucion'
 import { t, type ClaveTexto } from './textos'
 import { useEstado, usePartida, usePincel } from './useEstado'
 
@@ -51,9 +53,11 @@ function Herramienta(props: { id: HerramientaPincel; actual: HerramientaPincel |
       <span
         class={`muestra-zona muestra-${id}`}
         aria-hidden="true"
-        style={{
-          '--zona': hex(id === 'borrar' ? ESTILO_PREVIA.borrar : ESTILO_ZONAS[id as Zona].color),
-        }}
+        style={
+          id === 'borrar'
+            ? { '--zona': hex(ESTILO_PREVIA.borrar) }
+            : { backgroundImage: `url(${rutaTiraZona(id as Zona, sufijoArte(dprActual()))})` }
+        }
       />
       <span>{t(clave)}</span>
     </button>

@@ -17,8 +17,13 @@ interface Window {
     fps(): number
     /** Texto del contador de fps; undefined si no hay escena de depuración (sin `?debug`). */
     contadorFps(): string | undefined
-    /** Número de objetos en la lista de la escena del valle. */
+    /** Número de objetos en la lista de la escena del valle, sin los de la capa por profundidad (`objetosCapa`). */
     objetosValle(): number | undefined
+    /**
+     * Objetos con profundidad (árboles y rocas) vivos (`activos`), los que caen en la vista más el
+     * margen (`enVista`) y los obstáculos del estado (`obstaculos`, techo de `activos`).
+     */
+    objetosCapa(): { activos: number; enVista: number; obstaculos: number } | undefined
     /** Tamaño (en órdenes de dibujo) de cada `Graphics` vivo en la escena del valle. */
     graficosValle(): number[]
     /** Modo de juego vigente; undefined si no hay valle. */
