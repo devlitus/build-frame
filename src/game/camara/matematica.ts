@@ -64,6 +64,12 @@ export interface Margenes {
   readonly abajo: number
   readonly izq: number
   readonly der: number
+  /**
+   * Vida: el rango del centro solo se amplía en el extremo tapado (`lo -= izq/zoom`,
+   * `hi += der/zoom`), sin abrirlo a `[0, mundo]`. Sin esto (Plano) cualquier casilla puede
+   * quedar en el centro.
+   */
+  readonly soloExtremos?: boolean
 }
 
 export function limitarEje(
@@ -74,6 +80,7 @@ export function limitarEje(
   extension?: number,
   margenLo = 0,
   margenHi = 0,
+  soloExtremos = false,
 ): number {
   const visible = pantalla / zoom
   let lo = visible >= mundo ? mundo / 2 : visible / 2
@@ -81,8 +88,13 @@ export function limitarEje(
   if (visible < mundo && (margenLo > 0 || margenHi > 0)) {
     // El borde del valle llega al borde de la zona libre (se ve lo que tapan HUD y paneles) y
     // cualquier casilla del valle puede quedar en el centro.
-    lo = Math.min(lo - Math.max(0, margenLo) / zoom, 0)
-    hi = Math.max(hi + Math.max(0, margenHi) / zoom, mundo)
+    if (soloExtremos) {
+      lo -= Math.max(0, margenLo) / zoom
+      hi += Math.max(0, margenHi) / zoom
+    } else {
+      lo = Math.min(lo - Math.max(0, margenLo) / zoom, 0)
+      hi = Math.max(hi + Math.max(0, margenHi) / zoom, mundo)
+    }
   }
   if (extension !== undefined) {
     lo = Math.min(lo, extension)
@@ -111,6 +123,7 @@ export function limitarVista(
       extension?.x,
       extension?.margenes?.izq,
       extension?.margenes?.der,
+      extension?.margenes?.soloExtremos,
     ),
     cy: limitarEje(
       v.cy,
@@ -120,6 +133,7 @@ export function limitarVista(
       extension?.y,
       extension?.margenes?.arriba,
       extension?.margenes?.abajo,
+      extension?.margenes?.soloExtremos,
     ),
   }
 }

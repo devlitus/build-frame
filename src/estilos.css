@@ -1341,9 +1341,14 @@ body {
   font-size: 1.15rem;
 }
 
+.inventario-cabecera .boton-cerrar {
+  flex: none;
+}
+
 .inventario-capacidad {
   margin: 0;
   flex: 1;
+  min-width: 0;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -1511,7 +1516,7 @@ body {
   }
 
   .panel-inventario-caja {
-    max-height: max(150px, calc(50dvh - 160px));
+    max-height: max(214px, calc(50dvh - 160px));
   }
 
   .inventario-ayuda {

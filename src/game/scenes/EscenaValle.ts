@@ -16,7 +16,7 @@ import {
 } from '../../core'
 import { CONFIG_CAMARA } from '../camara/config'
 import { ControlCamara } from '../camara/controlCamara'
-import type { Margenes } from '../camara/matematica'
+import { limitarEje, type Margenes } from '../camara/matematica'
 import { conPropiasDeDepuracion } from '../valle/debug'
 import type { EstadoVisualParcela } from '../valle/estadoVisual'
 import { VistaParcelas } from '../valle/vistaParcelas'
@@ -94,6 +94,8 @@ export class EscenaValle extends Phaser.Scene {
   private modoAplicado: ModoJuego = 'vida'
   private control: ControlCamara | undefined = undefined
   private fotogramasMargen = 0
+  private inventarioAbiertoVisto = false
+  private remedirMargenes = 0
   private entrada: EntradaMovimiento | undefined = undefined
   private vista: VistaPersonaje | undefined = undefined
   private luz: VistaLuz | undefined = undefined
@@ -486,7 +488,8 @@ export class EscenaValle extends Phaser.Scene {
     const libre = this.zonaLibre(pantalla)
     const h = CONFIG_CAMARA.holguraBordePx
     if (this.modoAplicado === 'vida') {
-      this.control.fijarMargenes(this.margenesVida(pantalla))
+      // Tras abrir el panel o cambiar el tamaño, la vista salta (sin deslizarse) a su sitio.
+      this.control.fijarMargenes(this.margenesVida(pantalla), this.remedirMargenes > 0)
       return
     }
     this.control.fijarMargenes(
@@ -502,16 +505,44 @@ export class EscenaValle extends Phaser.Scene {
   }
 
   /**
-   * Márgenes de la cámara en Vida: la barra de herramientas (abajo a la izquierda, o en columna
-   * en el borde izquierdo en vertical) no debe tapar al personaje pegado al borde del valle. El
-   * borde del valle llega hasta la barra (más una holgura), como los paneles en el Plano.
+   * Márgenes de la cámara en Vida. Solo se amplía el extremo del eje que haría falta para que la
+   * interfaz (barra de herramientas, panel de inventario a la izquierda) o el borde norte no
+   * dejen al personaje tapado o cortado: el margen es lo que habría que desplazar la cámara con
+   * el límite normal del valle. Si el personaje no queda bajo nada, no hay margen (la cámara
+   * sigue acotada al valle). Es función de la posición del personaje, no de la cámara actual.
    */
   private margenesVida(pantalla: { ancho: number; alto: number }): Margenes | undefined {
-    const r = document.querySelector('.barra-herramientas-caja')?.getBoundingClientRect()
-    if (!r || r.width <= 0 || r.height <= 0) return undefined
+    const barra = document.querySelector('.barra-herramientas-caja')?.getBoundingClientRect()
+    const c = this.control
+    const q = this._partida?.estado.personaje
+    if (!barra || barra.width <= 0 || barra.height <= 0 || !c || !q) return undefined
     const h = CONFIG_CAMARA.holguraBordePx
-    if (r.width < r.height) return { arriba: 0, abajo: 0, izq: Math.ceil(r.right) + h, der: 0 }
-    return { arriba: 0, abajo: Math.max(0, Math.ceil(pantalla.alto - r.top)) + h, izq: 0, der: 0 }
+    const zoom = c.vista.zoom
+    const mundo = this.mundoPx
+    // Pantalla del personaje con la cámara acotada al valle: pies (x, y) y su cuerpo (una casilla
+    // por encima de los pies y media casilla a cada lado).
+    const cx = limitarEje(q.x * TAM_CASILLA, pantalla.ancho, zoom, mundo)
+    const cy = limitarEje(q.y * TAM_CASILLA, pantalla.alto, zoom, mundo)
+    const x = pantalla.ancho / 2 + (q.x * TAM_CASILLA - cx) * zoom
+    const y = pantalla.alto / 2 + (q.y * TAM_CASILLA - cy) * zoom
+    const mitad = (TAM_CASILLA / 2) * zoom
+    const alto = TAM_CASILLA * zoom
+    const solapaX = (r: DOMRect) => x + mitad > r.left - h && x - mitad < r.right + h
+    const solapaY = (r: DOMRect) => y > r.top - h && y - alto < r.bottom + h
+    const arriba = Math.max(0, Math.ceil(alto - y))
+    let izq = 0
+    let abajo = 0
+    const columna = barra.width < barra.height
+    const izquierda = [...(columna ? [barra] : [])]
+    // Con el inventario abierto a la izquierda (no en vertical, donde ya queda a la derecha de la
+    // columna) la cámara también lo esquiva.
+    const panel = document.querySelector('.panel-inventario-caja')?.getBoundingClientRect()
+    if (panel && panel.width > 0 && !columna) izquierda.push(panel)
+    for (const r of izquierda) {
+      if (solapaY(r)) izq = Math.max(izq, Math.ceil(r.right + h - (x - mitad)))
+    }
+    if (!columna && solapaX(barra)) abajo = Math.max(0, Math.ceil(y - (barra.top - h)))
+    return { arriba, abajo, izq: Math.max(0, izq), der: 0, soloExtremos: true }
   }
 
   /** La cámara se desliza (guía o vuelta de la extensión): gancho de prueba. */
@@ -845,6 +876,7 @@ export class EscenaValle extends Phaser.Scene {
 
   private alRedimensionar(): void {
     this.claveGuia = ''
+    this.remedirMargenes = 20
     this.actualizarMargenes()
     if (this.idFotograma !== undefined) cancelAnimationFrame(this.idFotograma)
     this.idFotograma = requestAnimationFrame(() => {
@@ -956,7 +988,19 @@ export class EscenaValle extends Phaser.Scene {
         this.focoEnLienzo(),
     )
     // La barra de herramientas (HUD en el DOM) puede aparecer o cambiar de sitio: en Vida se re-mide cada poco.
-    if (modo === 'vida' && ++this.fotogramasMargen % 15 === 0) this.actualizarMargenes()
+    // Al abrir o cerrar el inventario se re-mide enseguida (la cámara esquiva el panel).
+    const inventarioAbierto = partida.inventario.abierto
+    if (inventarioAbierto !== this.inventarioAbiertoVisto) {
+      this.inventarioAbiertoVisto = inventarioAbierto
+      this.remedirMargenes = 20
+    }
+    if (modo === 'vida') {
+      // El panel se pinta un par de fotogramas después de abrirse: se re-mide fotograma a fotograma.
+      if (this.remedirMargenes > 0) {
+        this.remedirMargenes--
+        this.actualizarMargenes()
+      } else if (++this.fotogramasMargen % 15 === 0) this.actualizarMargenes()
+    }
     const joystick = this.tactil?.leer() ?? { dx: 0, dy: 0 }
     // El teclado tiene prioridad sobre el joystick; cualquiera de los dos cancela el destino.
     const intencion = teclado.dx !== 0 || teclado.dy !== 0 ? teclado : joystick

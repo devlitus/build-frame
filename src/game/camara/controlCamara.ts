@@ -158,11 +158,17 @@ export class ControlCamara {
    * Fija los márgenes del Modo Plano (o `undefined`). Si al reducirse la vista queda fuera de
    * los límites, vuelve deslizándose (no de golpe).
    */
-  fijarMargenes(m: Margenes | undefined): void {
+  fijarMargenes(m: Margenes | undefined, saltar = false): void {
     const a = this.margenes
     if (
       a === m ||
-      (a && m && a.arriba === m.arriba && a.abajo === m.abajo && a.izq === m.izq && a.der === m.der)
+      (a &&
+        m &&
+        a.arriba === m.arriba &&
+        a.abajo === m.abajo &&
+        a.izq === m.izq &&
+        a.der === m.der &&
+        a.soloExtremos === m.soloExtremos)
     )
       return
     this.margenes = m ? { ...m } : undefined
@@ -171,8 +177,17 @@ export class ControlCamara {
     const fuera = l.cx !== v.cx || l.cy !== v.cy
     // Al salir del Plano la vista vuelve de golpe (en Vida siempre dentro del valle); si solo
     // cambia el panel, se desliza.
-    this.recolocando = fuera && m !== undefined
-    if (fuera && m === undefined) this.aplicar(l)
+    // Si crece un margen de Vida es porque el personaje quedaría bajo la interfaz: la vista salta;
+    // si se reduce, vuelve deslizándose.
+    const crece =
+      m?.soloExtremos === true &&
+      (m.arriba > (a?.arriba ?? 0) || m.abajo > (a?.abajo ?? 0) || m.izq > (a?.izq ?? 0))
+    this.recolocando = fuera && m !== undefined && !crece && !saltar
+    if (fuera && (m === undefined || saltar)) this.aplicar(l)
+    else if (crece && this.opciones.seguir && this.objetivo) {
+      // El personaje no debe quedar tapado ni un instante: la vista salta hacia él (con los nuevos límites).
+      this.aplicar({ ...v, cx: this.objetivo.x, cy: this.objetivo.y })
+    }
   }
 
   /** Hay un deslizamiento en curso (guía o vuelta de la extensión). */
