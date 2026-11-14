@@ -11,13 +11,12 @@ export const rutaIconoHerramienta = (h: Herramienta): string => rutaIcono(h)
 
 /**
  * Icono de un objeto del inventario, o `undefined` si todavía no tiene arte (entonces la interfaz
- * pinta una ficha con su inicial). El plantón ya tiene icono; las semillas usan el genérico de
- * «semillas» como *placeholder* hasta que llegue `iconos/semilla-<id>` (lote 2 del arte de M5);
- * los productos de cosecha aún no tienen.
+ * pinta una ficha con su inicial). El plantón y cada semilla (`iconos/semilla-<cultivo>`, que
+ * coincide con el id del objeto) tienen icono; los productos de cosecha aún no (su arte es de M6).
  */
 export function rutaIconoObjeto(objeto: ObjetoId): string | undefined {
   const categoria = defObjeto(objeto)?.categoria
   if (categoria === 'planton') return rutaIcono('planton')
-  if (categoria === 'semilla') return rutaIcono('semillas')
+  if (categoria === 'semilla') return rutaIcono(objeto)
   return undefined
 }

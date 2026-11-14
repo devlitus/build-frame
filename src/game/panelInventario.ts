@@ -29,6 +29,14 @@ export class PanelInventario {
   cerrar(): void {
     if (!this._abierto) return
     this._abierto = false
+    // Si el foco está dentro del panel (que se va a desmontar), vuelve al lienzo: así las teclas
+    // de Vida siguen vivas cierre quien cierre el panel (Esc, I, «Cerrar» o el cambio de modo).
+    if (typeof document !== 'undefined') {
+      const a = document.activeElement
+      if (a instanceof HTMLElement && a.closest('.panel-inventario')) {
+        document.getElementById('juego')?.focus({ preventScroll: true })
+      }
+    }
     this.avisar()
   }
 

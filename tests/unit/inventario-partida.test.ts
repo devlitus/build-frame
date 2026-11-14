@@ -22,6 +22,18 @@ describe('Partida: herramientas', () => {
     expect(p.estado.semillaElegida).toBe('semilla-fresa')
   })
 
+  it('elegir «semillas» sin ninguna semilla deja la elegida en null (no una agotada)', () => {
+    const sinSemillas: EstadoJuego = {
+      ...estado,
+      inventario: estado.inventario.filter((r) => !r.objeto.startsWith('semilla-')),
+      semillaElegida: 'semilla-fresa',
+    }
+    const p = new Partida(sinSemillas)
+    p.elegirHerramienta('semillas')
+    expect(p.estado.herramienta).toBe('semillas')
+    expect(p.estado.semillaElegida).toBeNull()
+  })
+
   it('elegirSemilla deja activa la herramienta «semillas»', () => {
     const p = nueva()
     p.elegirSemilla('semilla-patata')

@@ -247,7 +247,9 @@ export class Partida {
       e.semillaElegida !== null && e.inventario.some((s) => s.objeto === e.semillaElegida)
     if (sigue) return r
     const primera = e.inventario.find((s) => esSemilla(s.objeto))
-    return primera ? this.emitir({ tipo: 'ElegirSemilla', objeto: primera.objeto }) : r
+    if (primera) return this.emitir({ tipo: 'ElegirSemilla', objeto: primera.objeto })
+    // Sin ninguna semilla, no se deja una elegida y agotada: la barra enseña «sin semilla».
+    return e.semillaElegida === null ? r : this.emitir({ tipo: 'ElegirSemilla', objeto: null })
   }
 
   /** Elige la semilla (del panel de inventario) y deja activa la herramienta «semillas». */

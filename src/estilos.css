@@ -1308,6 +1308,23 @@ body {
   touch-action: pan-y;
 }
 
+/* Pista de desplazamiento: degradado con flecha pegado al borde inferior mientras queden ranuras por ver. */
+.panel-inventario-caja.hay-mas::after {
+  content: '▼';
+  position: sticky;
+  bottom: -10px;
+  flex: none;
+  height: 26px;
+  margin: -20px -10px -10px;
+  padding-top: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--tinta);
+  background: linear-gradient(rgb(246 236 214 / 0%), rgb(246 236 214) 60%);
+  pointer-events: none;
+}
+
 .panel-inventario:focus-visible .panel-inventario-caja {
   outline: 3px solid var(--tinta);
   outline-offset: 2px;
@@ -1484,13 +1501,21 @@ body {
     white-space: nowrap;
   }
 
+  /*
+   * A la derecha de la columna de herramientas (76 px) con holgura, y más bajo que el centro de la
+   * pantalla: la cámara centra al personaje, así que la hoja solo ocupa la mitad inferior.
+   */
   .panel-inventario {
-    left: 72px;
+    left: 88px;
     bottom: 136px;
   }
 
   .panel-inventario-caja {
-    max-height: min(55vh, calc(100dvh - 260px));
+    max-height: max(150px, calc(50dvh - 160px));
+  }
+
+  .inventario-ayuda {
+    display: none;
   }
 
   .ranuras {

@@ -16,6 +16,7 @@ import {
 } from '../../core'
 import { CONFIG_CAMARA } from '../camara/config'
 import { ControlCamara } from '../camara/controlCamara'
+import type { Margenes } from '../camara/matematica'
 import { conPropiasDeDepuracion } from '../valle/debug'
 import type { EstadoVisualParcela } from '../valle/estadoVisual'
 import { VistaParcelas } from '../valle/vistaParcelas'
@@ -92,6 +93,7 @@ export class EscenaValle extends Phaser.Scene {
   /** Modo ya aplicado a la cámara y al teclado; si el estado cambia, `update()` lo reaplica. */
   private modoAplicado: ModoJuego = 'vida'
   private control: ControlCamara | undefined = undefined
+  private fotogramasMargen = 0
   private entrada: EntradaMovimiento | undefined = undefined
   private vista: VistaPersonaje | undefined = undefined
   private luz: VistaLuz | undefined = undefined
@@ -388,7 +390,26 @@ export class EscenaValle extends Phaser.Scene {
     const lienzo = this.game.canvas
     const contenedor = lienzo.parentElement
     contenedor?.addEventListener('keydown', this.alTeclaLienzo)
-    this.quitarTeclasLienzo = () => contenedor?.removeEventListener('keydown', this.alTeclaLienzo)
+    // Con el foco perdido en `<body>` el evento no pasa por el contenedor: en Vida se escucha también en `window`.
+    const alTeclaCuerpo = (ev: KeyboardEvent): void => {
+      if (
+        this.modoAplicado === 'vida' &&
+        (ev.target === document.body || ev.target === document.documentElement)
+      )
+        this.teclaVida(ev)
+    }
+    // Un clic o toque en el lienzo devuelve el foco al juego (Phaser cancela `mousedown`, que no lo mueve).
+    const alPunteroLienzo = (): void => {
+      if (this.modoAplicado !== 'vida' || !contenedor) return
+      if (document.activeElement !== contenedor) contenedor.focus({ preventScroll: true })
+    }
+    window.addEventListener('keydown', alTeclaCuerpo)
+    lienzo.addEventListener('pointerdown', alPunteroLienzo, true)
+    this.quitarTeclasLienzo = () => {
+      contenedor?.removeEventListener('keydown', this.alTeclaLienzo)
+      window.removeEventListener('keydown', alTeclaCuerpo)
+      lienzo.removeEventListener('pointerdown', alPunteroLienzo, true)
+    }
     this.ajustarLienzoAccesible(inicial.modo)
     this.tactil = new ControlTactil(this)
     this.tactil.activo = inicial.modo === 'vida'
@@ -464,6 +485,10 @@ export class EscenaValle extends Phaser.Scene {
     const pantalla = pantallaLogica(this)
     const libre = this.zonaLibre(pantalla)
     const h = CONFIG_CAMARA.holguraBordePx
+    if (this.modoAplicado === 'vida') {
+      this.control.fijarMargenes(this.margenesVida(pantalla))
+      return
+    }
     this.control.fijarMargenes(
       this.modoAplicado === 'plano'
         ? {
@@ -474,6 +499,19 @@ export class EscenaValle extends Phaser.Scene {
           }
         : undefined,
     )
+  }
+
+  /**
+   * Márgenes de la cámara en Vida: la barra de herramientas (abajo a la izquierda, o en columna
+   * en el borde izquierdo en vertical) no debe tapar al personaje pegado al borde del valle. El
+   * borde del valle llega hasta la barra (más una holgura), como los paneles en el Plano.
+   */
+  private margenesVida(pantalla: { ancho: number; alto: number }): Margenes | undefined {
+    const r = document.querySelector('.barra-herramientas-caja')?.getBoundingClientRect()
+    if (!r || r.width <= 0 || r.height <= 0) return undefined
+    const h = CONFIG_CAMARA.holguraBordePx
+    if (r.width < r.height) return { arriba: 0, abajo: 0, izq: Math.ceil(r.right) + h, der: 0 }
+    return { arriba: 0, abajo: Math.max(0, Math.ceil(pantalla.alto - r.top)) + h, izq: 0, der: 0 }
   }
 
   /** La cámara se desliza (guía o vuelta de la extensión): gancho de prueba. */
@@ -510,15 +548,26 @@ export class EscenaValle extends Phaser.Scene {
     return a !== null && (a === this.game.canvas || a === this.game.canvas.parentElement)
   }
 
+  /** Destino válido para los atajos de Vida: el lienzo, su contenedor o `<body>` (foco perdido al cerrar un panel). */
+  private focoNeutro(destino: EventTarget | null): boolean {
+    return (
+      destino === this.game.canvas ||
+      destino === this.game.canvas.parentElement ||
+      destino === document.body ||
+      destino === document.documentElement
+    )
+  }
+
   /**
    * Teclado del Modo Vida con el foco en el lienzo: 1 a 6 eligen la herramienta, E o Espacio la usan
-   * en la casilla de enfrente e I abre o cierra el inventario. (Con el foco en un botón del HUD,
+   * en la casilla de enfrente e I abre o cierra el inventario; también con el foco en `<body>`.
+   * (Con el foco en un botón o campo del HUD,
    * Espacio y Enter son del botón.)
    */
   private teclaVida(ev: KeyboardEvent): void {
     const partida = this._partida
     if (!partida || ev.ctrlKey || ev.altKey || ev.metaKey || ev.shiftKey) return
-    if (ev.target !== this.game.canvas && ev.target !== this.game.canvas.parentElement) return
+    if (!this.focoNeutro(ev.target)) return
     const digito = /^(?:Digit|Numpad)([1-9])$/.exec(ev.code)
     const herramienta = digito ? HERRAMIENTAS[Number(digito[1]) - 1] : undefined
     if (herramienta) {
@@ -906,6 +955,8 @@ export class EscenaValle extends Phaser.Scene {
           partida.construccion.activo) &&
         this.focoEnLienzo(),
     )
+    // La barra de herramientas (HUD en el DOM) puede aparecer o cambiar de sitio: en Vida se re-mide cada poco.
+    if (modo === 'vida' && ++this.fotogramasMargen % 15 === 0) this.actualizarMargenes()
     const joystick = this.tactil?.leer() ?? { dx: 0, dy: 0 }
     // El teclado tiene prioridad sobre el joystick; cualquiera de los dos cancela el destino.
     const intencion = teclado.dx !== 0 || teclado.dy !== 0 ? teclado : joystick

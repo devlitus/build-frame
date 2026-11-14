@@ -10,6 +10,13 @@ import { rutaIconoObjeto } from './iconos'
 import { t, tp, type ClaveTexto } from './textos'
 import { useEstado, useInventarioAbierto, usePartida } from './useEstado'
 
+/** Marca la caja con `hay-mas` si tiene ranuras por ver bajo el borde (la pista visual de desplazamiento). */
+function actualizarPista(caja: HTMLElement | null): void {
+  if (!caja) return
+  const mas = caja.scrollTop + caja.clientHeight < caja.scrollHeight - 2
+  caja.classList.toggle('hay-mas', mas)
+}
+
 function devolverFoco(): void {
   document.getElementById('juego')?.focus({ preventScroll: true })
 }
@@ -153,6 +160,14 @@ export function PanelInventario() {
   useLayoutEffect(() => {
     if (abierto && origen === 'teclado') ref.current?.focus({ preventScroll: true })
   }, [abierto, origen])
+  const caja = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    if (!abierto) return undefined
+    const poner = (): void => actualizarPista(caja.current)
+    poner()
+    window.addEventListener('resize', poner)
+    return () => window.removeEventListener('resize', poner)
+  }, [abierto, inventario, edificios])
   if (!vida || !abierto) return null
   const capacidad = capacidadInventario(edificios)
   const sobra = inventario.length > capacidad
@@ -174,7 +189,11 @@ export function PanelInventario() {
         }
       }}
     >
-      <div class="panel-inventario-caja">
+      <div
+        ref={caja}
+        class="panel-inventario-caja"
+        onScroll={(ev) => actualizarPista(ev.currentTarget)}
+      >
         <div class="inventario-cabecera">
           <h2 class="inventario-titulo">{t('inventarioTitulo')}</h2>
           <p
