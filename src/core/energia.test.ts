@@ -96,7 +96,7 @@ describe('datos de energía', () => {
 
 describe('UsarHerramienta y energía', () => {
   it.each(HERRAMIENTAS)('un uso válido de %s gasta su coste (aunque el efecto esté vacío)', (h) => {
-    const e = con(h === 'semillas' ? aradoE0 : e0, {
+    const e = con(h === 'semillas' || h === 'regadera' ? aradoE0 : e0, {
       herramienta: h,
       semillaElegida: 'semilla-patata',
     })

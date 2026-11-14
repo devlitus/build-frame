@@ -11,6 +11,15 @@ import {
   type Herramienta,
 } from './inventario'
 import {
+  hayMarchita,
+  limpiarMarchita,
+  motivoNoRegar,
+  regar,
+  type ErrorRiego,
+  type EventoMarchitaLimpiada,
+  type EventoTierraRegada,
+} from './riego'
+import {
   arar,
   motivoNoArar,
   motivoNoSembrar,
@@ -39,6 +48,8 @@ export type ErrorUsoHerramienta =
   | 'sin-energia'
   /** Motivos propios de la azada y las semillas (`labranza.ts`); incluye `no-propia`. */
   | ErrorLabranza
+  /** Motivos propios de la regadera (`riego.ts`). */
+  | ErrorRiego
   /** El botín desbordaría los materiales (enteros seguros). */
   | 'limite-de-recursos'
 
@@ -92,6 +103,8 @@ export type EventoHerramienta =
   | EventoObstaculoQuitado
   | EventoPlantonPlantado
   | EventoPlantonPerdido
+  | EventoTierraRegada
+  | EventoMarchitaLimpiada
 
 export type ResultadoEfecto =
   | {
@@ -110,12 +123,6 @@ export type ResultadoEfecto =
 export interface EfectoHerramienta {
   readonly comprobar: (estado: EstadoJuego, x: number, y: number) => ErrorUsoHerramienta | undefined
   readonly aplicar: (estado: EstadoJuego, x: number, y: number) => ResultadoEfecto
-}
-
-/** Efecto vacío: la herramienta se acepta pero no hace nada (hasta que su historia lo implemente). */
-const sinEfecto: EfectoHerramienta = {
-  comprobar: () => undefined,
-  aplicar: (estado) => ({ ok: true, estado, eventos: [] }),
 }
 
 /**
@@ -143,12 +150,17 @@ export function encadenar(...efectos: readonly EfectoHerramienta[]): EfectoHerra
 
 /**
  * PUNTO DE ENGANCHE de los efectos de las herramientas. Cada historia sustituye aquí su entrada:
- * M5-03 azada (arar) y semillas (plantar) ya están; faltan M5-04 regadera, M5-05 mano
+ * M5-03 azada (arar) y semillas (plantar) ya están; M5-04 regadera ya está; faltan M5-05 mano
  * (cosechar) y M5-06 hacha y pico (talar y picar).
  */
 export const EFECTOS_HERRAMIENTA: Readonly<Record<Herramienta, EfectoHerramienta>> = {
-  azada: { comprobar: motivoNoArar, aplicar: arar },
-  regadera: sinEfecto,
+  // Azada: una marchita se limpia (la casilla queda arada); si no, ara. La mano de M5-05 podrá
+  // anteponer `limpiarMarchita` igual.
+  azada: {
+    comprobar: (e, x, y) => (hayMarchita(e, x, y) ? undefined : motivoNoArar(e, x, y)),
+    aplicar: (e, x, y) => (hayMarchita(e, x, y) ? limpiarMarchita(e, x, y) : arar(e, x, y)),
+  },
+  regadera: { comprobar: motivoNoRegar, aplicar: regar },
   semillas: { comprobar: motivoNoSembrar, aplicar: plantar },
   // Mano: cosechar tiene prioridad (M5-05 lo antepondrá aquí) y, si no hay nada que cosechar,
   // planta un plantón del inventario (M5-06).

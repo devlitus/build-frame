@@ -4,6 +4,7 @@ import { defEdificio, huellaDe, type Edificio, type Obra, type TipoEdificio } fr
 import { crecerPlantones } from './recursos'
 import { energiaAlEmpezarDia, type MotivoCambioDeDia } from './energia'
 import type { EstadoJuego } from './estado'
+import { crecerPlantas, type EventoPlantaMarchita } from './riego'
 import { casillaBloqueada, mapaTransitabilidad, type MapaTransitabilidad } from './mapa'
 import { ORIENTACION_INICIAL, personajeEnAparicion, type Personaje } from './personaje'
 
@@ -146,7 +147,7 @@ export function personajeAlDespertar(estado: EstadoJuego): Personaje {
 }
 
 /**
- * Único punto de cambio de día (desmayo y dormir; M5-04 enganchará aquí el crecimiento): pasa al
+ * Único punto de cambio de día (desmayo y dormir; crece lo plantado): pasa al
  * día siguiente a la hora de inicio, termina las obras, repone la energía según el `motivo`
  * (dormir: al máximo; desmayo: la fracción de `data/energia.json`) y coloca al personaje (en la
  * casa si existe). No toca dinero, materiales, zonas ni parcelas. El llamador debe haber
@@ -157,15 +158,17 @@ export function empezarDiaSiguiente(
   motivo: MotivoCambioDeDia,
 ): {
   readonly estado: EstadoJuego
-  readonly eventos: readonly ObraTerminada[]
+  readonly eventos: readonly (ObraTerminada | EventoPlantaMarchita)[]
 } {
+  // Primero crece lo plantado: con el día viejo y el riego de hoy aún marcado.
+  const c = crecerPlantas(estado)
   const r = terminarObras({
-    ...estado,
+    ...c.estado,
     dia: estado.dia + 1,
     minutoDelDia: CONFIG_TIEMPO.horaInicio,
     energia: energiaAlEmpezarDia(motivo),
   })
   // Los plantones crecen con el personaje ya recolocado: si despierta sobre uno, espera un día.
   const despierto = { ...r.estado, personaje: personajeAlDespertar(r.estado) }
-  return { estado: crecerPlantones(despierto), eventos: r.eventos }
+  return { estado: crecerPlantones(despierto), eventos: [...r.eventos, ...c.eventos] }
 }

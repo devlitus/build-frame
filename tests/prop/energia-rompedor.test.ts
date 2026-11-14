@@ -212,20 +212,31 @@ describe('Dormir: tiempo y rechazos', () => {
 
 describe('energía y herramientas', () => {
   // Tierra labrable (propia, zona cultivo, sin obstáculos) bajo el personaje: la azada puede arar.
-  const labrable = en(conTierraLabrable(limpio, 50, 50), 50, 50)
+  const sinArar = en(conTierraLabrable(limpio, 50, 50), 50, 50)
+  // La regadera solo vale en tierra arada (M5-04): se ara la casilla del personaje con la azada.
+  const arada = con(
+    aplicarComando(con(sinArar, { herramienta: 'azada' }), {
+      tipo: 'UsarHerramienta',
+      x: 50,
+      y: 50,
+    }).estado,
+    { energia: ENERGIA_MAXIMA },
+  )
+  // Escenario válido para cada herramienta: la azada necesita tierra sin arar; la regadera, arada.
+  const escenario = (h: string): EstadoJuego => (h === 'azada' ? sinArar : arada)
   const apunta = (e: EstadoJuego) => ({
     tipo: 'UsarHerramienta' as const,
     x: Math.floor(e.personaje.x),
     y: Math.floor(e.personaje.y),
   })
   it('coste exacto vale (queda 0) y coste − 1 no; con 0, semillas y mano sí', () => {
-    const base2 = con(labrable, { semillaElegida: 'semilla-patata', inventario: [] })
     for (const [h, c] of [
       ['azada', 2],
       ['regadera', 2],
       ['hacha', 4],
       ['pico', 4],
     ] as const) {
+      const base2 = con(escenario(h), { semillaElegida: 'semilla-patata', inventario: [] })
       const ok = aplicarComando(con(base2, { herramienta: h, energia: c }), apunta(base2))
       expect(ok.ok).toBe(true)
       expect(ok.estado.energia).toBe(0)
@@ -234,7 +245,8 @@ describe('energía y herramientas', () => {
       expect(r.ok ? 'ok' : r.error).toBe('sin-energia')
       expect(r.estado).toBe(no)
     }
-    const mano = aplicarComando(con(base2, { herramienta: 'mano', energia: 0 }), apunta(base2))
+    const base3 = con(arada, { semillaElegida: 'semilla-patata', inventario: [] })
+    const mano = aplicarComando(con(base3, { herramienta: 'mano', energia: 0 }), apunta(base3))
     expect(mano.ok).toBe(true)
     expect(mano.estado.energia).toBe(0)
   })
@@ -260,11 +272,12 @@ describe('energía y herramientas', () => {
       fc.property(
         fc.array(fc.constantFrom('azada', 'regadera', 'hacha', 'pico', 'mano'), { maxLength: 120 }),
         (hs) => {
-          let e = labrable
+          let e = arada
           let esperado = ENERGIA_MAXIMA
           for (const h of hs) {
-            // La tierra vuelve a estar sin arar: así la azada nunca choca con «ya-arada».
-            e = { ...e, tierra: labrable.tierra }
+            // La tierra vuelve a su estado de partida (sin arar para la azada, arada seca para
+            // la regadera): así nunca chocan con «ya-arada» ni «ya-regada».
+            e = { ...e, tierra: escenario(h).tierra }
             e = aplicarComando(e, { tipo: 'ElegirHerramienta', herramienta: h as never }).estado
             const r = aplicarComando(e, apunta(e))
             if (esperado >= coste[h]!) esperado -= coste[h]!

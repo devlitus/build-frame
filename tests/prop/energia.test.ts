@@ -123,7 +123,7 @@ describe('propiedades de la energía', () => {
           const y = Math.floor(labrable.personaje.y)
           const i = y * ladoValle(labrable.valle) + x
           const tierra =
-            herramienta === 'semillas'
+            herramienta === 'semillas' || herramienta === 'regadera'
               ? labrable.tierra.slice(0, i) + 'a' + labrable.tierra.slice(i + 1)
               : labrable.tierra
           const e: EstadoJuego = {
