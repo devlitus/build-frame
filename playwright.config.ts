@@ -34,6 +34,9 @@ const PROYECTOS_SOLO: Project[] = [
   },
 ]
 
+/** The `@medida` probe only runs on demand (E2E_MEDIDA=1): it measures, it does not check. */
+const NO_PROBE = process.env.E2E_MEDIDA ? [] : [/@medida/]
+
 const PORT = Number(process.env.PUERTO_E2E ?? 4173)
 
 export default defineConfig({
@@ -44,8 +47,8 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL: `http://localhost:${PORT}`, trace: 'on-first-retry' },
   projects: [
-    { name: 'escritorio', use: { ...devices['Desktop Chrome'] }, grepInvert: SOLO },
-    { name: 'movil', use: { ...devices['Pixel 7'] }, grepInvert: SOLO },
+    { name: 'escritorio', use: { ...devices['Desktop Chrome'] }, grepInvert: [SOLO, ...NO_PROBE] },
+    { name: 'movil', use: { ...devices['Pixel 7'] }, grepInvert: [SOLO, ...NO_PROBE] },
     ...(process.env.CI ? [] : PROYECTOS_SOLO),
   ],
   webServer: {
