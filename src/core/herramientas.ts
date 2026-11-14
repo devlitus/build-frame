@@ -10,6 +10,7 @@ import {
   inventarioValido,
   type Herramienta,
 } from './inventario'
+import { regar, type EventoPlantaRegada } from './riego'
 import {
   arar,
   motivoNoArar,
@@ -50,6 +51,7 @@ export interface EventoHerramientaUsada {
   readonly y: number
 }
 
+<<<<<<< HEAD
 /** Un golpe de hacha o pico que aún no acaba con el obstáculo; quedan `restantes` golpes. */
 export interface EventoObstaculoGolpeado {
   readonly tipo: 'obstaculo-golpeado'
@@ -92,6 +94,10 @@ export type EventoHerramienta =
   | EventoObstaculoQuitado
   | EventoPlantonPlantado
   | EventoPlantonPerdido
+=======
+export type EventoHerramienta =
+  EventoHerramientaUsada | EventoTierraArada | EventoPlantaSembrada | EventoPlantaRegada
+>>>>>>> 6865d53 (feat(riego): regadera, crecimiento diario y marchitarse con necesidad de agua por cultivo (M5-04))
 
 export type ResultadoEfecto =
   | {
@@ -143,12 +149,12 @@ export function encadenar(...efectos: readonly EfectoHerramienta[]): EfectoHerra
 
 /**
  * PUNTO DE ENGANCHE de los efectos de las herramientas. Cada historia sustituye aquí su entrada:
- * M5-03 azada (arar) y semillas (plantar) ya están; faltan M5-04 regadera, M5-05 mano
+ * M5-03 azada (arar) y semillas (plantar) ya están; M5-04 regadera ya está; faltan M5-05 mano
  * (cosechar) y M5-06 hacha y pico (talar y picar).
  */
 export const EFECTOS_HERRAMIENTA: Readonly<Record<Herramienta, EfectoHerramienta>> = {
   azada: { comprobar: motivoNoArar, aplicar: arar },
-  regadera: sinEfecto,
+  regadera: { comprobar: () => undefined, aplicar: regar },
   semillas: { comprobar: motivoNoSembrar, aplicar: plantar },
   // Mano: cosechar tiene prioridad (M5-05 lo antepondrá aquí) y, si no hay nada que cosechar,
   // planta un plantón del inventario (M5-06).

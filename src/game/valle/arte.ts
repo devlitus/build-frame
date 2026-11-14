@@ -44,6 +44,7 @@ export const TILE_VADO: TileTerreno = 'camino'
 export const claveTile = (t: TileTerreno): string => `tile-${t}`
 export const claveZona = (z: Zona): string => `zona-${z}`
 export const CLAVE_TIERRA_ARADA = 'tierra-arada-seca'
+export const CLAVE_TIERRA_MOJADA = 'tierra-arada-mojada'
 export const claveCultivo = (c: Cultivo): string => `cultivo-${c}`
 /** Marco de un cultivo en px @1x (pivote en el centro del borde inferior). */
 export const MARCO_CULTIVO = { ancho: 32, alto: 48 } as const
@@ -173,6 +174,10 @@ export function cargarArte(escena: Phaser.Scene): void {
     l.spritesheet(claveZona(z), rutaTiraZona(z, s), { frameWidth: c, frameHeight: c })
   }
   l.spritesheet(CLAVE_TIERRA_ARADA, ruta('terreno', 'tierra-arada-seca', s), {
+    frameWidth: c,
+    frameHeight: c,
+  })
+  l.spritesheet(CLAVE_TIERRA_MOJADA, ruta('terreno', 'tierra-arada-mojada', s), {
     frameWidth: c,
     frameHeight: c,
   })

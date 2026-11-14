@@ -279,6 +279,11 @@ export const EsquemaCultivo = v.strictObject({
   ),
   /** Días que pasa en cada una de las fases 0, 1 y 2; su suma es el crecimiento total (enteros >= 1). */
   diasPorFase: v.pipe(v.array(diasEnteros), v.length(FASES_CRECIMIENTO)),
+  /**
+   * Necesidad de agua (GDD §6.6): un cultivo sin regar no crece ese día (se detiene) y, al
+   * llegar a `diasSinRegar` días seguidos sin agua, se marchita.
+   */
+  necesidadAgua: v.strictObject({ diasSinRegar: diasEnteros }),
   /** `null` si se cosecha una sola vez; si rebrota, días hasta volver a madurar tras cosechar (vuelve a la fase 2). */
   rebrota: v.nullable(v.strictObject({ dias: diasEnteros })),
   cosecha: v.strictObject({

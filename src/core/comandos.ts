@@ -3,6 +3,7 @@ import { CONFIG_TIEMPO } from './datos/tiempo'
 import { parcelaComprable } from './parcelas'
 import { aplicarZonas, CARACTER_SIN_ZONA, CARACTER_ZONA, ZONAS, type Zona } from './zonas'
 import { moverPersonaje } from './personaje'
+import type { EventoPlantaMarchita } from './riego'
 import { empezarDiaSiguiente, type ObraTerminada } from './obras'
 import { comprobarDormir, type ErrorDormir } from './dormir'
 import { colocacionValida, type MotivoColocacion } from './construccion'
@@ -116,6 +117,8 @@ export type EventoJuego =
   | { readonly tipo: 'desmayo' }
   /** La obra del edificio `id` terminó al empezar el día (una por obra, en orden de id). */
   | ObraTerminada
+  /** Al empezar el día, una planta sin agua llegó a su límite y se marchitó (en orden de casilla). */
+  | EventoPlantaMarchita
   | { readonly tipo: 'parcela-comprada'; readonly indice: number; readonly precio: number }
   /** Zona pintada o borrada; `casillas` es el número de casillas que cambiaron. */
   | { readonly tipo: 'zonas-cambiadas'; readonly casillas: number }
@@ -150,7 +153,7 @@ export type EventoJuego =
       readonly reembolso: Coste
     }
 
-  /** La herramienta activa se aceptó sobre la casilla (x, y); sus efectos traen sus propios eventos (`tierra-arada`, `planta-sembrada`). */
+  /** La herramienta activa se aceptó sobre la casilla (x, y); sus efectos traen sus propios eventos (`tierra-arada`, `planta-sembrada`, `planta-regada`). */
   | EventoHerramienta
   /** El personaje durmió: empieza el día siguiente (las obras que tocan traen su `obra-terminada`). */
   | { readonly tipo: 'dormido' }

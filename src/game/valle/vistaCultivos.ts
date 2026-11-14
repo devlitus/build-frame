@@ -9,6 +9,7 @@ import {
 } from '../../core'
 import {
   CLAVE_TIERRA_ARADA,
+  CLAVE_TIERRA_MOJADA,
   FOTOGRAMAS_TIERRA,
   FOTOGRAMA_MARCHITO,
   MARCO_CULTIVO,
@@ -39,6 +40,9 @@ type Vista = Pick<EstadoJuego, 'tierra' | 'plantas' | 'valle'>
 export class VistaCultivos {
   private tierra: string | undefined = undefined
   private plantas: EstadoJuego['plantas'] | undefined = undefined
+  /** Casillas con planta regada (tierra mojada) y su firma para saber cuándo rehornear. */
+  private mojadas = new Set<number>()
+  private firmaMojadas = ''
   private readonly trozos: {
     rt: Phaser.GameObjects.RenderTexture | undefined
     t: Trozo
@@ -65,8 +69,15 @@ export class VistaCultivos {
 
   actualizar(e: Vista): void {
     if (ladoValle(e.valle) !== this.lado) return
-    if (e.tierra !== this.tierra) {
+    let mojadas: Set<number> | undefined
+    if (e.plantas !== this.plantas) {
+      mojadas = new Set(e.plantas.filter((p) => p[3] === 1 && p[5] === 0).map((p) => p[0]))
+    }
+    const firma = mojadas ? [...mojadas].join(',') : this.firmaMojadas
+    if (e.tierra !== this.tierra || firma !== this.firmaMojadas) {
       this.tierra = e.tierra
+      this.mojadas = mojadas ?? this.mojadas
+      this.firmaMojadas = firma
       this.hornearTierra(e.tierra)
     }
     if (e.plantas !== this.plantas) {
@@ -105,12 +116,18 @@ export class VistaCultivos {
     const x1 = Math.ceil((tr.t.x + tr.t.ancho) / TAM_CASILLA) - 1
     const y1 = Math.ceil((tr.t.y + tr.t.alto) / TAM_CASILLA) - 1
     // Una casilla más a cada lado: el borde depende de las vecinas de fuera del trozo.
-    const firma = firmaVentana(tierra, this.lado, {
+    const firmaTierra = firmaVentana(tierra, this.lado, {
       x0: x0 - 1,
       y0: y0 - 1,
       x1: x1 + 1,
       y1: y1 + 1,
     })
+    const mojadasAqui = [...this.mojadas].filter((i) => {
+      const cx = i % this.lado
+      const cy = Math.floor(i / this.lado)
+      return cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1
+    })
+    const firma = `${firmaTierra}#${mojadasAqui.join(',')}`
     if (firma === tr.firma) return
     tr.firma = firma
     const casillas: { x: number; y: number }[] = []
@@ -134,7 +151,8 @@ export class VistaCultivos {
     const sello = crearSello(this.escena)
     const escala = escalaNominal(this.escena, CLAVE_TIERRA_ARADA, TAM_CASILLA, 0)
     const estampar = (fotograma: number, x: number, y: number): void => {
-      sello.setTexture(CLAVE_TIERRA_ARADA, fotograma)
+      const mojada = this.mojadas.has(y * this.lado + x)
+      sello.setTexture(mojada ? CLAVE_TIERRA_MOJADA : CLAVE_TIERRA_ARADA, fotograma)
       sello.setScale(escala)
       rt.batchDraw(sello, x * TAM_CASILLA - tr.t.x, y * TAM_CASILLA - tr.t.y)
     }
