@@ -173,6 +173,18 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
       partida?.emitir(comando as Comando)
     },
     fps: () => g.loop.actualFps,
+    frame: () => g.loop.frame,
+    ready: () => {
+      const e = g.scene.getScene('valle')
+      return (
+        e instanceof EscenaValle &&
+        e.scene.isActive() &&
+        !!e.estado &&
+        !!partida &&
+        zoomLogico(e) > 0 &&
+        !e.guiando()
+      )
+    },
     contadorFps: () => {
       const d = g.scene.getScene('depuracion')
       return d instanceof EscenaDepuracion ? d.contenido : undefined

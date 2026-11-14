@@ -15,6 +15,10 @@ interface Window {
     emitir(comando: { tipo: string; [campo: string]: unknown }): void
     /** Fotogramas por segundo medidos por el bucle de Phaser. */
     fps(): number
+    /** Número de fotogramas del bucle de Phaser desde el arranque (para esperar fotogramas pintados). */
+    frame(): number
+    /** Valle activo con personaje, cámara con zoom y sin guía en curso. */
+    ready(): boolean
     /** Texto del contador de fps; undefined si no hay escena de depuración (sin `?debug`). */
     contadorFps(): string | undefined
     /** Número de objetos en la lista de la escena del valle, sin los de la capa por profundidad (`objetosCapa`). */
