@@ -43,9 +43,17 @@ import { animarObstaculos } from '../valle/efectosObstaculo'
 import { objetosDeDecoracion, pintarTrozoTerreno } from '../valle/terrenoArte'
 import { CapaObjetos } from '../valle/capaObjetos'
 import { mundoDePantalla, pantallaLogica, zoomLogico } from '../resolucion'
-import { medirReservasHud } from '../areaHud'
+import { margenesVida, medirReservasHud } from '../areaHud'
 import type { RectPantalla } from '../seleccion'
-import { areaLibre, centroParaVer, parcelaEnPunto, puntoDeToque, rectParcela } from '../picking'
+import {
+  areaLibre,
+  centroParaVer,
+  parcelaEnPunto,
+  puntoDeToque,
+  rectEnPantalla,
+  rectParcela,
+} from '../picking'
+import type { PuntoDeAparicion } from '../parametros'
 import { parcelaEnCentroDeVista, parcelaVecina, type DireccionParcela } from '../cursorParcela'
 import { SelectorParcela } from '../selectorParcela'
 import { hornearCapaBase } from '../valle/hornear'
@@ -70,7 +78,7 @@ export interface DatosEscenaValle {
   /** Solo depuración: índices de parcela que se dibujan como propias. */
   readonly propias?: readonly number[]
   /** Solo depuración: empezar con el personaje en el primer vado. */
-  readonly en?: 'vado'
+  readonly en?: PuntoDeAparicion
   /** Solo depuración: parcela seleccionada al empezar (si el modo es Plano). */
   readonly seleccion?: number
   /** Solo depuración: dinero con el que empieza la partida. */
@@ -90,7 +98,7 @@ export class EscenaValle extends Phaser.Scene {
   /** Partida recibida en `init`; no se expone a los ganchos hasta que `create()` la publica. */
   private recibida: Partida | undefined = undefined
   private _partida: Partida | undefined = undefined
-  private en: 'vado' | undefined = undefined
+  private en: PuntoDeAparicion | undefined = undefined
   private modoInicial: ModoJuego = 'vida'
   /** Modo ya aplicado a la cámara y al teclado; si el estado cambia, `update()` lo reaplica. */
   private modoAplicado: ModoJuego = 'vida'
@@ -217,17 +225,15 @@ export class EscenaValle extends Phaser.Scene {
       ...(this.hora === undefined ? {} : { minutoInicial: this.hora }),
     })
     const primerVado = inicial.cauce.vados[0]
-    if (this.en === 'vado' && primerVado !== undefined) {
-      const lado = ladoValle(inicial.valle)
-      inicial = {
-        ...inicial,
-        personaje: {
-          ...inicial.personaje,
-          x: (primerVado % lado) + 0.5,
-          y: Math.floor(primerVado / lado) + 0.5,
-        },
-      }
+    const lado = ladoValle(inicial.valle)
+    let aparicion: { x: number; y: number } | undefined
+    if (typeof this.en === 'object') {
+      if (this.en.x < lado && this.en.y < lado)
+        aparicion = { x: this.en.x + 0.5, y: this.en.y + 0.5 }
+    } else if (this.en === 'vado' && primerVado !== undefined) {
+      aparicion = { x: (primerVado % lado) + 0.5, y: Math.floor(primerVado / lado) + 0.5 }
     }
+    if (aparicion) inicial = { ...inicial, personaje: { ...inicial.personaje, ...aparicion } }
     // Solo depuración (`?debug&dinero=N`): se sustituyen los ahorros del estado inicial.
     if (this.dineroDepuracion !== undefined) inicial = { ...inicial, dinero: this.dineroDepuracion }
     // Solo depuración: las propias entran en el estado (panel, precio) antes de cambiar de modo.
@@ -511,7 +517,7 @@ export class EscenaValle extends Phaser.Scene {
   /**
    * Pone al día los márgenes de la cámara: en Plano, el valle puede pasar de su borde lo que tapa
    * la interfaz, para ver lo que queda debajo (más un poco de aire); en Vida, márgenes fijos en
-   * los extremos según la barra y el panel (ver `margenesVida`).
+   * los extremos según la barra, el panel y el HUD superior (ver `margenesVida`).
    * Se llama cuando cambian la selección, el modo, el tamaño o las guías (nunca desde una consulta).
    */
   private actualizarMargenes(): void {
@@ -521,7 +527,7 @@ export class EscenaValle extends Phaser.Scene {
     const h = CONFIG_CAMARA.holguraBordePx
     if (this.modoAplicado === 'vida') {
       // Tras abrir el panel o cambiar el tamaño, la vista salta (sin deslizarse) a su sitio.
-      this.control.fijarMargenes(this.margenesVida(pantalla), this.remedirMargenes > 0)
+      this.control.fijarMargenes(this.margenesVidaActuales(pantalla), this.remedirMargenes > 0)
       return
     }
     this.control.fijarMargenes(
@@ -537,25 +543,14 @@ export class EscenaValle extends Phaser.Scene {
   }
 
   /**
-   * Márgenes fijos de la cámara en Vida: solo se amplían los extremos, lo que ocupa la interfaz
-   * (barra de herramientas abajo o en columna, panel de inventario abierto a la izquierda) más
-   * un poco de aire, y arriba lo que sobresale el sprite. No dependen de la posición del
-   * personaje, así que `seguir` se desliza sin saltos; solo se miden al cambiar el tamaño o el panel.
+   * Márgenes fijos de la cámara en Vida (ver `margenesVida` en `areaHud.ts`); `undefined` si no
+   * hay barra a la vista.
    */
-  private margenesVida(pantalla: { ancho: number; alto: number }): Margenes | undefined {
-    const { barra, panel } = medirReservasHud()
+  private margenesVidaActuales(pantalla: { ancho: number; alto: number }): Margenes | undefined {
+    const { barra, panel, arriba } = medirReservasHud()
     const c = this.control
     if (!barra || !c) return undefined
-    const h = CONFIG_CAMARA.holguraBordePx
-    const columna = barra.right - barra.left < barra.bottom - barra.top
-    let izq = 0
-    let abajo = 0
-    if (columna) izq = barra.right + h
-    else abajo = Math.max(0, pantalla.alto - barra.top + h)
-    // Con el inventario abierto a la izquierda (no en vertical, donde ya queda a la derecha de la columna).
-    if (panel && !columna) izq = Math.max(izq, panel.right + h)
-    const arriba = Math.ceil((TAM_CASILLA / 2) * c.vista.zoom)
-    return { arriba, abajo, izq: Math.max(0, Math.ceil(izq)), der: 0, soloExtremos: true }
+    return margenesVida({ pantalla, barra, panel, reservaArriba: arriba, zoom: c.vista.zoom })
   }
 
   /** La cámara se desliza (guía o vuelta de la extensión): gancho de prueba. */
@@ -584,6 +579,24 @@ export class EscenaValle extends Phaser.Scene {
       alto: TAM_CASILLA,
     }
     return puntoDeToque(c.vista, pantalla, libre, celda)
+  }
+
+  /**
+   * Rect (px CSS, relativo al lienzo) de la casilla (cx, cy) según la cámara, SIN tener en cuenta la
+   * interfaz: proyección pura. Gancho de prueba.
+   */
+  rectCasilla(
+    cx: number,
+    cy: number,
+  ): { x: number; y: number; ancho: number; alto: number } | undefined {
+    const c = this.control
+    if (!c || !Number.isFinite(cx) || !Number.isFinite(cy)) return undefined
+    return rectEnPantalla(c.vista, pantallaLogica(this), {
+      x: cx * TAM_CASILLA,
+      y: cy * TAM_CASILLA,
+      ancho: TAM_CASILLA,
+      alto: TAM_CASILLA,
+    })
   }
 
   /** ¿Tiene el foco el lienzo (o su contenedor)? Solo entonces Enter, Espacio y flechas eligen parcela. */

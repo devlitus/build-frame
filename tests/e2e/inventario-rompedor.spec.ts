@@ -271,7 +271,9 @@ test.describe('disposición: nada tapa al personaje ni se solapa', () => {
     expect(Math.floor(p.x)).toBe(0)
     // Centro del cuerpo del personaje (su casilla) en pantalla.
     const c = await centroCasilla(page, p.x - 0.5, p.y - 0.5)
-    const barra = (await page.locator('.barra-herramientas-caja').boundingBox())!
+    const barra = (await page
+      .getByRole('group', { name: 'Barra inferior', exact: true })
+      .boundingBox())!
     expect(
       solapan({ x: c.x - 8, y: c.y - 8, width: 16, height: 16 }, barra),
       `personaje en (${Math.round(c.x)}, ${Math.round(c.y)}) bajo la barra ${JSON.stringify(barra)}`,
@@ -285,7 +287,9 @@ test.describe('disposición: nada tapa al personaje ni se solapa', () => {
     await page.getByRole('button', { name: 'Inventario', exact: true }).click()
     await expect(panel(page)).toBeVisible()
     const caja = (await page.locator('.panel-inventario-caja').boundingBox())!
-    const barra = (await page.locator('.barra-herramientas-caja').boundingBox())!
+    const barra = (await page
+      .getByRole('group', { name: 'Barra inferior', exact: true })
+      .boundingBox())!
     const accion = (await page.locator('.boton-accion').boundingBox())!
     const modo = (await page.getByRole('button', { name: /Modo de juego/ }).boundingBox())!
     expect(

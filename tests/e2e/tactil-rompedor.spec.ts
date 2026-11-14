@@ -428,9 +428,10 @@ test.describe('móvil: gestos', () => {
   test('girar el móvil con el joystick activo: la base sigue dentro de la pantalla o se suelta', async ({
     page,
   }) => {
-    await tocar('touchStart', [[206, 800]])
-    await tocar('touchMove', [[206, 820]])
-    await tocar('touchMove', [[206, 860]])
+    // Por encima de la barra inferior (el dedo se apoya en el lienzo, no en un botón).
+    await tocar('touchStart', [[206, 700]])
+    await tocar('touchMove', [[206, 720]])
+    await tocar('touchMove', [[206, 760]])
     await page.waitForTimeout(100)
     expect(await joystick(page)).toBe(true)
     await page.setViewportSize({ width: 915, height: 412 })

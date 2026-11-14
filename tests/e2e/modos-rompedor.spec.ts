@@ -219,9 +219,14 @@ test('el botón no interfiere con el lienzo: pulsarlo no mueve ni acerca la cám
   expect(c1?.zoom).toBe(c0?.zoom)
   expect(c1?.scrollX).toBe(c0?.scrollX)
   expect(c1?.scrollY).toBe(c0?.scrollY)
-  // Un segundo toque vuelve a Vida: un solo cambio por toque.
-  if (isMobile) await page.touchscreen.tap(x, y)
-  else await page.mouse.click(x, y)
+  // Un segundo toque vuelve a Vida: un solo cambio por toque. La barra inferior es única y está
+  // centrada, así que el botón de modo cambia de sitio con el contenido de cada modo: se vuelve a medir.
+  const caja2 = await boton(page).boundingBox()
+  if (!caja2) throw new Error('sin botón')
+  const x2 = caja2.x + caja2.width / 2
+  const y2 = caja2.y + caja2.height / 2
+  if (isMobile) await page.touchscreen.tap(x2, y2)
+  else await page.mouse.click(x2, y2)
   await expect.poll(() => modo(page)).toBe('vida')
 })
 

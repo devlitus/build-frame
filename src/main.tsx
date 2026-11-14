@@ -3,7 +3,7 @@ import { useState } from 'preact/hooks'
 import {
   arrancaDirecto,
   crearJuego,
-  depuracionActiva,
+  contadorActivo,
   iniciarPartida,
   partidaActual,
 } from './game/juego'
@@ -26,7 +26,7 @@ crearJuego(juego, {
 function App() {
   const [jugando, setJugando] = useState(arrancaDirecto())
   const partida = partidaActual()
-  if (jugando && partida) return <Hud partida={partida} debug={depuracionActiva()} />
+  if (jugando && partida) return <Hud partida={partida} debug={contadorActivo()} />
   return (
     <Portada
       version={__VERSION__}

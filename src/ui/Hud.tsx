@@ -1,46 +1,18 @@
-import type { ModoJuego } from '../core'
+import { useLayoutEffect, useRef } from 'preact/hooks'
 import type { Partida } from '../game/partida'
 import { Aviso } from './Aviso'
-import { BarraHerramientas, BotonAccion, BotonDormir } from './BarraHerramientas'
-import { BotonInventario, PanelInventario } from './PanelInventario'
+import { BarraInferior } from './BarraInferior'
+import { PanelInventario } from './PanelInventario'
 import { ControlesTiempo } from './ControlesTiempo'
 import { Dinero } from './Dinero'
 import { Materiales } from './Materiales'
-import { BotonConstruir, PanelConstruir } from './PanelConstruir'
-import { BarraZonas, BotonZonas } from './BarraZonas'
+import { PanelConstruir } from './PanelConstruir'
+import { BarraZonas } from './BarraZonas'
 import { PanelEdificio } from './PanelEdificio'
 import { PanelParcela } from './PanelParcela'
 import { Reloj } from './Reloj'
 import { t } from './textos'
-import { ContextoPartida, useConstruccion, useEstado, usePartida, usePincel } from './useEstado'
-
-/**
- * Botón de modo: muestra el modo vigente y cambia al otro. Tras pulsarlo con el puntero el foco
- * vuelve al contenedor del lienzo; con teclado (Enter/Espacio) conserva el foco.
- */
-export function BotonModo() {
-  const partida = usePartida()
-  const modo = useEstado((e) => e.modo)
-  const siguiente: ModoJuego = modo === 'vida' ? 'plano' : 'vida'
-  const alPulsar = (ev: MouseEvent) => {
-    partida.emitir({ tipo: 'CambiarModo', modo: siguiente })
-    // `detail` es 0 si lo activó el teclado.
-    if (ev.detail > 0) document.getElementById('juego')?.focus({ preventScroll: true })
-  }
-  return (
-    <button
-      type="button"
-      class="boton-modo"
-      aria-label={modo === 'vida' ? t('cambiarAModoPlano') : t('cambiarAModoVida')}
-      aria-pressed={modo === 'plano'}
-      aria-keyshortcuts="M"
-      title={t('botonModoAyuda')}
-      onClick={alPulsar}
-    >
-      {modo === 'vida' ? t('modoVida') : t('modoPlano')}
-    </button>
-  )
-}
+import { ContextoPartida, useConstruccion, useEstado, usePincel } from './useEstado'
 
 /** Ayuda de teclado del Modo Vida para lectores de pantalla (la enlaza el contenedor del juego con `aria-describedby`). */
 function AyudaVida() {
@@ -83,14 +55,23 @@ function AyudaPlano() {
 
 /**
  * Interfaz de partida: arriba hora, fecha, controles de tiempo y aviso (en columna, sin
- * solaparse); abajo a la derecha el modo. Con `debug` el contador de fps ocupa la esquina
+ * solaparse); abajo, centrada, la barra inferior única (herramientas, acciones y modo). Con `debug` el contador de fps ocupa la esquina
  * superior izquierda y la columna baja debajo.
  */
 export function Hud({ partida, debug = false }: { partida: Partida; debug?: boolean }) {
+  const arriba = useRef<HTMLDivElement>(null)
+  // Si cambia el alto del HUD superior (un aviso, girar la pantalla) la cámara vuelve a medir sus márgenes.
+  useLayoutEffect(() => {
+    const el = arriba.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const observador = new ResizeObserver(() => partida.seleccion.reservasCambiadas())
+    observador.observe(el)
+    return () => observador.disconnect()
+  }, [partida])
   return (
     <ContextoPartida.Provider value={partida}>
       <div class={debug ? 'hud hud-debug' : 'hud'}>
-        <div class={debug ? 'hud-arriba hud-arriba-debug' : 'hud-arriba'}>
+        <div ref={arriba} class={debug ? 'hud-arriba hud-arriba-debug' : 'hud-arriba'}>
           <div class="hud-superior">
             <div class="hud-izquierda">
               <Reloj />
@@ -108,17 +89,7 @@ export function Hud({ partida, debug = false }: { partida: Partida; debug?: bool
         <BarraZonas />
         <PanelConstruir />
         <PanelInventario />
-        <BarraHerramientas />
-        <div class="botones-vida">
-          <BotonDormir />
-          <BotonInventario />
-          <BotonAccion />
-        </div>
-        <div class="botones-inferiores">
-          <BotonConstruir />
-          <BotonZonas />
-          <BotonModo />
-        </div>
+        <BarraInferior />
       </div>
     </ContextoPartida.Provider>
   )
