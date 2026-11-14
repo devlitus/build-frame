@@ -337,6 +337,9 @@ test('horneado: con zoom máximo en las cuatro esquinas el terreno cubre la pant
   }
 })
 
+/** Holgura que añade la cámara de Vida al margen de la barra (CONFIG_CAMARA.holguraBordePx). */
+const HOLGURA_BARRA = 24
+
 /**
  * En Vida la vista entera está dentro del valle (o centrada en el eje en que el valle cabe), salvo
  * lo que tapa la barra de herramientas: desde M5-01 la cámara de Vida deja ese margen para que el
@@ -349,7 +352,7 @@ async function vistaDentroDelValle(page: Page): Promise<void> {
   const barra = await page.locator('.barra-herramientas-caja').boundingBox()
   const vp = page.viewportSize()
   const columna = !!barra && barra.width < barra.height
-  const px = (n: number) => (n + 2) / cam.zoom
+  const px = (n: number) => (n + HOLGURA_BARRA + 2) / cam.zoom
   const margen = {
     izq: barra && columna ? px(barra.x + barra.width) : 0,
     abajo: barra && vp && !columna ? px(vp.height - barra.y) : 0,
@@ -392,7 +395,8 @@ test.describe('Vida tras el Plano: la vista vuelve a quedar dentro del valle', (
     await vistaDentroDelValle(page)
     await page.evaluate(() => window.__raices?.emitir({ tipo: 'CambiarModo', modo: 'plano' }))
     await page.evaluate(() => window.__raices?.emitir({ tipo: 'CambiarModo', modo: 'vida' }))
-    await vistaDentroDelValle(page)
+    // El margen de la barra se mide cada 15 fotogramas: la cámara tarda en asentarse tras el giro.
+    await expect(() => vistaDentroDelValle(page)).toPass({ timeout: 10_000 })
     expect(errores).toEqual([])
   })
 })
