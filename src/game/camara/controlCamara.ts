@@ -155,7 +155,7 @@ export class ControlCamara {
   }
 
   /**
-   * Fija los márgenes del Modo Plano (o `undefined`). Si al reducirse la vista queda fuera de
+   * Fija los márgenes de la cámara (Plano o Vida; o `undefined`). Si al reducirse la vista queda fuera de
    * los límites, vuelve deslizándose (no de golpe).
    */
   fijarMargenes(m: Margenes | undefined, saltar = false): void {
@@ -175,10 +175,9 @@ export class ControlCamara {
     const v = this.actual
     const l = limitarVista(v, this.pantalla, this.mundoPx, this.limites())
     const fuera = l.cx !== v.cx || l.cy !== v.cy
-    // Al salir del Plano la vista vuelve de golpe (en Vida siempre dentro del valle); si solo
-    // cambia el panel, se desliza.
-    // Si crece un margen de Vida es porque el personaje quedaría bajo la interfaz: la vista salta;
-    // si se reduce, vuelve deslizándose.
+    // Al salir del Plano (`undefined`) o con `saltar` la vista vuelve de golpe; si solo cambia el
+    // panel o un margen, se desliza de vuelta. Si crece un margen de Vida es porque el personaje
+    // quedaría bajo la interfaz: la vista salta hacia él.
     const crece =
       m?.soloExtremos === true &&
       (m.arriba > (a?.arriba ?? 0) || m.abajo > (a?.abajo ?? 0) || m.izq > (a?.izq ?? 0))

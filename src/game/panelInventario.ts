@@ -1,7 +1,7 @@
 /**
  * Panel de inventario (estado de INTERFAZ, no del núcleo; no se guarda): abierto o cerrado. Solo
  * existe en el Modo Vida; no convive con el pincel, el modo Construir ni las selecciones del Plano
- * (abrirlo cierra esos y abrir uno de esos lo cierra: lo cablea `Partida`).
+ * porque esos paneles viven en el Modo Plano y este en Vida (la exclusión sale del cambio de modo).
  */
 /** Quién lo abrió: con el teclado el foco pasa al panel; con el puntero se queda en el lienzo (para E y Espacio). */
 export type OrigenInventario = 'teclado' | 'puntero'
