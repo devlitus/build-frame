@@ -9,6 +9,8 @@
 // - --estira: factor del eje vertical (biblia §2): 1 para personajes (cámara a 30°) y √2 ≈ 1.4142
 //   para objetos con huella renderizados a 45°.
 // - --sombra: añade la sombra de contacto de la biblia §3 bajo el pivote (elipse #5A5470 al 35 %).
+// - --pies <px>: distancia @1x del pivote (los pies) al borde inferior; por defecto 6/64 del alto.
+// - --sombra-ancho <px>: ancho @1x de la sombra; por defecto el 60 % del ancho del marco.
 //
 // Filas: una por animación y dirección, en orden alfabético de animación y en el orden
 // abajo, arriba, derecha. La izquierda es el espejo de la derecha (`flipX` en el juego).
@@ -21,17 +23,19 @@ const ORDEN_DIR = ['abajo', 'arriba', 'derecha', 'sin-dir']
 
 function leerArgs(argv) {
   const pos = []
-  const op = { origen: 8, estira: 1, sombra: false }
+  const op = { origen: 8, estira: 1, sombra: false, pies: null, sombraAncho: null }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--origen') op.origen = Number(argv[++i])
     else if (a === '--estira') op.estira = Number(argv[++i])
     else if (a === '--sombra') op.sombra = true
+    else if (a === '--pies') op.pies = Number(argv[++i])
+    else if (a === '--sombra-ancho') op.sombraAncho = Number(argv[++i])
     else pos.push(a)
   }
   if (pos.length !== 2) {
     console.error(
-      'Uso: node scripts/montar-hojas.mjs <dir> <destino> [--origen 8] [--estira 1] [--sombra]',
+      'Uso: node scripts/montar-hojas.mjs <dir> <destino> [--origen 8] [--estira 1] [--sombra] [--pies 6] [--sombra-ancho 29]',
     )
     process.exit(1)
   }
@@ -53,8 +57,8 @@ async function fotogramas(dir) {
   )
 }
 
-function sombraSvg(ancho, alto, pivX, pivY) {
-  const rx = ancho * 0.3
+function sombraSvg(ancho, alto, pivX, pivY, anchoSombra = ancho * 0.6) {
+  const rx = anchoSombra / 2
   const ry = rx / 2
   return Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${ancho}" height="${alto}">` +
@@ -64,7 +68,7 @@ function sombraSvg(ancho, alto, pivX, pivY) {
   )
 }
 
-async function montar({ dir, destino, origen, estira, sombra }) {
+async function montar({ dir, destino, origen, estira, sombra, pies, sombraAncho }) {
   const filas = await fotogramas(dir)
   if (filas.length === 0) throw new Error(`No hay fotogramas en ${dir}`)
   const meta = await sharp(filas[0].marcos[0]).metadata()
@@ -83,7 +87,9 @@ async function montar({ dir, destino, origen, estira, sombra }) {
         let img = sharp(ruta).resize(w, h, { fit: 'fill', kernel: 'lanczos3' })
         if (sombra) {
           // Pivote a 6/64 del borde inferior (biblia §1), sombra debajo del personaje.
-          const fondo = sharp(sombraSvg(w, h, w / 2, h - (h * 6) / 64)).png()
+          const pivY = h - (pies === null ? (h * 6) / 64 : pies * k)
+          const anchoS = sombraAncho === null ? undefined : sombraAncho * k
+          const fondo = sharp(sombraSvg(w, h, w / 2, pivY, anchoS)).png()
           img = sharp(await fondo.toBuffer()).composite([{ input: await img.png().toBuffer() }])
         }
         capas.push({ input: await img.png().toBuffer(), left: col * w, top: fila * h })
