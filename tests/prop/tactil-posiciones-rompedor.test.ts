@@ -1,8 +1,16 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion -- índices con noUncheckedIndexedAccess */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import fc from 'fast-check'
 import { aplicarComando, buscarCamino, crearEstadoInicial } from '../../src/core'
 import { SeguidorCamino } from '../../src/game/seguirCamino'
+import { limitesZoom } from '../../src/game/camara/config'
+import { ControlCamara } from '../../src/game/camara/controlCamara'
+import { areaLibre, parcelaEnPunto, puntoDeToque, rectParcela } from '../../src/game/picking'
+import { casillaEnPunto } from '../../src/game/pincel'
+import { factorResolucion, mundoDePantalla, pantallaLogica } from '../../src/game/resolucion'
+import { fakeCameraScene } from '../unit/fixtures/fake-scene'
+
+vi.mock('phaser', () => ({ default: {} }))
 
 /** M2-04 rompedor: tocar un destino tras andar con el joystick (posición arbitraria). */
 
@@ -53,5 +61,166 @@ describe('tras andar con el joystick (posición arbitraria junto a obstáculos)'
     const t0 = performance.now()
     for (let i = 0; i < 20; i++) s.fijar(e, e.personaje, { x: 95.5 - i * 0.1, y: 95.5 })
     expect(performance.now() - t0).toBeLessThan(150)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// E2E-16 · Rompedor: a touch lands on the tile under the finger at any DPR (1, 1.25, 2, 2.625, 3).
+// The chain is the game's: the hook's screen point (`puntoDeToque` over the logical screen, as
+// `EscenaValle.puntoClicCasilla`/`puntoClic`) → pointer in CSS px → `mundoDePantalla` (× factor)
+// → the Phaser camera set by `ControlCamara` (zoom × factor) → tile (`casillaEnPunto`) or parcel
+// (`parcelaEnPunto`). Replaces the logic of m5-00-rompedor «DPR n · toque, clic de colocación y
+// pincel caen en la casilla bajo el dedo», «DPR n · Plano: el toque elige la parcela que está bajo
+// el dedo», «al girar el móvil el lienzo sigue a CSS×2 y el toque sigue cayendo en su casilla» and
+// m5-00-final-rompedor «DPR 1→2→1→3→1,25→2 sin cambiar el tamaño CSS … toque coherentes».
+// ---------------------------------------------------------------------------------------------
+
+const DPRS = [1, 1.25, 2, 2.625, 3] as const
+const TAM = 32
+const LADO = 96
+const MUNDO = LADO * TAM
+
+function tileUnderTouch(
+  f: ReturnType<typeof fakeCameraScene>,
+  control: ControlCamara,
+  cx: number,
+  cy: number,
+) {
+  const pantalla = pantallaLogica(f.scene as never)
+  const libre = areaLibre(pantalla, undefined)
+  const pt = puntoDeToque(control.vista, pantalla, libre, {
+    x: cx * TAM,
+    y: cy * TAM,
+    ancho: TAM,
+    alto: TAM,
+  })
+  if (!pt) return { pt: undefined, casilla: undefined, visible: 0 }
+  const m = mundoDePantalla(f.scene as never, pt.x, pt.y)
+  // Smallest side (CSS px) of the part of the tile that is on screen and in the free area.
+  const z = control.vista.zoom
+  const x0 = Math.max(libre.x, (cx * TAM - control.vista.cx) * z + pantalla.ancho / 2)
+  const x1 = Math.min(
+    libre.x + libre.ancho,
+    ((cx + 1) * TAM - control.vista.cx) * z + pantalla.ancho / 2,
+  )
+  const y0 = Math.max(libre.y, (cy * TAM - control.vista.cy) * z + pantalla.alto / 2)
+  const y1 = Math.min(
+    libre.y + libre.alto,
+    ((cy + 1) * TAM - control.vista.cy) * z + pantalla.alto / 2,
+  )
+  return {
+    pt,
+    m,
+    casilla: casillaEnPunto(LADO, TAM, m.x, m.y),
+    visible: Math.min(x1 - x0, y1 - y0),
+  }
+}
+
+describe('a touch lands on the tile under the finger at any DPR', () => {
+  it('property: any view, any CSS size, any DPR: the hook point of a visible tile maps back to it', () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(...DPRS),
+        fc.integer({ min: 240, max: 1920 }),
+        fc.integer({ min: 240, max: 1080 }),
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        fc.integer({ min: 0, max: LADO - 1 }),
+        fc.integer({ min: 0, max: LADO - 1 }),
+        (dpr, w, h, fz, fx, fy, tx, ty) => {
+          const f = fakeCameraScene(w, h, dpr)
+          const control = new ControlCamara(f.scene as never, MUNDO)
+          const lim = limitesZoom(pantallaLogica(f.scene as never), MUNDO)
+          control.zoomCentro((lim.min + fz * (lim.max - lim.min)) / control.vista.zoom)
+          control.centrarEn({ x: fx * MUNDO, y: fy * MUNDO })
+          expect(f.main.zoom).toBeCloseTo(control.vista.zoom * factorResolucion(dpr), 9)
+          const { pt, casilla, visible } = tileUnderTouch(f, control, tx, ty)
+          // Not visible in the free area, or only a floating-point sliver of it (see the [S3] below).
+          if (!pt || visible < 0.5) return
+          expect(casilla, `DPR ${dpr} ${w}×${h} tile (${tx}, ${ty})`).toEqual({ x: tx, y: ty })
+        },
+      ),
+      { numRuns: 500 },
+    )
+  })
+
+  it.each(DPRS)('DPR %f, Plano: the touch picks the parcel under the finger (all 36)', (dpr) => {
+    const f = fakeCameraScene(412, 915, dpr)
+    const control = new ControlCamara(f.scene as never, MUNDO)
+    const g = { parcelasPorLado: 6, ladoParcelaPx: 16 * TAM }
+    for (let i = 0; i < 36; i++) {
+      control.centrarEn({ x: (i % 6) * 512 + 256, y: Math.floor(i / 6) * 512 + 256 })
+      const pantalla = pantallaLogica(f.scene as never)
+      const pt = puntoDeToque(
+        control.vista,
+        pantalla,
+        areaLibre(pantalla, undefined),
+        rectParcela(g, i),
+      )
+      expect(pt, `parcel ${i}`).toBeDefined()
+      const m = mundoDePantalla(f.scene as never, pt!.x, pt!.y)
+      expect(parcelaEnPunto(g, m.x, m.y), `DPR ${dpr} parcel ${i}`).toBe(i)
+    }
+  })
+
+  it('DPR changes on the fly (1→2→1→3→1.25→2) and rotations keep the touch on its tile', () => {
+    const f = fakeCameraScene(412, 915, 1)
+    const control = new ControlCamara(f.scene as never, MUNDO)
+    control.centrarEn({ x: 47.5 * TAM, y: 90.5 * TAM })
+    const pasos: [number, number, number][] = [
+      [412, 915, 2],
+      [412, 915, 1],
+      [412, 915, 3],
+      [412, 915, 1.25],
+      [412, 915, 2],
+      [915, 412, 2],
+      [412, 915, 2],
+      [1280, 720, 1],
+    ]
+    for (const [w, h, dpr] of pasos) {
+      f.resize(w, h, dpr)
+      // Logical (CSS) screen is the same whatever the DPR; the canvas is CSS × min(DPR, 2).
+      const pantalla = pantallaLogica(f.scene as never)
+      expect(pantalla.ancho).toBeCloseTo(w, 0)
+      expect(pantalla.alto).toBeCloseTo(h, 0)
+      expect(f.scale.width).toBe(Math.round(w * factorResolucion(dpr)))
+      expect(f.main.zoom).toBeCloseTo(control.vista.zoom * factorResolucion(dpr), 9)
+      const v = control.vista
+      const cx = Math.floor(v.cx / TAM) + 2
+      const cy = Math.floor(v.cy / TAM) - 1
+      expect(tileUnderTouch(f, control, cx, cy).casilla, `${w}×${h} DPR ${dpr}`).toEqual({
+        x: cx,
+        y: cy,
+      })
+    }
+  })
+
+  // [S3] (test hook) When only a floating-point sliver of the tile is in the free area,
+  // `puntoDeToque` (behind `__raices.puntoClicCasilla` / `puntoClic`) returns a point on the shared
+  // edge, which belongs to the next tile (semi-open intervals): a test that taps it lands on the
+  // neighbour. Found by the property above with DPR 1.25, 691×691, minimum zoom, tile (0, 9): the
+  // tile spans screen y 64.8…72.000000001 and the free area starts at 72.
+  it.fails(
+    '[S3] the hook point of a tile that is only a floating-point sliver in the free area lands on that tile',
+    () => {
+      const f = fakeCameraScene(691, 691, 1.25)
+      const control = new ControlCamara(f.scene as never, MUNDO)
+      const lim = limitesZoom(pantallaLogica(f.scene as never), MUNDO)
+      control.zoomCentro(lim.min / control.vista.zoom)
+      const { pt, casilla } = tileUnderTouch(f, control, 0, 9)
+      expect(pt).toBeDefined()
+      expect(casilla).toEqual({ x: 0, y: 9 })
+    },
+  )
+
+  it('[mutant check] forgetting the resolution factor in the conversion would miss the tile at DPR 2', () => {
+    const f = fakeCameraScene(412, 915, 2)
+    const control = new ControlCamara(f.scene as never, MUNDO)
+    control.centrarEn({ x: 40 * TAM, y: 40 * TAM })
+    const { pt } = tileUnderTouch(f, control, 43, 38)
+    // Without × factor (pointer.worldX style) the point lands somewhere else.
+    const mal = f.main.getWorldPoint(pt!.x, pt!.y)
+    expect(casillaEnPunto(LADO, TAM, mal.x, mal.y)).not.toEqual({ x: 43, y: 38 })
   })
 })

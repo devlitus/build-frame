@@ -10,6 +10,12 @@ import {
   rectanguloDeEsquinas,
 } from '../../src/game/pincel'
 import { firmaVentana, tramosPorZona } from '../../src/game/valle/tramosZonas'
+import { PintorZonas } from '../../src/game/pintorZonas'
+import { fakeCameraScene, fakePointer } from './fixtures/fake-scene'
+
+vi.mock('phaser', () => ({
+  default: { Core: { Events: { BLUR: 'blur', HIDDEN: 'hidden' } } },
+}))
 
 const LADO = 96
 const T = 32
@@ -256,5 +262,186 @@ describe('tramos de zona para el dibujo', () => {
     expect(firmaVentana(pintado, lado, v)).toBe(firmaVentana(base, lado, v))
     const dentro = 'c' + base.slice(1)
     expect(firmaVentana(dentro, lado, v)).not.toBe(firmaVentana(base, lado, v))
+  })
+})
+
+// E2E-16 · Rompedor: the zone brush gestures (`PintorZonas`, src/game/pintorZonas.ts) with a fake
+// scene. Replaces the logic of pincel-rompedor «un segundo dedo a mitad de un pintado anula el
+// gesto…», «un toque cancelado por el sistema no pinta», «cambiar de modo a mitad de un arrastre no
+// pinta…», «cerrar la barra con un arrastre en curso no pinta y al reabrir no queda una vista previa
+// fantasma», «arrastrar y soltar fuera de la pantalla pinta hasta el borde sin errores»; pincel-zonas
+// «un toque o clic sin arrastrar pinta una casilla», «con dos dedos la cámara se mueve y no se
+// pinta»; m5-00-rompedor «pincel: un arrastre de un dedo pinta exactamente las casillas bajo el
+// dedo» (DPR 1, 1.25, 2, 2.625, 3).
+describe('PintorZonas gestures (fake scene)', () => {
+  function montar(dpr = 1) {
+    const f = fakeCameraScene(412, 915, dpr)
+    const k = 1 / f.scale.zoom
+    f.main.setZoom(k)
+    f.main.setScroll(40 * T - f.scale.width / 2, 40 * T - f.scale.height / 2)
+    const pincel = new Pincel()
+    const aplicados: unknown[] = []
+    const pintor = new PintorZonas(f.scene as never, pincel, LADO, T, (r) => aplicados.push(r))
+    pincel.abrir()
+    pincel.elegir('cultivo')
+    return { f, pincel, aplicados, pintor }
+  }
+
+  it.each([1, 1.25, 2, 2.625, 3])(
+    'DPR %f: a one-finger drag paints exactly the tiles under the finger',
+    (dpr) => {
+      const { f, aplicados } = montar(dpr)
+      const a = f.tileCentre(38, 37)
+      const b = f.tileCentre(42, 41)
+      const p = fakePointer(1, a.x, a.y, true)
+      f.down(p)
+      f.move(p, (a.x + b.x) / 2, (a.y + b.y) / 2)
+      f.move(p, b.x, b.y)
+      f.up(p)
+      expect(aplicados).toEqual([{ x0: 38, y0: 37, x1: 42, y1: 41 }])
+    },
+  )
+
+  it('a tap or click without dragging paints one tile', () => {
+    const { f, aplicados } = montar()
+    const a = f.tileCentre(40, 40)
+    for (const tactil of [true, false]) {
+      const p = fakePointer(tactil ? 1 : 0, a.x, a.y, tactil)
+      f.down(p)
+      f.up(p)
+    }
+    expect(aplicados).toEqual([
+      { x0: 40, y0: 40, x1: 40, y1: 40 },
+      { x0: 40, y0: 40, x1: 40, y1: 40 },
+    ])
+  })
+
+  it('a second finger mid-paint cancels the gesture (nothing painted, no preview); then one finger paints again', () => {
+    const { f, pincel, aplicados } = montar()
+    const a = f.tileCentre(38, 38)
+    const p1 = fakePointer(1, a.x, a.y, true)
+    f.down(p1)
+    f.move(p1, a.x + 64, a.y + 64)
+    expect(pincel.arrastrando).toBe(true)
+    const p2 = fakePointer(2, 300, 300, true)
+    f.down(p2) // two fingers: the camera pans/zooms, the brush does not paint
+    expect(pincel.arrastrando).toBe(false)
+    f.move(p1, a.x + 100, a.y)
+    f.up(p2)
+    f.up(p1)
+    expect(aplicados).toEqual([])
+    const p3 = fakePointer(3, a.x, a.y, true)
+    f.down(p3)
+    f.up(p3)
+    expect(aplicados).toEqual([{ x0: 38, y0: 38, x1: 38, y1: 38 }])
+  })
+
+  it('a touch cancelled by the system does not paint', () => {
+    const { f, pincel, aplicados } = montar()
+    const a = f.tileCentre(38, 38)
+    const p = fakePointer(1, a.x, a.y, true)
+    f.down(p)
+    f.move(p, a.x + 64, a.y)
+    f.up(p, true)
+    expect(aplicados).toEqual([])
+    expect(pincel.arrastrando).toBe(false)
+  })
+
+  it('switching mode (reset) or losing the focus mid-drag does not paint; the brush works afterwards', () => {
+    const { f, pincel, aplicados, pintor } = montar()
+    const a = f.tileCentre(38, 38)
+    const p = fakePointer(0, a.x, a.y, false)
+    f.down(p)
+    f.move(p, a.x + 64, a.y)
+    pintor.reiniciar() // what the scene does on a mode change
+    f.up(p)
+    f.down(p)
+    f.move(p, a.x + 64, a.y)
+    f.game.events.emit('blur')
+    f.up(p)
+    expect(aplicados).toEqual([])
+    expect(pincel.arrastrando).toBe(false)
+    f.down(p)
+    f.up(p)
+    expect(aplicados).toHaveLength(1)
+  })
+
+  it('closing the bar with a drag in progress paints nothing and leaves no ghost preview when reopened', () => {
+    const { f, pincel, aplicados } = montar()
+    const a = f.tileCentre(38, 38)
+    const p = fakePointer(0, a.x, a.y, false)
+    f.down(p)
+    f.move(p, a.x + 64, a.y + 64)
+    pincel.cerrar()
+    f.move(p, a.x + 96, a.y + 96)
+    f.up(p)
+    expect(aplicados).toEqual([])
+    pincel.abrir()
+    pincel.elegir('huerto')
+    expect(pincel.arrastrando).toBe(false)
+  })
+
+  it('dragging and releasing outside the screen paints up to the edge of the valley', () => {
+    const { f, aplicados } = montar()
+    const a = f.tileCentre(90, 90)
+    // Far beyond the bottom-right corner of the valley.
+    const p = fakePointer(0, a.x, a.y, false)
+    f.down(p)
+    f.move(p, a.x + 5000, a.y + 5000)
+    f.up(p)
+    expect(aplicados).toEqual([{ x0: 90, y0: 90, x1: 95, y1: 95 }])
+  })
+
+  it('right or middle button and an inactive brush (no tool) do not paint', () => {
+    const { f, pincel, aplicados } = montar()
+    const a = f.tileCentre(38, 38)
+    for (const boton of [1, 2]) {
+      const p = fakePointer(0, a.x, a.y, false, boton)
+      f.down(p)
+      f.up(p)
+    }
+    pincel.elegir(undefined)
+    const t = fakePointer(1, a.x, a.y, true)
+    f.down(t)
+    f.up(t)
+    expect(aplicados).toEqual([])
+  })
+
+  it('erasing and repainting through the game is free: money and materials never change', () => {
+    // Original e2e: pincel-zonas.spec.ts «repintar con otra zona la sustituye y el borrador la quita
+    // (gratis, sin tocar el dinero)».
+    const e0 = crearEstadoInicial({ semilla: 42 })
+    const partida = new Partida(e0)
+    partida.emitir({ tipo: 'CambiarModo', modo: 'plano' })
+    const C = e0.valle.casillasPorParcela
+    const N = e0.valle.parcelasPorLado
+    const i = Math.floor(e0.aparicion.y / C) * N + Math.floor(e0.aparicion.x / C)
+    partida.emitir({ tipo: 'ComprarParcela', indice: i })
+    const dinero = partida.estado.dinero
+    const materiales = partida.estado.materiales
+    const x0 = (i % N) * C
+    const y0 = Math.floor(i / N) * C
+    for (const zona of ['cultivo', 'huerto', 'vivienda', 'almacen'] as const) {
+      expect(partida.emitir({ tipo: 'PintarZona', x0, y0, x1: x0 + 3, y1: y0 + 3, zona }).ok).toBe(
+        true,
+      )
+      expect(partida.estado.zonas[y0 * LADO + x0]).toBe(zona[0])
+    }
+    expect(partida.emitir({ tipo: 'BorrarZona', x0, y0, x1: x0 + 3, y1: y0 + 3 }).ok).toBe(true)
+    expect(partida.estado.zonas[y0 * LADO + x0]).toBe('.')
+    expect(partida.estado.dinero).toBe(dinero)
+    expect(partida.estado.materiales).toEqual(materiales)
+  })
+})
+
+describe('PintorZonas: scene shutdown', () => {
+  it('removes its pointer, blur and hidden listeners (restarting the valley leaves no duplicate gesture)', () => {
+    const f = fakeCameraScene(412, 915)
+    new PintorZonas(f.scene as never, new Pincel(), LADO, T, () => undefined)
+    f.scene.events.emit('shutdown')
+    for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'pointerupoutside'])
+      expect(f.input.cuenta(ev), ev).toBe(0)
+    expect(f.game.events.cuenta('blur')).toBe(0)
+    expect(f.game.events.cuenta('hidden')).toBe(0)
   })
 })
