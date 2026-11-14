@@ -339,6 +339,8 @@ test('horneado: con zoom máximo en las cuatro esquinas el terreno cubre la pant
 
 /** Holgura que añade la cámara de Vida al margen de la barra (CONFIG_CAMARA.holguraBordePx). */
 const HOLGURA_BARRA = 24
+/** CONFIG_CAMARA.radioLibreCasillas */
+const RADIO_LIBRE_CASILLAS = 3
 
 /**
  * En Vida la vista entera está dentro del valle (o centrada en el eje en que el valle cabe), salvo
@@ -353,9 +355,13 @@ async function vistaDentroDelValle(page: Page): Promise<void> {
   const vp = page.viewportSize()
   const columna = !!barra && barra.width < barra.height
   const px = (n: number) => (n + HOLGURA_BARRA + 2) / cam.zoom
+  // HUD-01: más el radio libre alrededor del personaje (3 casillas) y, arriba, el HUD superior.
+  const radio = RADIO_LIBRE_CASILLAS * 32
+  const hudArriba = await page.locator('.hud-arriba').boundingBox()
   const margen = {
     izq: barra && columna ? px(barra.x + barra.width) : 0,
-    abajo: barra && vp && !columna ? px(vp.height - barra.y) : 0,
+    abajo: barra && vp && !columna ? px(vp.height - barra.y) + radio : 0,
+    arriba: (hudArriba ? hudArriba.y + hudArriba.height + 8 + 2 : 0) / cam.zoom + radio,
   }
   const eje = (a: number, b: number, w: number, antes: number, despues: number) => {
     if (w < MUNDO) {
@@ -364,7 +370,7 @@ async function vistaDentroDelValle(page: Page): Promise<void> {
     } else expect((a + b) / 2).toBeCloseTo(MUNDO / 2, 0)
   }
   eje(r.x0, r.x1, r.w, margen.izq, 0)
-  eje(r.y0, r.y1, r.h, 0, margen.abajo)
+  eje(r.y0, r.y1, r.h, margen.arriba, margen.abajo)
 }
 
 test.describe('Vida tras el Plano: la vista vuelve a quedar dentro del valle', () => {

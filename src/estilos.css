@@ -1879,7 +1879,7 @@ body {
 
   .hud-arriba:has(.aviso) .hud-izquierda,
   .hud-arriba:has(.controles-tiempo[data-abierto='true']) .hud-izquierda {
-    visibility: hidden;
+    display: none;
   }
 
   .boton-accion::after,
