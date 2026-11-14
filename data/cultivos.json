@@ -1,4 +1,5 @@
 {
+  "tierra": { "diasSinRegarAHierba": 3 },
   "cultivos": {
     "patata": {
       "estaciones": ["primavera"],

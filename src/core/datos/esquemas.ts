@@ -304,6 +304,13 @@ export const EsquemaCultivo = v.strictObject({
 export type DefCultivo = v.InferOutput<typeof EsquemaCultivo>
 
 export const EsquemaConfigCultivos = v.strictObject({
+  /**
+   * Tierra arada sin planta: tras `diasSinRegarAHierba` días seguidos sin regar vuelve a hierba
+   * (1..9: cabe en un carácter de `tierra`).
+   */
+  tierra: v.strictObject({
+    diasSinRegarAHierba: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(9)),
+  }),
   /** Catálogo: exactamente un registro por cada cultivo de `CULTIVOS`. */
   cultivos: v.strictObject(
     Object.fromEntries(CULTIVOS.map((c) => [c, EsquemaCultivo])) as Record<

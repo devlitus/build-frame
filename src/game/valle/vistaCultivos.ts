@@ -1,8 +1,9 @@
 import type Phaser from 'phaser'
 import {
-  CARACTER_ARADA,
+  CARACTER_REGADA,
   CULTIVOS,
   defCultivo,
+  esCaracterArada,
   faseDe,
   ladoValle,
   type EstadoJuego,
@@ -40,9 +41,8 @@ type Vista = Pick<EstadoJuego, 'tierra' | 'plantas' | 'valle'>
 export class VistaCultivos {
   private tierra: string | undefined = undefined
   private plantas: EstadoJuego['plantas'] | undefined = undefined
-  /** Casillas con planta regada (tierra mojada) y su firma para saber cuándo rehornear. */
-  private mojadas = new Set<number>()
-  private firmaMojadas = ''
+  /** Tierra «visual»: la de `tierra` sin la cuenta de días secos (solo importa arada seca o regada). */
+  private visual = ''
   private readonly trozos: {
     rt: Phaser.GameObjects.RenderTexture | undefined
     t: Trozo
@@ -69,16 +69,11 @@ export class VistaCultivos {
 
   actualizar(e: Vista): void {
     if (ladoValle(e.valle) !== this.lado) return
-    let mojadas: Set<number> | undefined
-    if (e.plantas !== this.plantas) {
-      mojadas = new Set(e.plantas.filter((p) => p[3] === 1 && p[5] === 0).map((p) => p[0]))
-    }
-    const firma = mojadas ? [...mojadas].join(',') : this.firmaMojadas
-    if (e.tierra !== this.tierra || firma !== this.firmaMojadas) {
+    if (e.tierra !== this.tierra) {
       this.tierra = e.tierra
-      this.mojadas = mojadas ?? this.mojadas
-      this.firmaMojadas = firma
-      this.hornearTierra(e.tierra)
+      // Lo mojado sale de la tierra (carácter `A`); los días secos no cambian el dibujo.
+      this.visual = e.tierra.replace(/[1-9]/g, 'a')
+      this.hornearTierra(this.visual)
     }
     if (e.plantas !== this.plantas) {
       this.plantas = e.plantas
@@ -88,7 +83,7 @@ export class VistaCultivos {
 
   /** Tras perder el contexto WebGL se rehace todo. */
   invalidar(): void {
-    const tierra = this.tierra
+    const tierra = this.tierra === undefined ? undefined : this.visual
     const plantas = this.plantas
     this.limpiarPlantas()
     for (const tr of this.trozos) tr.firma = ''
@@ -98,12 +93,12 @@ export class VistaCultivos {
 
   private arada(tierra: string, x: number, y: number): boolean {
     if (x < 0 || y < 0 || x >= this.lado || y >= this.lado) return false
-    return tierra[y * this.lado + x] === CARACTER_ARADA
+    return esCaracterArada(tierra[y * this.lado + x])
   }
 
   private hornearTierra(tierra: string): void {
     this._aradas = 0
-    for (let i = 0; i < tierra.length; i++) if (tierra[i] === CARACTER_ARADA) this._aradas++
+    for (let i = 0; i < tierra.length; i++) if (esCaracterArada(tierra[i])) this._aradas++
     for (const tr of this.trozos) this.hornearTrozo(tr, tierra)
   }
 
@@ -122,12 +117,8 @@ export class VistaCultivos {
       x1: x1 + 1,
       y1: y1 + 1,
     })
-    const mojadasAqui = [...this.mojadas].filter((i) => {
-      const cx = i % this.lado
-      const cy = Math.floor(i / this.lado)
-      return cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1
-    })
-    const firma = `${firmaTierra}#${mojadasAqui.join(',')}`
+    // La firma de la ventana ya incluye las casillas regadas (`A`) del trozo.
+    const firma = firmaTierra
     if (firma === tr.firma) return
     tr.firma = firma
     const casillas: { x: number; y: number }[] = []
@@ -151,7 +142,7 @@ export class VistaCultivos {
     const sello = crearSello(this.escena)
     const escala = escalaNominal(this.escena, CLAVE_TIERRA_ARADA, TAM_CASILLA, 0)
     const estampar = (fotograma: number, x: number, y: number): void => {
-      const mojada = this.mojadas.has(y * this.lado + x)
+      const mojada = tierra[y * this.lado + x] === CARACTER_REGADA
       sello.setTexture(mojada ? CLAVE_TIERRA_MOJADA : CLAVE_TIERRA_ARADA, fotograma)
       sello.setScale(escala)
       rt.batchDraw(sello, x * TAM_CASILLA - tr.t.x, y * TAM_CASILLA - tr.t.y)

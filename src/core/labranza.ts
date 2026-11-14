@@ -7,7 +7,13 @@ import { casillaConEdificio, aguaDe, zonaEn } from './zonas'
 import { ladoValle } from './mapa'
 import { cantidadDe, inventarioValido, quitarObjeto } from './inventario'
 import { edificiosValidos } from './edificios'
-import { CARACTER_ARADA, plantaNueva, tierraValida } from './tierra'
+import {
+  CARACTER_ARADA,
+  CARACTER_REGADA,
+  esCaracterArada,
+  plantaNueva,
+  tierraValida,
+} from './tierra'
 
 /**
  * Motivos de rechazo de la azada y de las semillas (los textos están en `src/ui/textos/es.json`).
@@ -78,7 +84,7 @@ export function motivoNoArar(estado: EstadoJuego, x: number, y: number): ErrorLa
   if (casillaConEdificio(estado, x, y)) return 'ocupada'
   const zona = zonaEn(estado, x, y)
   if (zona !== 'cultivo' && zona !== 'huerto') return 'zona'
-  if (estado.tierra[i] === CARACTER_ARADA) return 'ya-arada'
+  if (esCaracterArada(estado.tierra[i])) return 'ya-arada'
   return undefined
 }
 
@@ -109,7 +115,7 @@ export function motivoNoPlantar(
   if (!estadoValido(estado)) return 'estado-invalido'
   const lado = ladoValle(estado.valle)
   const i = y * lado + x
-  if (estado.tierra[i] !== CARACTER_ARADA) return 'no-arada'
+  if (!esCaracterArada(estado.tierra[i])) return 'no-arada'
   if (
     estado.plantas.some((p) => p[0] === i) ||
     casillaConEdificio(estado, x, y) ||
@@ -160,10 +166,13 @@ export function plantar(estado: EstadoJuego, x: number, y: number): ResultadoLab
   if (!inventario) return { ok: false, error: 'estado-invalido' }
   const i = y * ladoValle(estado.valle) + x
   const planta = plantaNueva(i, CULTIVOS.indexOf(cultivo))
+  // La cuenta de días secos de la tierra vacía no sirve con planta: la casilla vuelve a `a`.
+  const caracter = estado.tierra[i] === CARACTER_REGADA ? CARACTER_REGADA : CARACTER_ARADA
+  const tierra = estado.tierra.slice(0, i) + caracter + estado.tierra.slice(i + 1)
   const plantas = [...estado.plantas, planta].sort((a, b) => a[0] - b[0])
   return {
     ok: true,
-    estado: { ...estado, inventario, plantas },
+    estado: { ...estado, inventario, plantas, tierra },
     eventos: [{ tipo: 'planta-sembrada', x: x + 0, y: y + 0, cultivo }],
   }
 }

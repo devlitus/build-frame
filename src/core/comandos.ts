@@ -153,7 +153,7 @@ export type EventoJuego =
       readonly reembolso: Coste
     }
 
-  /** La herramienta activa se aceptó sobre la casilla (x, y); sus efectos traen sus propios eventos (`tierra-arada`, `planta-sembrada`, `planta-regada`). */
+  /** La herramienta activa se aceptó sobre la casilla (x, y); sus efectos traen sus propios eventos (`tierra-arada`, `planta-sembrada`, `tierra-regada`). */
   | EventoHerramienta
   /** El personaje durmió: empieza el día siguiente (las obras que tocan traen su `obra-terminada`). */
   | { readonly tipo: 'dormido' }

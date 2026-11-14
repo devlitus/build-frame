@@ -155,9 +155,13 @@ describe('UsarHerramienta: validación', () => {
     expect(error(usar(e4, 50, 50))).toBe('sin-semillas')
   })
   it('las demás herramientas no exigen semilla', () => {
+    const i = 50 * ladoValle(e0.valle) + 50
+    const arada = { ...e0, tierra: e0.tierra.slice(0, i) + 'a' + e0.tierra.slice(i + 1) }
     for (const h of HERRAMIENTAS.filter((x) => x !== 'semillas')) {
-      expect(usar({ ...e0, herramienta: h }, 50, 50).ok).toBe(true)
+      // La regadera solo se acepta sobre tierra arada.
+      expect(usar({ ...(h === 'regadera' ? arada : e0), herramienta: h }, 50, 50).ok).toBe(true)
     }
+    expect(error(usar({ ...e0, herramienta: 'regadera' }, 50, 50))).toBe('no-arada')
   })
   it('un estado manipulado da estado-invalido sin lanzar', () => {
     expect(error(usar({ ...e0, herramienta: 'martillo' as never }, 50, 50))).toBe('estado-invalido')
