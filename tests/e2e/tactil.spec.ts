@@ -260,24 +260,28 @@ test.describe('móvil: joystick y tocar el destino', () => {
     expect(await personaje(page)).toEqual(p0)
   })
 
-  test('capturas con el joystick visible (vertical y horizontal)', async ({ page }) => {
-    for (const [nombre, ancho, alto] of [
-      ['vertical', 412, 915],
-      ['horizontal', 915, 412],
-    ] as const) {
-      await page.setViewportSize({ width: ancho, height: alto })
-      await page.waitForTimeout(600)
-      const x = Math.round(ancho / 2)
-      const y = Math.round(alto * 0.7)
-      await tocar('touchStart', [[x, y]])
-      await tocar('touchMove', [[x + 15, y]])
-      await tocar('touchMove', [[x + 40, y - 20]])
-      await page.waitForTimeout(150)
-      expect(await joystick(page)).toBe(true)
-      await page.screenshot({ path: `capturas/tactil-${nombre}.png` })
-      await tocar('touchEnd', [])
-    }
-  })
+  test(
+    'capturas con el joystick visible (vertical y horizontal)',
+    { tag: '@capturas' },
+    async ({ page }) => {
+      for (const [nombre, ancho, alto] of [
+        ['vertical', 412, 915],
+        ['horizontal', 915, 412],
+      ] as const) {
+        await page.setViewportSize({ width: ancho, height: alto })
+        await page.waitForTimeout(600)
+        const x = Math.round(ancho / 2)
+        const y = Math.round(alto * 0.7)
+        await tocar('touchStart', [[x, y]])
+        await tocar('touchMove', [[x + 15, y]])
+        await tocar('touchMove', [[x + 40, y - 20]])
+        await page.waitForTimeout(150)
+        expect(await joystick(page)).toBe(true)
+        await page.screenshot({ path: `capturas/tactil-${nombre}.png` })
+        await tocar('touchEnd', [])
+      }
+    },
+  )
 
   test('un toque cancelado por el sistema no fija destino', async ({ page }) => {
     const { cx, cy } = await destinoConRodeo(page)

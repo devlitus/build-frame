@@ -485,39 +485,41 @@ test.describe('rendimiento por DPR', () => {
   test.skip(({ isMobile }) => isMobile, 'el contexto se crea aquí')
 
   for (const modo of ['vida', 'plano'] as const) {
-    test(`${modo}: a DPR 2 las fps no caen por debajo del 60 % de las de DPR 1 (solo con GPU)`, async ({
-      browser,
-    }) => {
-      test.setTimeout(120_000)
-      const medidas: Record<number, number> = {}
-      for (const dpr of [1, 2]) {
-        const ctx = await contextoDpr(browser, test.info().project.use.baseURL ?? '', dpr)
-        const page = await ctx.newPage()
-        await abrir(page, `./?semilla=${SEMILLA}&debug${modo === 'plano' ? '&modo=plano' : ''}`)
-        await fpsMedias(page, 800)
-        medidas[dpr] = await fpsMedias(page)
-        await ctx.close()
-      }
-      test.info().annotations.push({ type: 'fps', description: JSON.stringify(medidas) })
-      // Decisión del orquestador (M5-00): con renderizado por software, 4× píxeles hunden las fps
-      // por fuerza y la medida no dice nada de un móvil real. Solo se exige con GPU.
-      const ctxGpu = await browser.newContext()
-      const renderer = await (
-        await ctxGpu.newPage()
-      ).evaluate(() => {
-        const gl = document.createElement('canvas').getContext('webgl')
-        const ext = gl?.getExtension('WEBGL_debug_renderer_info')
-        return gl && ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : 'desconocido'
-      })
-      await ctxGpu.close()
-      test.skip(
-        /swiftshader|llvmpipe|software|desconocido/i.test(renderer),
-        `renderizado por software (${renderer}): solo se anota la medida`,
-      )
-      expect(medidas[2] ?? 0, JSON.stringify(medidas)).toBeGreaterThanOrEqual(
-        0.6 * (medidas[1] ?? 0),
-      )
-    })
+    test(
+      `${modo}: a DPR 2 las fps no caen por debajo del 60 % de las de DPR 1 (solo con GPU)`,
+      { tag: '@rendimiento' },
+      async ({ browser }) => {
+        test.setTimeout(120_000)
+        const medidas: Record<number, number> = {}
+        for (const dpr of [1, 2]) {
+          const ctx = await contextoDpr(browser, test.info().project.use.baseURL ?? '', dpr)
+          const page = await ctx.newPage()
+          await abrir(page, `./?semilla=${SEMILLA}&debug${modo === 'plano' ? '&modo=plano' : ''}`)
+          await fpsMedias(page, 800)
+          medidas[dpr] = await fpsMedias(page)
+          await ctx.close()
+        }
+        test.info().annotations.push({ type: 'fps', description: JSON.stringify(medidas) })
+        // Decisión del orquestador (M5-00): con renderizado por software, 4× píxeles hunden las fps
+        // por fuerza y la medida no dice nada de un móvil real. Solo se exige con GPU.
+        const ctxGpu = await browser.newContext()
+        const renderer = await (
+          await ctxGpu.newPage()
+        ).evaluate(() => {
+          const gl = document.createElement('canvas').getContext('webgl')
+          const ext = gl?.getExtension('WEBGL_debug_renderer_info')
+          return gl && ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : 'desconocido'
+        })
+        await ctxGpu.close()
+        test.skip(
+          /swiftshader|llvmpipe|software|desconocido/i.test(renderer),
+          `renderizado por software (${renderer}): solo se anota la medida`,
+        )
+        expect(medidas[2] ?? 0, JSON.stringify(medidas)).toBeGreaterThanOrEqual(
+          0.6 * (medidas[1] ?? 0),
+        )
+      },
+    )
   }
 })
 

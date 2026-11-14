@@ -580,7 +580,7 @@ test.describe('M4-06 rompedor · dibujo', () => {
 })
 
 /** Verificación visual: panel del edificio, casa, obra, confirmación y mover en verde y en rojo. */
-test('capturas de mover y demoler', async ({ page }) => {
+test('capturas de mover y demoler', { tag: '@capturas' }, async ({ page }) => {
   test.skip(esMovil(), 'fija sus propios tamaños')
   test.setTimeout(180_000)
   const vistas = [

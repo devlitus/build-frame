@@ -1412,54 +1412,56 @@ test.describe('M4 global · granja llena', () => {
     expect(errores).toEqual([])
   })
 
-  test('fps con la granja llena en Plano, con el panel del edificio y en Vida', async ({
-    page,
-  }) => {
-    test.setTimeout(120_000)
-    await abrir(page, `?semilla=${SEMILLA}&debug&modo=plano&dinero=100000000&propias=${TODAS}`)
-    const fps = (ms: number) =>
-      page.evaluate(
-        (ms) =>
-          new Promise<number>((res) => {
-            let n = 0
-            const t0 = performance.now()
-            const f = () => {
-              n++
-              if (performance.now() - t0 < ms) requestAnimationFrame(f)
-              else res((n * 1000) / (performance.now() - t0))
-            }
-            requestAnimationFrame(f)
-          }),
-        ms,
+  test(
+    'fps con la granja llena en Plano, con el panel del edificio y en Vida',
+    { tag: '@rendimiento' },
+    async ({ page }) => {
+      test.setTimeout(120_000)
+      await abrir(page, `?semilla=${SEMILLA}&debug&modo=plano&dinero=100000000&propias=${TODAS}`)
+      const fps = (ms: number) =>
+        page.evaluate(
+          (ms) =>
+            new Promise<number>((res) => {
+              let n = 0
+              const t0 = performance.now()
+              const f = () => {
+                n++
+                if (performance.now() - t0 < ms) requestAnimationFrame(f)
+                else res((n * 1000) / (performance.now() - t0))
+              }
+              requestAnimationFrame(f)
+            }),
+          ms,
+        )
+      const vacio = await fps(2500)
+      const n = await granjaLlena(page)
+      await page.evaluate(() => window.__raices?.centrarCamara(48, 48))
+      await page.waitForTimeout(500)
+      const plano = await fps(2500)
+      await page.evaluate(() => {
+        const r = window.__raices
+        r?.seleccionarEdificio(r.edificios()[5]?.id ?? 0)
+      })
+      await page.waitForTimeout(300)
+      const panel = await fps(2500)
+      await page.evaluate(() => {
+        const r = window.__raices
+        r?.emitir({ tipo: 'CambiarModo', modo: 'vida' })
+        r?.emitir({ tipo: 'Pausar' })
+      })
+      await page.waitForTimeout(500)
+      const vida = await fps(2500)
+      test.info().annotations.push({
+        type: 'fps',
+        description: `edificios ${n}; vacío ${vacio.toFixed(1)}, plano ${plano.toFixed(1)}, panel ${panel.toFixed(1)}, vida ${vida.toFixed(1)}`,
+      })
+      console.log(
+        `[fps ${test.info().project.name}] edificios ${n}; vacío ${vacio.toFixed(1)}, plano ${plano.toFixed(1)}, panel ${panel.toFixed(1)}, vida ${vida.toFixed(1)}`,
       )
-    const vacio = await fps(2500)
-    const n = await granjaLlena(page)
-    await page.evaluate(() => window.__raices?.centrarCamara(48, 48))
-    await page.waitForTimeout(500)
-    const plano = await fps(2500)
-    await page.evaluate(() => {
-      const r = window.__raices
-      r?.seleccionarEdificio(r.edificios()[5]?.id ?? 0)
-    })
-    await page.waitForTimeout(300)
-    const panel = await fps(2500)
-    await page.evaluate(() => {
-      const r = window.__raices
-      r?.emitir({ tipo: 'CambiarModo', modo: 'vida' })
-      r?.emitir({ tipo: 'Pausar' })
-    })
-    await page.waitForTimeout(500)
-    const vida = await fps(2500)
-    test.info().annotations.push({
-      type: 'fps',
-      description: `edificios ${n}; vacío ${vacio.toFixed(1)}, plano ${plano.toFixed(1)}, panel ${panel.toFixed(1)}, vida ${vida.toFixed(1)}`,
-    })
-    console.log(
-      `[fps ${test.info().project.name}] edificios ${n}; vacío ${vacio.toFixed(1)}, plano ${plano.toFixed(1)}, panel ${panel.toFixed(1)}, vida ${vida.toFixed(1)}`,
-    )
-    expect(plano).toBeGreaterThan(Math.min(15, vacio * 0.6))
-    expect(panel).toBeGreaterThan(Math.min(15, vacio * 0.6))
-  })
+      expect(plano).toBeGreaterThan(Math.min(15, vacio * 0.6))
+      expect(panel).toBeGreaterThan(Math.min(15, vacio * 0.6))
+    },
+  )
 })
 
 /** Granja de ejemplo (economía real): parcela 32, vivienda, almacén, cultivo y huerto, 3 edificios. */
@@ -1508,83 +1510,87 @@ async function contextoDe(browser: Browser, nombre: string) {
   return browser.newContext({ ...opciones, baseURL: test.info().project.use.baseURL ?? '' })
 }
 
-test('capturas finales de la granja de ejemplo (m4-final)', async ({ browser }) => {
-  test.skip(test.info().project.name !== 'escritorio', 'una sola vez')
-  test.setTimeout(400_000)
-  for (const nombre of ['escritorio', 'movil-horizontal', 'baja', 'movil-vertical']) {
-    const ctx = await contextoDe(browser, nombre)
-    const page = await ctx.newPage()
-    const errores = await abrir(page, `?semilla=${SEMILLA}&debug`)
-    await granjaEjemplo(page)
-    const foto = async (n: string) => {
-      await page.waitForTimeout(1000)
-      await page.screenshot({ path: `capturas/m4-final--${n}--${nombre}.png` })
-    }
-    // Vida: el personaje en la granja.
-    await page.waitForTimeout(1500)
-    await foto('vida')
-    // Plano: la granja centrada y algo más cerca en móvil.
-    await page.evaluate(() => {
-      const r = window.__raices
-      r?.emitir({ tipo: 'CambiarModo', modo: 'plano' })
-    })
-    await camaraQuieta(page)
-    await page.evaluate(() => window.__raices?.centrarCamara(40, 88))
-    await foto('plano')
-    // Paneles.
-    await page.evaluate(() => {
-      const r = window.__raices
-      r?.seleccionar(26)
-    })
-    await foto('panel-parcela')
-    await page.keyboard.press('Escape')
-    await page.evaluate(() => window.__raices?.centrarCamara(40, 88))
-    await boton(page, 'Zonas').click()
-    await boton(barra(page), 'Huerto').click()
-    await foto('panel-zonas')
-    await boton(barra(page), 'Listo').click()
-    await boton(page, 'Construir').click()
-    await region(page, 'Construir')
-      .getByRole('button', { name: /^Caja de envío/ })
-      .click()
-    await page.evaluate(() => window.__raices?.centrarCamara(40, 88))
-    const s = (await sitios(page, 'caja-envio', ALMACEN, { x: 44, y: 87 }))[0]
-    if (s) {
-      if (nombre === 'escritorio') await page.mouse.move(s.punto.x, s.punto.y)
-      else await page.touchscreen.tap(s.punto.x, s.punto.y)
-    }
-    await foto('panel-construir')
-    await boton(region(page, 'Construir'), 'Listo').click()
-    const vis = await edificios(page)
-    const cob = vis.find((e) => e.tipo === 'cobertizo')
-    const casa = vis.find((e) => e.tipo === 'casa')
-    if (cob) {
-      await page.evaluate((id) => window.__raices?.seleccionarEdificio(id), cob.id)
-      await foto('panel-edificio')
-      await boton(region(page, 'Cobertizo'), 'Demoler').click()
-      await foto('confirmar-demoler')
-      await boton(region(page, 'Cobertizo'), 'No, conservar').click()
+test(
+  'capturas finales de la granja de ejemplo (m4-final)',
+  { tag: '@capturas' },
+  async ({ browser }) => {
+    test.skip(test.info().project.name !== 'escritorio', 'una sola vez')
+    test.setTimeout(400_000)
+    for (const nombre of ['escritorio', 'movil-horizontal', 'baja', 'movil-vertical']) {
+      const ctx = await contextoDe(browser, nombre)
+      const page = await ctx.newPage()
+      const errores = await abrir(page, `?semilla=${SEMILLA}&debug`)
+      await granjaEjemplo(page)
+      const foto = async (n: string) => {
+        await page.waitForTimeout(1000)
+        await page.screenshot({ path: `capturas/m4-final--${n}--${nombre}.png` })
+      }
+      // Vida: el personaje en la granja.
+      await page.waitForTimeout(1500)
+      await foto('vida')
+      // Plano: la granja centrada y algo más cerca en móvil.
+      await page.evaluate(() => {
+        const r = window.__raices
+        r?.emitir({ tipo: 'CambiarModo', modo: 'plano' })
+      })
+      await camaraQuieta(page)
+      await page.evaluate(() => window.__raices?.centrarCamara(40, 88))
+      await foto('plano')
+      // Paneles.
+      await page.evaluate(() => {
+        const r = window.__raices
+        r?.seleccionar(26)
+      })
+      await foto('panel-parcela')
       await page.keyboard.press('Escape')
+      await page.evaluate(() => window.__raices?.centrarCamara(40, 88))
+      await boton(page, 'Zonas').click()
+      await boton(barra(page), 'Huerto').click()
+      await foto('panel-zonas')
+      await boton(barra(page), 'Listo').click()
+      await boton(page, 'Construir').click()
+      await region(page, 'Construir')
+        .getByRole('button', { name: /^Caja de envío/ })
+        .click()
+      await page.evaluate(() => window.__raices?.centrarCamara(40, 88))
+      const s = (await sitios(page, 'caja-envio', ALMACEN, { x: 44, y: 87 }))[0]
+      if (s) {
+        if (nombre === 'escritorio') await page.mouse.move(s.punto.x, s.punto.y)
+        else await page.touchscreen.tap(s.punto.x, s.punto.y)
+      }
+      await foto('panel-construir')
+      await boton(region(page, 'Construir'), 'Listo').click()
+      const vis = await edificios(page)
+      const cob = vis.find((e) => e.tipo === 'cobertizo')
+      const casa = vis.find((e) => e.tipo === 'casa')
+      if (cob) {
+        await page.evaluate((id) => window.__raices?.seleccionarEdificio(id), cob.id)
+        await foto('panel-edificio')
+        await boton(region(page, 'Cobertizo'), 'Demoler').click()
+        await foto('confirmar-demoler')
+        await boton(region(page, 'Cobertizo'), 'No, conservar').click()
+        await page.keyboard.press('Escape')
+      }
+      if (casa) {
+        await page.evaluate((id) => window.__raices?.seleccionarEdificio(id), casa.id)
+        await foto('panel-obra')
+        await page.keyboard.press('Escape')
+      }
+      // La casa terminada: un día más y la granja completa en Plano.
+      await page.evaluate(() => {
+        const r = window.__raices
+        r?.emitir({ tipo: 'CambiarModo', modo: 'vida' })
+        r?.emitir({ tipo: 'AvanzarTiempo', minutos: 100_000 })
+        r?.emitir({ tipo: 'AvanzarTiempo', minutos: 240 })
+      })
+      await page.waitForTimeout(7000) // que se vaya el aviso
+      await foto('vida-terminada')
+      await page.evaluate(() => window.__raices?.emitir({ tipo: 'CambiarModo', modo: 'plano' }))
+      await camaraQuieta(page)
+      await page.evaluate(() => window.__raices?.centrarCamara(40, 88))
+      await foto('plano-terminada')
+      expect(errores, nombre).toEqual([])
+      await ctx.close()
     }
-    if (casa) {
-      await page.evaluate((id) => window.__raices?.seleccionarEdificio(id), casa.id)
-      await foto('panel-obra')
-      await page.keyboard.press('Escape')
-    }
-    // La casa terminada: un día más y la granja completa en Plano.
-    await page.evaluate(() => {
-      const r = window.__raices
-      r?.emitir({ tipo: 'CambiarModo', modo: 'vida' })
-      r?.emitir({ tipo: 'AvanzarTiempo', minutos: 100_000 })
-      r?.emitir({ tipo: 'AvanzarTiempo', minutos: 240 })
-    })
-    await page.waitForTimeout(7000) // que se vaya el aviso
-    await foto('vida-terminada')
-    await page.evaluate(() => window.__raices?.emitir({ tipo: 'CambiarModo', modo: 'plano' }))
-    await camaraQuieta(page)
-    await page.evaluate(() => window.__raices?.centrarCamara(40, 88))
-    await foto('plano-terminada')
-    expect(errores, nombre).toEqual([])
-    await ctx.close()
-  }
-})
+  },
+)

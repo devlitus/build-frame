@@ -46,68 +46,70 @@ const solapa = (a: R, b: R) =>
 test.describe('día completo jugando', () => {
   test.setTimeout(120_000)
 
-  test('un día acelerado con teclado, cambios de modo, velocidad y pausa: HUD, tinte y estado coherentes', async ({
-    page,
-  }) => {
-    const errores = await abrir(page, '?semilla=42&debug&acelerar=200')
-    const aparicion = await personaje(page)
-    await page.keyboard.down('KeyD')
-    let vistoDesmayo = false
-    let max = 0
-    const t0 = Date.now()
-    let paso = 0
-    while (Date.now() - t0 < 100_000) {
+  test(
+    'un día acelerado con teclado, cambios de modo, velocidad y pausa: HUD, tinte y estado coherentes',
+    { tag: '@rendimiento' },
+    async ({ page }) => {
+      const errores = await abrir(page, '?semilla=42&debug&acelerar=200')
+      const aparicion = await personaje(page)
+      await page.keyboard.down('KeyD')
+      let vistoDesmayo = false
+      let max = 0
+      const t0 = Date.now()
+      let paso = 0
+      while (Date.now() - t0 < 100_000) {
+        const r = await reloj(page)
+        expect(r.minutoDelDia).toBeGreaterThanOrEqual(360)
+        expect(r.minutoDelDia).toBeLessThanOrEqual(1560)
+        // El HUD refleja el estado (dentro de la tolerancia de un minuto por la carrera DOM/estado).
+        const txt = (await page.getByRole('timer').textContent()) ?? ''
+        const [h, m] = txt.split(':').map(Number)
+        const mh = ((h! < 6 ? h! + 24 : h!) * 60 + m!) | 0
+        const r2 = await reloj(page)
+        if (r2.dia === r.dia)
+          expect(
+            mh,
+            `HUD ${txt} vs estado ${r.minutoDelDia}..${r2.minutoDelDia}`,
+          ).toBeGreaterThanOrEqual(r.minutoDelDia - 1)
+        max = Math.max(max, r.minutoDelDia)
+        const luz = (await page.evaluate(() => window.__raices!.luz()))!
+        expect(luz.alfa).toBeGreaterThanOrEqual(0)
+        expect(luz.alfa).toBeLessThanOrEqual(1)
+        // Acciones intercaladas.
+        paso++
+        if (paso % 5 === 0) await page.keyboard.press('KeyM')
+        if (paso % 7 === 0) await page.keyboard.press('KeyP')
+        if (paso % 3 === 0)
+          await page
+            .getByRole('button', { name: /Velocidad.*x(2|3)/i })
+            .first()
+            .click()
+        if (r.dia >= 2) {
+          vistoDesmayo = true
+          break
+        }
+        // Mantener el tiempo corriendo: Vida y sin pausa si hace falta avanzar.
+        if (paso > 12) {
+          if ((await modo(page)) === 'plano') await page.keyboard.press('KeyM')
+          const s = await reloj(page)
+          if (s.pausado) await page.keyboard.press('KeyP')
+        }
+        await page.waitForTimeout(150)
+      }
+      await page.keyboard.up('KeyD')
+      expect(vistoDesmayo, `no pasó el día (máx. minuto ${max})`).toBe(true)
+      await expect(page.getByRole('status')).toHaveText(/dormido/)
       const r = await reloj(page)
-      expect(r.minutoDelDia).toBeGreaterThanOrEqual(360)
-      expect(r.minutoDelDia).toBeLessThanOrEqual(1560)
-      // El HUD refleja el estado (dentro de la tolerancia de un minuto por la carrera DOM/estado).
-      const txt = (await page.getByRole('timer').textContent()) ?? ''
-      const [h, m] = txt.split(':').map(Number)
-      const mh = ((h! < 6 ? h! + 24 : h!) * 60 + m!) | 0
-      const r2 = await reloj(page)
-      if (r2.dia === r.dia)
-        expect(
-          mh,
-          `HUD ${txt} vs estado ${r.minutoDelDia}..${r2.minutoDelDia}`,
-        ).toBeGreaterThanOrEqual(r.minutoDelDia - 1)
-      max = Math.max(max, r.minutoDelDia)
+      expect(r.dia).toBe(2)
+      expect(await page.getByText(/Día 2 de/).count()).toBe(1)
       const luz = (await page.evaluate(() => window.__raices!.luz()))!
-      expect(luz.alfa).toBeGreaterThanOrEqual(0)
-      expect(luz.alfa).toBeLessThanOrEqual(1)
-      // Acciones intercaladas.
-      paso++
-      if (paso % 5 === 0) await page.keyboard.press('KeyM')
-      if (paso % 7 === 0) await page.keyboard.press('KeyP')
-      if (paso % 3 === 0)
-        await page
-          .getByRole('button', { name: /Velocidad.*x(2|3)/i })
-          .first()
-          .click()
-      if (r.dia >= 2) {
-        vistoDesmayo = true
-        break
-      }
-      // Mantener el tiempo corriendo: Vida y sin pausa si hace falta avanzar.
-      if (paso > 12) {
-        if ((await modo(page)) === 'plano') await page.keyboard.press('KeyM')
-        const s = await reloj(page)
-        if (s.pausado) await page.keyboard.press('KeyP')
-      }
-      await page.waitForTimeout(150)
-    }
-    await page.keyboard.up('KeyD')
-    expect(vistoDesmayo, `no pasó el día (máx. minuto ${max})`).toBe(true)
-    await expect(page.getByRole('status')).toHaveText(/dormido/)
-    const r = await reloj(page)
-    expect(r.dia).toBe(2)
-    expect(await page.getByText(/Día 2 de/).count()).toBe(1)
-    const luz = (await page.evaluate(() => window.__raices!.luz()))!
-    expect(luz.alfa, `a las ${hora(r.minutoDelDia)} el tinte debería ser casi nulo`).toBeLessThan(
-      0.3,
-    )
-    expect(errores).toEqual([])
-    void aparicion
-  })
+      expect(luz.alfa, `a las ${hora(r.minutoDelDia)} el tinte debería ser casi nulo`).toBeLessThan(
+        0.3,
+      )
+      expect(errores).toEqual([])
+      void aparicion
+    },
+  )
 
   test('desmayo con una ruta en curso: sin destino, personaje en la aparición y la cámara con él', async ({
     page,
@@ -464,27 +466,29 @@ test.describe('rendimiento global M2', () => {
     )
   }
 
-  test('fps de noche andando con el HUD frente al valle de día quieto (anota la diferencia)', async ({
-    page,
-  }, info) => {
-    await abrir(page, '?semilla=42&debug&hora=23:00')
-    const quietoNoche = await fps(page, 3000)
-    await page.keyboard.down('KeyD')
-    const nocheAndando = await fps(page, 3000)
-    await page.keyboard.up('KeyD')
-    await page.goto('./?semilla=42&debug')
-    await expect
-      .poll(() => page.evaluate(() => window.__raices?.personaje() !== undefined))
-      .toBe(true)
-    await page.waitForTimeout(600)
-    const dia = await fps(page, 3000)
-    await page.keyboard.down('KeyD')
-    const diaAndando = await fps(page, 3000)
-    await page.keyboard.up('KeyD')
-    const msg = `fps: dia quieto ${dia.toFixed(1)}, dia andando ${diaAndando.toFixed(1)}, noche quieto ${quietoNoche.toFixed(1)}, noche andando ${nocheAndando.toFixed(1)}`
-    info.annotations.push({ type: 'rendimiento', description: msg })
-    console.log(msg)
-    expect(nocheAndando, msg).toBeGreaterThan(15)
-    expect(nocheAndando / diaAndando, `el tinte cuesta demasiado: ${msg}`).toBeGreaterThan(0.6)
-  })
+  test(
+    'fps de noche andando con el HUD frente al valle de día quieto (anota la diferencia)',
+    { tag: '@rendimiento' },
+    async ({ page }, info) => {
+      await abrir(page, '?semilla=42&debug&hora=23:00')
+      const quietoNoche = await fps(page, 3000)
+      await page.keyboard.down('KeyD')
+      const nocheAndando = await fps(page, 3000)
+      await page.keyboard.up('KeyD')
+      await page.goto('./?semilla=42&debug')
+      await expect
+        .poll(() => page.evaluate(() => window.__raices?.personaje() !== undefined))
+        .toBe(true)
+      await page.waitForTimeout(600)
+      const dia = await fps(page, 3000)
+      await page.keyboard.down('KeyD')
+      const diaAndando = await fps(page, 3000)
+      await page.keyboard.up('KeyD')
+      const msg = `fps: dia quieto ${dia.toFixed(1)}, dia andando ${diaAndando.toFixed(1)}, noche quieto ${quietoNoche.toFixed(1)}, noche andando ${nocheAndando.toFixed(1)}`
+      info.annotations.push({ type: 'rendimiento', description: msg })
+      console.log(msg)
+      expect(nocheAndando, msg).toBeGreaterThan(15)
+      expect(nocheAndando / diaAndando, `el tinte cuesta demasiado: ${msg}`).toBeGreaterThan(0.6)
+    },
+  )
 })

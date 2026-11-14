@@ -182,6 +182,11 @@ Las historias se gestionan como **GitHub Issues**, con el *milestone* del hito y
 - **Antes de la PR de un hito:** `npm run e2e:completo` (funcional + rendimiento), capturas por escenas a la PO y demo en móvil real.
 - **Esperas:** siempre con los helpers de `tests/e2e/apoyo/` y condiciones (estado vía `__raices`, cámara quieta, N fotogramas); `waitForTimeout` prohibido fuera de `apoyo/`.
 - **Un solo e2e a la vez por máquina:** no lanzar tandas en dos worktrees a la vez (falsean tiempos y fps).
+<<<<<<< HEAD
+=======
+- **Etiquetas Playwright (`{ tag }`):** `@rendimiento` (fps o tiempo real con umbral; proyectos `rendimiento-escritorio` y `rendimiento-movil`, un worker, al final y solos), `@medida` (solo anota; fuera por defecto, `E2E_MEDIDA=1`), `@capturas` (solo escribe PNG; `npm run e2e:capturas`), `@humo` (CI). `@movil` y `@lento` quedan reservadas. `npm run e2e` = build + `scripts/e2e.mjs`: tanda funcional y después siempre la de rendimiento, con resumen y código combinado.
+- Las reglas de esperas (`waitForTimeout` prohibido fuera de `tests/e2e/apoyo/`), etiquetas (`@movil`, `@rendimiento`, `@capturas`, `@medida`, `@lento`) y proyectos se documentan aquí según se implanten las historias E2E-01 a E2E-10.
+>>>>>>> 611d293 (test(e2e): tandas por etiquetas @rendimiento, @medida y @capturas (E2E-02))
 
 ### Verificación visual
 Los tests e2e comprueban que los elementos **existen**, no que se **vean** bien. Por eso, en toda historia que cambie lo que se ve:

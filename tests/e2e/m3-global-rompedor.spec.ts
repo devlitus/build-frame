@@ -708,29 +708,31 @@ test.describe('rendimiento global M3', () => {
     )
   }
 
-  test('fps en Vida, en Plano y en Plano con muchas propias y el panel abierto (anota)', async ({
-    page,
-  }, info) => {
-    // 20 propias en bloque (filas 0-2 y dos de la fila 3), dinero de sobra.
-    const propias = Array.from({ length: 20 }, (_, i) => i).join(',')
-    await abrir(page, `?semilla=42&debug&dinero=100000000&propias=${propias}`)
-    await page.waitForTimeout(800)
-    const vida = await fps(page, 3000)
-    await page.keyboard.press('KeyM')
-    await expect.poll(() => modo(page)).toBe('plano')
-    await page.waitForTimeout(800)
-    const plano = await fps(page, 3000)
-    await page.evaluate(() => window.__raices!.seleccionar(20))
-    await expect(panel(page)).toHaveCount(1)
-    await page.waitForTimeout(800)
-    const conPanel = await fps(page, 3000)
-    await pedir(page).click()
-    await expect(confirmar(page)).toBeVisible()
-    const conConfirmacion = await fps(page, 3000)
-    const msg = `fps: vida ${vida.toFixed(1)}, plano ${plano.toFixed(1)}, plano+panel ${conPanel.toFixed(1)}, plano+confirmacion ${conConfirmacion.toFixed(1)}`
-    info.annotations.push({ type: 'rendimiento', description: msg })
-    console.log(msg)
-    expect(conPanel, msg).toBeGreaterThan(15)
-    expect(conPanel / vida, `el panel cuesta demasiado: ${msg}`).toBeGreaterThan(0.6)
-  })
+  test(
+    'fps en Vida, en Plano y en Plano con muchas propias y el panel abierto (anota)',
+    { tag: '@rendimiento' },
+    async ({ page }, info) => {
+      // 20 propias en bloque (filas 0-2 y dos de la fila 3), dinero de sobra.
+      const propias = Array.from({ length: 20 }, (_, i) => i).join(',')
+      await abrir(page, `?semilla=42&debug&dinero=100000000&propias=${propias}`)
+      await page.waitForTimeout(800)
+      const vida = await fps(page, 3000)
+      await page.keyboard.press('KeyM')
+      await expect.poll(() => modo(page)).toBe('plano')
+      await page.waitForTimeout(800)
+      const plano = await fps(page, 3000)
+      await page.evaluate(() => window.__raices!.seleccionar(20))
+      await expect(panel(page)).toHaveCount(1)
+      await page.waitForTimeout(800)
+      const conPanel = await fps(page, 3000)
+      await pedir(page).click()
+      await expect(confirmar(page)).toBeVisible()
+      const conConfirmacion = await fps(page, 3000)
+      const msg = `fps: vida ${vida.toFixed(1)}, plano ${plano.toFixed(1)}, plano+panel ${conPanel.toFixed(1)}, plano+confirmacion ${conConfirmacion.toFixed(1)}`
+      info.annotations.push({ type: 'rendimiento', description: msg })
+      console.log(msg)
+      expect(conPanel, msg).toBeGreaterThan(15)
+      expect(conPanel / vida, `el panel cuesta demasiado: ${msg}`).toBeGreaterThan(0.6)
+    },
+  )
 })

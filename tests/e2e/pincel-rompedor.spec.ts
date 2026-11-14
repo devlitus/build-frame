@@ -220,25 +220,27 @@ test('un rectángulo sobre parcelas propias y ajenas solo pinta las propias', as
   expect(await contar(page, { x0: 0, y0: 0, x1: 95, y1: 95 }, 'vivienda')).toBe(dentro)
 })
 
-test('teclado: el cursor se queda en el borde del valle y se puede pintar la esquina 0,0', async ({
-  page,
-}) => {
-  test.skip(esMovil(), 'teclado')
-  const errores = await abrir(page, `?semilla=${SEMILLA}&debug&modo=plano&propias=0`)
-  await abrirBarra(page)
-  await herramienta(page, 'Cultivo').click()
-  await page.keyboard.press('Enter') // cursor al centro
-  for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowLeft')
-  for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowUp')
-  expect((await pincel(page))?.cursor).toEqual({ x: 0, y: 0 })
-  await page.keyboard.press('Enter') // marca
-  await page.keyboard.press('Enter') // aplica
-  expect(await zona(page, 0, 0)).toBe('cultivo')
-  for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowRight')
-  for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowDown')
-  expect((await pincel(page))?.cursor).toEqual({ x: 55, y: 55 })
-  expect(errores).toEqual([])
-})
+test(
+  'teclado: el cursor se queda en el borde del valle y se puede pintar la esquina 0,0',
+  { tag: '@rendimiento' },
+  async ({ page }) => {
+    test.skip(esMovil(), 'teclado')
+    const errores = await abrir(page, `?semilla=${SEMILLA}&debug&modo=plano&propias=0`)
+    await abrirBarra(page)
+    await herramienta(page, 'Cultivo').click()
+    await page.keyboard.press('Enter') // cursor al centro
+    for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowLeft')
+    for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowUp')
+    expect((await pincel(page))?.cursor).toEqual({ x: 0, y: 0 })
+    await page.keyboard.press('Enter') // marca
+    await page.keyboard.press('Enter') // aplica
+    expect(await zona(page, 0, 0)).toBe('cultivo')
+    for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowRight')
+    for (let i = 0; i < 55; i++) await page.keyboard.press('ArrowDown')
+    expect((await pincel(page))?.cursor).toEqual({ x: 55, y: 55 })
+    expect(errores).toEqual([])
+  },
+)
 
 test('teclado: Enter mantenido (repetición) solo marca una vez', async ({ page }) => {
   test.skip(esMovil(), 'teclado')
@@ -345,30 +347,34 @@ test('pintar y borrar muchas veces no acumula texturas ni objetos', async ({ pag
   expect(errores).toEqual([])
 })
 
-test('pintar todo el valle repetidamente no hunde los fps', async ({ page }) => {
-  test.skip(esMovil(), 'rendimiento en escritorio')
-  await todasPropias(page)
-  const ms = await page.evaluate(async () => {
-    const zs = ['cultivo', 'huerto', 'vivienda', 'almacen']
-    const t0 = performance.now()
-    for (let i = 0; i < 24; i++) {
-      window.__raices?.emitir({
-        tipo: 'PintarZona',
-        x0: 0,
-        y0: 0,
-        x1: 95,
-        y1: 95,
-        zona: zs[i % 4],
-      })
-      await new Promise((r) => requestAnimationFrame(() => r(0)))
-    }
-    return performance.now() - t0
-  })
-  // Un hitch medio de más de 200 ms por pincelada (dependiente de la máquina, ver informe).
-  expect(ms / 24).toBeLessThan(200)
-  await page.waitForTimeout(1500)
-  expect(await page.evaluate(() => window.__raices?.fps())).toBeGreaterThan(20)
-})
+test(
+  'pintar todo el valle repetidamente no hunde los fps',
+  { tag: '@rendimiento' },
+  async ({ page }) => {
+    test.skip(esMovil(), 'rendimiento en escritorio')
+    await todasPropias(page)
+    const ms = await page.evaluate(async () => {
+      const zs = ['cultivo', 'huerto', 'vivienda', 'almacen']
+      const t0 = performance.now()
+      for (let i = 0; i < 24; i++) {
+        window.__raices?.emitir({
+          tipo: 'PintarZona',
+          x0: 0,
+          y0: 0,
+          x1: 95,
+          y1: 95,
+          zona: zs[i % 4],
+        })
+        await new Promise((r) => requestAnimationFrame(() => r(0)))
+      }
+      return performance.now() - t0
+    })
+    // Un hitch medio de más de 200 ms por pincelada (dependiente de la máquina, ver informe).
+    expect(ms / 24).toBeLessThan(200)
+    await page.waitForTimeout(1500)
+    expect(await page.evaluate(() => window.__raices?.fps())).toBeGreaterThan(20)
+  },
+)
 
 test('tras perder el contexto WebGL las zonas pintadas se vuelven a dibujar', async ({ page }) => {
   test.skip(esMovil(), 'escritorio')
@@ -416,7 +422,7 @@ test('tras perder el contexto WebGL las zonas pintadas se vuelven a dibujar', as
 })
 
 /** Verificación visual: deja capturas de zonas pintadas, vista previa y barra en las tres vistas. */
-test('capturas de zonas y barra', async ({ page }) => {
+test('capturas de zonas y barra', { tag: '@capturas' }, async ({ page }) => {
   test.skip(esMovil(), 'fija sus propios tamaños')
   const vistas = [
     ['escritorio', { width: 1280, height: 720 }],

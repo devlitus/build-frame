@@ -47,24 +47,26 @@ async function pixelesDeFondo(page: Page, modo: 'racha' | 'fraccion' = 'racha'):
   )
 }
 
-test('sin costuras ni huecos de fondo con zooms fraccionarios y medio píxel', async ({
-  page,
-}, info) => {
-  test.skip(info.project.name !== 'escritorio')
-  await abrir(page, './?semilla=42&modo=plano')
-  const v = page.viewportSize() ?? { width: 1280, height: 720 }
-  await page.mouse.move(v.width / 2, v.height / 2)
-  for (const delta of [-300, 200, -150, -250, 700, -900]) {
-    await page.mouse.wheel(0, delta)
-    await page.waitForTimeout(150)
-    const c = await page.evaluate(() => window.__raices?.camara())
-    await page.mouse.down()
-    await page.mouse.move(v.width / 2 + 0.5, v.height / 2 + 0.5)
-    await page.mouse.up()
-    await page.waitForTimeout(100)
-    expect(await pixelesDeFondo(page), `zoom ${c?.zoom}`).toBeLessThan(10)
-  }
-})
+test(
+  'sin costuras ni huecos de fondo con zooms fraccionarios y medio píxel',
+  { tag: '@rendimiento' },
+  async ({ page }, info) => {
+    test.skip(info.project.name !== 'escritorio')
+    await abrir(page, './?semilla=42&modo=plano')
+    const v = page.viewportSize() ?? { width: 1280, height: 720 }
+    await page.mouse.move(v.width / 2, v.height / 2)
+    for (const delta of [-300, 200, -150, -250, 700, -900]) {
+      await page.mouse.wheel(0, delta)
+      await page.waitForTimeout(150)
+      const c = await page.evaluate(() => window.__raices?.camara())
+      await page.mouse.down()
+      await page.mouse.move(v.width / 2 + 0.5, v.height / 2 + 0.5)
+      await page.mouse.up()
+      await page.waitForTimeout(100)
+      expect(await pixelesDeFondo(page), `zoom ${c?.zoom}`).toBeLessThan(10)
+    }
+  },
+)
 
 test('el contador no captura gestos: arrastrar desde él mueve la cámara', async ({
   page,

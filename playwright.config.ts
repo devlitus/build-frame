@@ -2,41 +2,40 @@ import { createHash } from 'node:crypto'
 import { defineConfig, devices, type Project } from '@playwright/test'
 
 /**
- * Tests de tiempo real y rendimiento: miden fps, milisegundos reales o umbrales en ms, así que
- * dependen de la máquina.
- * - En local corren al final y solos (`escritorio-solo` y `movil-solo`, con `workers: 1`):
- *   con workers en paralelo los fps bajan y el delta acotado (100 ms) frena el reloj.
- * - En la CI (`CI` definido) **no se ejecutan**: el runner de GitHub no tiene GPU (12–17 fps)
- *   y darían falsos fallos. Sus aserciones no cambian.
- *
- * Cómo lanzarlos en local:
- * - Todo, incluidos estos: `npm run e2e`.
- * - Solo estos: `npx playwright test --project=escritorio-solo --project=movil-solo --no-deps`
- *   (con `--no-deps` los dos proyectos corren a la vez: mejor uno cada vez si la máquina va justa).
- * - La misma selección que la CI: `CI=1 npx playwright test`.
+ * Test batches by Playwright tags (`{ tag }`):
+ * - `@rendimiento`: measures fps or real time against a threshold, so it depends on the machine.
+ *   Runs last and alone (`rendimiento-*` projects, no dependencies; scripts/e2e.mjs launches it with
+ *   --workers=1 after the functional batch, always, even if that one failed). With parallel workers fps
+ *   drop and the clamped delta (100 ms) slows the game clock. Not run in CI (no GPU: 12-17 fps).
+ * - `@medida`: only records numbers, checks nothing. Off by default (E2E_MEDIDA=1 to run it).
+ * - `@capturas`: only writes PNGs to capturas/. Outside `npm run e2e` (`npm run e2e:capturas`).
+ * - `@humo`: the CI smoke batch (`npm run e2e:humo`).
+ * - `@movil` / `@lento`: reserved (E2E-08 / E2E-05..07); not applied or filtered yet.
+ * Never run the two batches together with a bare `playwright test`: use `npm run e2e`.
  */
-const SOLO =
-  /el reloj avanza ~1,33|umbral de distancia: 10 px es toque|umbral de tiempo: 600 ms quieto|20 clics en 1 s no bloquean|sin costuras ni huecos de fondo|fps de noche andando|un día acelerado con teclado|pintar todo el valle repetidamente no hunde los fps|teclado: el cursor se queda en el borde del valle/
-
-const PROYECTOS_SOLO: Project[] = [
+const EXCLUDED_FROM_FUNCTIONAL: RegExp[] = [
+  /@rendimiento/,
+  ...(process.env.E2E_MEDIDA ? [] : [/@medida/]),
+  ...(process.env.E2E_CAPTURAS ? [] : [/@capturas/]),
+  // TODO(E2E-07): m1-global-rompedor is not tagged yet (pending refactor); remove with the tag.
+  ...(process.env.E2E_MEDIDA
+    ? []
+    : [/rendimiento: fps medias durante 5 s de arrastre y zoom continuos/]),
+]
+const PERFORMANCE_PROJECTS: Project[] = [
   {
-    name: 'escritorio-solo',
+    name: 'rendimiento-escritorio',
     use: { ...devices['Desktop Chrome'] },
-    grep: SOLO,
+    grep: /@rendimiento/,
     workers: 1,
-    dependencies: ['escritorio', 'movil'],
   },
   {
-    name: 'movil-solo',
+    name: 'rendimiento-movil',
     use: { ...devices['Pixel 7'] },
-    grep: SOLO,
+    grep: /@rendimiento/,
     workers: 1,
-    dependencies: ['escritorio-solo'],
   },
 ]
-
-/** The `@medida` probe only runs on demand (E2E_MEDIDA=1): it measures, it does not check. */
-const NO_PROBE = process.env.E2E_MEDIDA ? [] : [/@medida/]
 
 /**
  * Port per worktree (4200..4899), so two worktrees never share a server or a stale build.
@@ -56,9 +55,13 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL: `http://localhost:${PORT}`, trace: 'on-first-retry' },
   projects: [
-    { name: 'escritorio', use: { ...devices['Desktop Chrome'] }, grepInvert: [SOLO, ...NO_PROBE] },
-    { name: 'movil', use: { ...devices['Pixel 7'] }, grepInvert: [SOLO, ...NO_PROBE] },
-    ...(process.env.CI ? [] : PROYECTOS_SOLO),
+    {
+      name: 'escritorio',
+      use: { ...devices['Desktop Chrome'] },
+      grepInvert: EXCLUDED_FROM_FUNCTIONAL,
+    },
+    { name: 'movil', use: { ...devices['Pixel 7'] }, grepInvert: EXCLUDED_FROM_FUNCTIONAL },
+    ...(process.env.CI ? [] : PERFORMANCE_PROJECTS),
   ],
   globalSetup: './tests/e2e/apoyo/check-dist.ts',
   // Preview only: the build is done beforehand (npm run e2e / e2e:humo) and globalSetup checks it.

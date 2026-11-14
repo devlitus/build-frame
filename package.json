@@ -16,9 +16,10 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.core.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "npm run build && playwright test",
-    "e2e:rapido": "playwright test",
+    "e2e": "npm run build && node scripts/e2e.mjs",
+    "e2e:rapido": "node scripts/e2e.mjs",
     "e2e:humo": "npm run build && playwright test --grep @humo",
+    "e2e:capturas": "npm run build && node scripts/e2e.mjs --capturas",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run build",
     "capturas": "npm run build && node scripts/capturas.mjs",
     "e2e:medir": "npm run build && node scripts/e2e-tiempos.mjs --run"
