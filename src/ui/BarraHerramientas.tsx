@@ -19,6 +19,12 @@ export function nombreHerramienta(h: Herramienta): string {
   return t(`herramienta_${h}` as ClaveTexto)
 }
 
+/** Estilo con el icono de la semilla elegida (lo pinta el `::after` de la ranura y del botón «Usar …»). */
+function estiloSemilla(semilla: ObjetoId | null): string | undefined {
+  const ruta = semilla === null ? undefined : rutaIconoObjeto(semilla)
+  return ruta ? `--semilla-icono: url("${ruta}")` : undefined
+}
+
 /**
  * Ranuras de herramientas del Modo Vida (GDD §8: herramienta activa en el HUD), el primer grupo de
  * la barra inferior: un botón de 44 px por herramienta, con su icono y su tecla (1 a 6). La activa
@@ -26,12 +32,6 @@ export function nombreHerramienta(h: Herramienta): string {
  * lo dice el botón «Usar …»). Con «Semillas» la semilla elegida se ve en una insignia de la ranura
  * y del botón «Usar …».
  */
-/** Estilo con el icono de la semilla elegida (lo pinta el `::after` de la ranura y del botón «Usar …»). */
-function estiloSemilla(semilla: ObjetoId | null): string | undefined {
-  const ruta = semilla === null ? undefined : rutaIconoObjeto(semilla)
-  return ruta ? `--semilla-icono: url("${ruta}")` : undefined
-}
-
 export function BarraHerramientas() {
   const partida = usePartida()
   const vida = useEstado((e) => e.modo === 'vida')

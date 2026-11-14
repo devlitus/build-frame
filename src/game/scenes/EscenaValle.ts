@@ -105,9 +105,6 @@ export class EscenaValle extends Phaser.Scene {
   private control: ControlCamara | undefined = undefined
   private inventarioAbiertoVisto = false
   private remedirMargenes = 0
-  /** Última reserva superior del HUD medida en Vida (cambia, p. ej., al aparecer un aviso). */
-  private reservaArribaVista = -1
-  private fotogramasSinMedir = 0
   private entrada: EntradaMovimiento | undefined = undefined
   private vista: VistaPersonaje | undefined = undefined
   private luz: VistaLuz | undefined = undefined
@@ -1032,15 +1029,6 @@ export class EscenaValle extends Phaser.Scene {
       this.remedirMargenes = 20
     }
     if (modo === 'vida') {
-      // El alto del HUD superior cambia con un aviso o al girar: se vigila cada 10 fotogramas.
-      if (++this.fotogramasSinMedir >= 10) {
-        this.fotogramasSinMedir = 0
-        const reserva = medirReservasHud().arriba
-        if (reserva !== this.reservaArribaVista) {
-          this.reservaArribaVista = reserva
-          this.remedirMargenes = Math.max(this.remedirMargenes, 1)
-        }
-      }
       // El panel se pinta un par de fotogramas después de abrirse: se re-mide fotograma a fotograma.
       if (this.remedirMargenes > 0) {
         this.remedirMargenes--

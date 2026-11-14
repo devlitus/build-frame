@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'preact/hooks'
 import type { Partida } from '../game/partida'
 import { Aviso } from './Aviso'
 import { BarraInferior } from './BarraInferior'
@@ -58,10 +59,19 @@ function AyudaPlano() {
  * superior izquierda y la columna baja debajo.
  */
 export function Hud({ partida, debug = false }: { partida: Partida; debug?: boolean }) {
+  const arriba = useRef<HTMLDivElement>(null)
+  // Si cambia el alto del HUD superior (un aviso, girar la pantalla) la cámara vuelve a medir sus márgenes.
+  useLayoutEffect(() => {
+    const el = arriba.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const observador = new ResizeObserver(() => partida.seleccion.reservasCambiadas())
+    observador.observe(el)
+    return () => observador.disconnect()
+  }, [partida])
   return (
     <ContextoPartida.Provider value={partida}>
       <div class={debug ? 'hud hud-debug' : 'hud'}>
-        <div class={debug ? 'hud-arriba hud-arriba-debug' : 'hud-arriba'}>
+        <div ref={arriba} class={debug ? 'hud-arriba hud-arriba-debug' : 'hud-arriba'}>
           <div class="hud-superior">
             <div class="hud-izquierda">
               <Reloj />

@@ -45,6 +45,8 @@ interface Caso {
   barra: CajaHud
   panel: CajaHud | undefined
   zoom: number
+  /** Bottom edge of the top HUD plus its gap (one row, or two with a notice or stacked on a phone). */
+  reservaArriba: number
 }
 
 /** Bottom row bar (the single bottom bar of HUD-01); a side card or a bottom sheet for the panel. */
@@ -53,6 +55,8 @@ const casoArb: fc.Arbitrary<Caso> = fc
     ancho: fc.integer({ min: 320, max: 1920 }),
     alto: fc.integer({ min: 320, max: 1080 }),
     hoja: fc.boolean(),
+    topHoja: fc.double({ min: 0.55, max: 0.8, noNaN: true }),
+    reservaArriba: fc.integer({ min: RESERVA_ARRIBA, max: 140 }),
     anchoHoja: fc.double({ min: 0.65, max: 1, noNaN: true }),
     largo: fc.double({ min: 0.3, max: 0.9, noNaN: true }),
     grueso: fc.integer({ min: 48, max: 96 }),
@@ -72,18 +76,29 @@ const casoArb: fc.Arbitrary<Caso> = fc
       ? undefined
       : r.hoja
         ? // Bottom sheet over the bar: wider than 60 % of the screen.
-          { left: 8, right: 8 + r.anchoHoja * r.ancho, top: r.alto * 0.55, bottom: barra.top - 8 }
+          {
+            left: 8,
+            right: 8 + r.anchoHoja * r.ancho,
+            top: r.alto * r.topHoja,
+            bottom: barra.top - 8,
+          }
         : { left: 8, right: 8 + r.anchoPanel * r.ancho, top: 80, bottom: barra.top - 8 }
     // Zooms where the valley does not fit on either axis (the margins only apply there; with the
     // whole valley on screen it is simply centred).
     const lim = limitesZoom(pantalla, MUNDO)
     const min = Math.max(lim.min, (1.01 * Math.max(r.ancho, r.alto)) / MUNDO)
-    return { pantalla, barra, panel, zoom: min + r.fz * (lim.max - min) }
+    return {
+      pantalla,
+      barra,
+      panel,
+      zoom: min + r.fz * (lim.max - min),
+      reservaArriba: r.reservaArriba,
+    }
   })
 
 /** Where the camera rests in Life when following the character (feet at px, py). */
 function reposo(c: Caso, px: number, py: number) {
-  const margenes = margenesVida(c.pantalla, c.barra, c.panel, c.zoom)
+  const margenes = margenesVida(c.pantalla, c.barra, c.panel, c.zoom, c.reservaArriba)
   return limitarVista({ zoom: c.zoom, cx: px, cy: py }, c.pantalla, MUNDO, { margenes })
 }
 
@@ -136,7 +151,7 @@ describe('Life camera with the HUD margins', () => {
           // What the HUD covers, plus the gap and the free radius around the character (HUD-01).
           const max = {
             izq: c.panel && !hoja ? c.panel.right + H + radio : 0,
-            arriba: Math.max(Math.ceil((TAM / 2) * c.zoom), RESERVA_ARRIBA + radio),
+            arriba: Math.max(Math.ceil((TAM / 2) * c.zoom), c.reservaArriba + radio),
             der: 0,
             abajo: Math.max(
               c.pantalla.alto - c.barra.top + H + radio,
@@ -236,9 +251,9 @@ describe('Life camera with the HUD margins', () => {
             expect(cruza(c.barra), `7x7 under the bar at ${msg}`).toBe(false)
           if (c.panel && (hoja ? c.panel.top >= centroY + medio : c.panel.right <= centroX - medio))
             expect(cruza(c.panel), `7x7 under the panel at ${msg}`).toBe(false)
-          if (centroY - medio >= RESERVA_ARRIBA)
+          if (centroY - medio >= c.reservaArriba)
             expect(
-              cruza({ left: -1e6, right: 1e6, top: -1e6, bottom: RESERVA_ARRIBA }),
+              cruza({ left: -1e6, right: 1e6, top: -1e6, bottom: c.reservaArriba }),
               `7x7 under the top HUD at ${msg}`,
             ).toBe(false)
         }
@@ -306,6 +321,7 @@ describe('Life camera with the HUD margins', () => {
         barra,
         panel: undefined,
         zoom: control.vista.zoom,
+        reservaArriba: RESERVA_ARRIBA,
       }
       control.fijarMargenes(margenesVida(caso.pantalla, barra, undefined, control.vista.zoom), true)
       for (let i = 0; i < 400; i++) control.seguir({ x: qx * TAM, y: qy * TAM }, 16)
@@ -336,6 +352,7 @@ describe('Life camera with the HUD margins', () => {
       barra,
       panel: undefined,
       zoom: control.vista.zoom,
+      reservaArriba: RESERVA_ARRIBA,
     }
     control.fijarMargenes(
       margenesVida(sinPanel.pantalla, barra, undefined, control.vista.zoom),

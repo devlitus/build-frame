@@ -345,7 +345,7 @@ const RADIO_LIBRE_CASILLAS = 3
 /**
  * En Vida la vista entera está dentro del valle (o centrada en el eje en que el valle cabe), salvo
  * lo que tapa la barra de herramientas: desde M5-01 la cámara de Vida deja ese margen para que el
- * personaje no quede bajo la interfaz (abajo, o a la izquierda si la barra es una columna).
+ * personaje no quede bajo la interfaz (abajo).
  */
 async function vistaDentroDelValle(page: Page): Promise<void> {
   await expect.poll(() => page.evaluate(() => window.__raices?.camara()?.guiando)).toBe(false)
@@ -353,14 +353,12 @@ async function vistaDentroDelValle(page: Page): Promise<void> {
   const r = visible(cam)
   const barra = await page.getByRole('group', { name: 'Barra inferior', exact: true }).boundingBox()
   const vp = page.viewportSize()
-  const columna = !!barra && barra.width < barra.height
   const px = (n: number) => (n + HOLGURA_BARRA + 2) / cam.zoom
   // HUD-01: más el radio libre alrededor del personaje (3 casillas) y, arriba, el HUD superior.
   const radio = RADIO_LIBRE_CASILLAS * 32
   const hudArriba = await page.locator('.hud-arriba').boundingBox()
   const margen = {
-    izq: barra && columna ? px(barra.x + barra.width) : 0,
-    abajo: barra && vp && !columna ? px(vp.height - barra.y) + radio : 0,
+    abajo: barra && vp ? px(vp.height - barra.y) + radio : 0,
     arriba: (hudArriba ? hudArriba.y + hudArriba.height + 8 + 2 : 0) / cam.zoom + radio,
   }
   const eje = (a: number, b: number, w: number, antes: number, despues: number) => {
@@ -369,7 +367,7 @@ async function vistaDentroDelValle(page: Page): Promise<void> {
       expect(b).toBeLessThanOrEqual(MUNDO + 0.5 + despues)
     } else expect((a + b) / 2).toBeCloseTo(MUNDO / 2, 0)
   }
-  eje(r.x0, r.x1, r.w, margen.izq, 0)
+  eje(r.x0, r.x1, r.w, 0, 0)
   eje(r.y0, r.y1, r.h, margen.arriba, margen.abajo)
 }
 

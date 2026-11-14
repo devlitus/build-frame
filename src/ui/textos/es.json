@@ -18,6 +18,8 @@
   "controlesTiempo": "Controles de tiempo",
   "tiempoMenu": "Tiempo: {estado}",
   "tiempoEnPausa": "en pausa",
+  "avisoAbrir": "Ver el aviso entero",
+  "avisoCerrar": "Cerrar el aviso",
   "pausar": "Pausar",
   "reanudar": "Reanudar",
   "pausaSimbolo": "Pausa",

@@ -317,8 +317,55 @@ body {
   pointer-events: none;
 }
 
+.aviso-caja {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  /* Solo el texto y el botón recogen toques: el resto llega al lienzo. */
+  pointer-events: none;
+}
+
+.aviso-abrir {
+  display: none;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--crema);
+  color: var(--tierra);
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* Solo con el texto cortado (o ya abierto, para poder cerrarlo). */
+.aviso-caja[data-cortado='true'] .aviso-abrir,
+.aviso-caja[data-abierto='true'] .aviso-abrir {
+  display: inline-flex;
+}
+
+.aviso-caja[data-abierto='true'] .aviso-abrir span {
+  display: inline-block;
+  transform: rotate(180deg);
+}
+
+.aviso-abrir:focus-visible {
+  outline: 3px solid var(--crema);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--tinta);
+}
+
 .aviso {
   margin: 0;
+  min-width: 0;
   max-width: min(100%, 40rem);
   /* Una línea sin tarjeta (solo cuenta el texto); si no cabe se corta con «…» y al tocarlo se ve entero. */
   display: -webkit-box;
