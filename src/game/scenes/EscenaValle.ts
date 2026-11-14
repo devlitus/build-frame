@@ -82,6 +82,8 @@ export interface DatosEscenaValle {
  * a `RenderTexture`; en WebGL un `Graphics` vivo se reprocesa en cada fotograma.
  */
 export class EscenaValle extends Phaser.Scene {
+  /** Partida recibida en `init`; no se expone a los ganchos hasta que `create()` la publica. */
+  private recibida: Partida | undefined = undefined
   private _partida: Partida | undefined = undefined
   private en: 'vado' | undefined = undefined
   private modoInicial: ModoJuego = 'vida'
@@ -117,8 +119,8 @@ export class EscenaValle extends Phaser.Scene {
     }
   }
   private partidaCompartida(): Partida {
-    if (!this._partida) throw new Error('La escena no se ha iniciado')
-    return this._partida
+    if (!this.recibida) throw new Error('La escena no se ha iniciado')
+    return this.recibida
   }
 
   private hornear: () => Phaser.GameObjects.RenderTexture[] = () => []
@@ -156,7 +158,8 @@ export class EscenaValle extends Phaser.Scene {
 
   init(datos: DatosEscenaValle): void {
     this.semilla = datos.semilla
-    this._partida = datos.partida
+    this.recibida = datos.partida
+    this._partida = undefined
     this.propias = datos.propias ?? []
     this.en = datos.en
     this.acelerar = datos.acelerar ?? 1
@@ -176,7 +179,8 @@ export class EscenaValle extends Phaser.Scene {
     return this._partida?.estado
   }
 
-  /** La partida (estado, comandos y suscripción); undefined hasta `create()`. */
+  /** La partida (estado, comandos y suscripción); undefined hasta que `create()` la publica
+   * (mientras se carga el arte los ganchos no exponen nada). */
   get partida(): Partida | undefined {
     return this._partida
   }
@@ -221,6 +225,7 @@ export class EscenaValle extends Phaser.Scene {
     // La misma instancia de Partida: los suscriptores (HUD) siguen suscritos tras un reinicio.
     const partida = this.partidaCompartida()
     partida.reemplazar(inicial)
+    this._partida = partida
     this.tiempo = new AcumuladorTiempo()
     const valle = inicial.valle
     const rio = casillasRio(valle, inicial.cauce.ancho)
