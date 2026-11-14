@@ -82,6 +82,13 @@ export function Aviso() {
             )
         } else if (ev.tipo === 'planton-plantado') {
           partes.push(t('avisoPlantonPlantado'))
+        } else if (ev.tipo === 'planta-cosechada') {
+          partes.push(
+            tp('avisoCosecha', {
+              cantidad: ev.cantidad,
+              producto: t(`objeto_${ev.producto}` as ClaveTexto),
+            }),
+          )
         } else if (ev.tipo === 'planton-perdido') {
           partes.push(t('avisoPlantonPerdido'))
         } else if (ev.tipo === 'edificio-movido') {
