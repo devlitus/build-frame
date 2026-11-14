@@ -123,9 +123,7 @@ docs(gdd): añadir sección de recursos
 2. **Implementador** crea `feat/…` en un worktree, implementa y escribe sus tests. Termina cuando sus tests y la CI local pasan.
 3. **Rompedor** ataca: escribe tests que **demuestran** cada fallo encontrado y un informe breve. Si no encuentra nada, lo deja documentado.
 4. **Implementador** corrige hasta que todos los tests (los suyos y los del Rompedor) pasen. **Durante un hito activo, los tests del Rompedor no se pueden borrar, saltar ni debilitar**; si uno es incorrecto, lo decide el Orquestador.
-   - **Regresión tras el hito.** Cuando un hito está integrado en `main`, sus tests del Rompedor pasan a ser suite de regresión y se pueden **reorganizar** en una historia de mantenimiento (`test(e2e): …`) si: (a) la autoriza el Orquestador; (b) la hace el **Rompedor** (Opus en sistemas críticos); (c) el **Revisor** verifica que ninguna aserción se pierde ni se relaja (mismos umbrales y tolerancias, o más estrictos); (d) los tests de regresión de un fallo (`[S1]`, `[S2]`, `[S3]`) se pueden mover, nunca borrar.
-   - **Cambios mecánicos** (etiquetas, usar los helpers de `tests/e2e/apoyo/`, sustituir una espera fija por la condición equivalente): sin tabla, con revisión.
-   - **Fusionar, mover a `tests/prop` o `tests/unit`, o restringir a un proyecto**: la PR incluye una tabla de equivalencias (test original → dónde queda cada aserción).
+   - **Regresión tras el hito.** Los tests del Rompedor de un hito integrado en `main` se reorganizan según la pirámide de §5 en una historia `test(…)`, autorizada por el Orquestador, hecha por el **Rompedor** (Opus en sistemas críticos) y verificada por el **Revisor**, con **tabla de equivalencias**: cada aserción va a (a) un test que se queda, (b) core/prop/unit, (c) la regla de interfaz, (d) `npm run capturas`, o (e) se descarta por duplicada o por medir solo la herramienta de depuración, con su motivo. Los `[S1]`/`[S2]`/`[S3]` nunca se borran: si el fallo era lógico van a core; si era de interfaz, a e2e.
 5. **Revisor** revisa el diff completo y aprueba o pide cambios.
 6. **Orquestador** abre o integra la PR en la rama del hito cuando la CI está en verde.
 
@@ -162,7 +160,8 @@ Las historias se gestionan como **GitHub Issues**, con el *milestone* del hito y
 | Unitarios | Vitest | Reglas del núcleo (`core/`): precios, crecimiento, colocación | Implementador |
 | Propiedades | Vitest + fast-check | Invariantes: el dinero nunca es negativo, no hay dos edificios en la misma casilla, guardar y cargar devuelve el mismo estado | Rompedor |
 | Simulación | Scripts sobre `core/` | Partidas automáticas de N días con acciones aleatorias; detecta bloqueos y desequilibrios | Rompedor |
-| Extremo a extremo | Playwright (escritorio y móvil emulado) | Flujos críticos: nueva partida, comprar, construir, guardar | Rompedor |
+| Extremo a extremo | Playwright (escritorio y móvil emulado) | Solo lo que necesita navegador: humo, **un** recorrido por flujo crítico, entrada real (toque, teclado, ratón → efecto), regresiones `[S]` de interfaz y robustez de render (una por tipo) | Rompedor |
+| Regla de interfaz | Playwright (`interface-rule.spec.ts`) | La interfaz no tapa el juego: cobertura máxima del lienzo, foco libre alrededor del personaje y de lo elegido, controles alcanzables; en 1280×720, 412×915, 915×412 y 640×320 | Rompedor |
 | Visual | `npm run capturas` (escritorio, móvil horizontal y vertical) | Que se **vea** bien: nada cortado, solapado, ilegible ni descolocado; contraste; botones alcanzables con el dedo | Rompedor |
 | Manual | El humano | Diversión, sensaciones, móvil real | Humano |
 
@@ -178,9 +177,11 @@ Las historias se gestionan como **GitHub Issues**, con el *milestone* del hito y
 **e2e en dos tandas.** El runner de GitHub no tiene GPU y va a 12–17 fps, así que los tests que dependen de fps, tiempo real o recorridos largos fallan allí sin que haya un fallo real.
 - **CI: tanda de humo** (`npm run e2e:humo`, tests con la etiqueta `@humo` en `tests/e2e/humo.spec.ts`). Corta y estable, en escritorio y móvil emulado: arrancar, moverse con el teclado, ir con un clic o toque a un destino cercano, cambiar de modo y pasar un día acelerado. Se amplía cuando un hito añade un flujo básico nuevo, con márgenes de tiempo amplios.
 - **Local: tanda completa** (`npm run e2e`), **obligatoria antes de abrir la PR de cada hito**. El resultado (pasan, se omiten y fallos esperados) se anota en la descripción de la PR. Incluye los tests de tiempo real y rendimiento, que corren al final y solos (ver `playwright.config.ts`).
-- **Presupuesto (hito E2E-velocidad, en implantación):** la tanda completa tarda **≤ 10 min** de reloj en local; un test nuevo, mediana ≤ 5 s; los `@lento` (≤ 60 s) solo con aprobación del Orquestador. Si un hito supera los 10 min, se abre una historia `deuda` antes de su PR, y la PR del hito anota la pared total y los 10 tests más lentos.
+- **No va a e2e:** aritmética y reglas del juego (van a core/prop/unit); textos; combinatoria de viewports o DPR (la cubre la regla de interfaz o los unit); estrés de N clics; tests que solo hacen capturas (van a `npm run capturas`); fps (tanda de rendimiento).
+- **Presupuesto (en implantación en el hito E2E-velocidad):** `npm run e2e` (build + tanda funcional) **≤ 5 min**, nunca más de 10; **≤ 60 tests funcionales** declarados; mediana ≤ 8 s y máximo 40 s por test. `npm run e2e:rendimiento`: ≤ 6 tests, ≤ 2 min, 1 worker; en local solo falla si se rompe el suelo de un test. **Presupuesto cerrado:** una historia añade 0 tests e2e por defecto y hasta 2 si trae un flujo crítico o un gesto táctil nuevo; si se pasa de 60, sale otro. Las excepciones las aprueba el Orquestador.
+- **Antes de la PR de un hito:** `npm run e2e:completo` (funcional + rendimiento), capturas por escenas a la PO y demo en móvil real.
+- **Esperas:** siempre con los helpers de `tests/e2e/apoyo/` y condiciones (estado vía `__raices`, cámara quieta, N fotogramas); `waitForTimeout` prohibido fuera de `apoyo/`.
 - **Un solo e2e a la vez por máquina:** no lanzar tandas en dos worktrees a la vez (falsean tiempos y fps).
-- Las reglas de esperas (`waitForTimeout` prohibido fuera de `tests/e2e/apoyo/`), etiquetas (`@movil`, `@rendimiento`, `@capturas`, `@medida`, `@lento`) y proyectos se documentan aquí según se implanten las historias E2E-01 a E2E-10.
 
 ### Verificación visual
 Los tests e2e comprueban que los elementos **existen**, no que se **vean** bien. Por eso, en toda historia que cambie lo que se ve:
