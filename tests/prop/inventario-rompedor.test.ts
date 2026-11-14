@@ -182,8 +182,9 @@ function preparar(e: EstadoJuego, x: unknown, y: unknown, q0: Preparacion): Esta
           ...q0,
           propia: true,
           zona: 'c',
-          arada: false,
-          planta: false,
+          // Con estadoPlanta «marchita» se deja una marchita para que la azada la limpie.
+          arada: q0.estadoPlanta === 'marchita',
+          planta: q0.estadoPlanta === 'marchita',
           obstaculo: false,
           energia: ENERGIA_MAXIMA,
         }
@@ -191,6 +192,9 @@ function preparar(e: EstadoJuego, x: unknown, y: unknown, q0: Preparacion): Esta
         ? {
             ...q0,
             arada: true,
+            // Marchita o madura exigen planta: así esos veredictos salen siempre.
+            planta: q0.planta || q0.estadoPlanta !== 'viva',
+            car: q0.estadoPlanta !== 'viva' && q0.car === 'A' ? 'a' : q0.car,
             energia: ENERGIA_MAXIMA,
           }
         : q0.facilita && (e.herramienta === 'hacha' || e.herramienta === 'pico')
@@ -502,8 +506,9 @@ describe('M5-01 · rompedor del núcleo', () => {
                 const nuevo = r1.estado.obstaculos[r1.estado.obstaculos.length - 1]!
                 expect(nuevo).toMatchObject({
                   tipo: 'planton',
-                  x,
-                  y,
+                  // -0 se normaliza a 0 (como en los eventos).
+                  x: (x as number) + 0,
+                  y: (y as number) + 0,
                   diaPlantado: e.dia,
                 })
                 previsto = {
