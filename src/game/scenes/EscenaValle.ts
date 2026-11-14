@@ -45,7 +45,15 @@ import { CapaObjetos } from '../valle/capaObjetos'
 import { mundoDePantalla, pantallaLogica, zoomLogico } from '../resolucion'
 import { medirReservasHud } from '../areaHud'
 import type { RectPantalla } from '../seleccion'
-import { areaLibre, centroParaVer, parcelaEnPunto, puntoDeToque, rectParcela } from '../picking'
+import {
+  areaLibre,
+  centroParaVer,
+  parcelaEnPunto,
+  puntoDeToque,
+  rectEnPantalla,
+  rectParcela,
+} from '../picking'
+import type { PuntoDeAparicion } from '../parametros'
 import { parcelaEnCentroDeVista, parcelaVecina, type DireccionParcela } from '../cursorParcela'
 import { SelectorParcela } from '../selectorParcela'
 import { hornearCapaBase } from '../valle/hornear'
@@ -70,7 +78,7 @@ export interface DatosEscenaValle {
   /** Solo depuración: índices de parcela que se dibujan como propias. */
   readonly propias?: readonly number[]
   /** Solo depuración: empezar con el personaje en el primer vado. */
-  readonly en?: 'vado'
+  readonly en?: PuntoDeAparicion
   /** Solo depuración: parcela seleccionada al empezar (si el modo es Plano). */
   readonly seleccion?: number
   /** Solo depuración: dinero con el que empieza la partida. */
@@ -90,7 +98,7 @@ export class EscenaValle extends Phaser.Scene {
   /** Partida recibida en `init`; no se expone a los ganchos hasta que `create()` la publica. */
   private recibida: Partida | undefined = undefined
   private _partida: Partida | undefined = undefined
-  private en: 'vado' | undefined = undefined
+  private en: PuntoDeAparicion | undefined = undefined
   private modoInicial: ModoJuego = 'vida'
   /** Modo ya aplicado a la cámara y al teclado; si el estado cambia, `update()` lo reaplica. */
   private modoAplicado: ModoJuego = 'vida'
@@ -217,17 +225,15 @@ export class EscenaValle extends Phaser.Scene {
       ...(this.hora === undefined ? {} : { minutoInicial: this.hora }),
     })
     const primerVado = inicial.cauce.vados[0]
-    if (this.en === 'vado' && primerVado !== undefined) {
-      const lado = ladoValle(inicial.valle)
-      inicial = {
-        ...inicial,
-        personaje: {
-          ...inicial.personaje,
-          x: (primerVado % lado) + 0.5,
-          y: Math.floor(primerVado / lado) + 0.5,
-        },
-      }
+    const lado = ladoValle(inicial.valle)
+    let aparicion: { x: number; y: number } | undefined
+    if (typeof this.en === 'object') {
+      if (this.en.x < lado && this.en.y < lado)
+        aparicion = { x: this.en.x + 0.5, y: this.en.y + 0.5 }
+    } else if (this.en === 'vado' && primerVado !== undefined) {
+      aparicion = { x: (primerVado % lado) + 0.5, y: Math.floor(primerVado / lado) + 0.5 }
     }
+    if (aparicion) inicial = { ...inicial, personaje: { ...inicial.personaje, ...aparicion } }
     // Solo depuración (`?debug&dinero=N`): se sustituyen los ahorros del estado inicial.
     if (this.dineroDepuracion !== undefined) inicial = { ...inicial, dinero: this.dineroDepuracion }
     // Solo depuración: las propias entran en el estado (panel, precio) antes de cambiar de modo.
@@ -584,6 +590,24 @@ export class EscenaValle extends Phaser.Scene {
       alto: TAM_CASILLA,
     }
     return puntoDeToque(c.vista, pantalla, libre, celda)
+  }
+
+  /**
+   * Rect (px CSS, relativo al lienzo) de la casilla (cx, cy) según la cámara, SIN tener en cuenta la
+   * interfaz: proyección pura. Gancho de prueba.
+   */
+  rectCasilla(
+    cx: number,
+    cy: number,
+  ): { x: number; y: number; ancho: number; alto: number } | undefined {
+    const c = this.control
+    if (!c || !Number.isFinite(cx) || !Number.isFinite(cy)) return undefined
+    return rectEnPantalla(c.vista, pantallaLogica(this), {
+      x: cx * TAM_CASILLA,
+      y: cy * TAM_CASILLA,
+      ancho: TAM_CASILLA,
+      alto: TAM_CASILLA,
+    })
   }
 
   /** ¿Tiene el foco el lienzo (o su contenedor)? Solo entonces Enter, Espacio y flechas eligen parcela. */

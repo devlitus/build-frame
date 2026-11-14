@@ -101,7 +101,12 @@ export function areaLibre(
   return { x, y, ancho, alto }
 }
 
-function rectEnPantalla(vista: VistaCamara, pantalla: Pantalla, mundo: RectPantalla): RectPantalla {
+/** Rect del mundo proyectado a pantalla (px CSS) por la cámara, sin tener en cuenta la interfaz. */
+export function rectEnPantalla(
+  vista: VistaCamara,
+  pantalla: Pantalla,
+  mundo: RectPantalla,
+): RectPantalla {
   return {
     x: (mundo.x - vista.cx) * vista.zoom + pantalla.ancho / 2,
     y: (mundo.y - vista.cy) * vista.zoom + pantalla.alto / 2,

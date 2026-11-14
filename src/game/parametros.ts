@@ -1,5 +1,8 @@
 import { CONFIG_TIEMPO, type ModoJuego } from '../core'
 
+/** Dónde aparece el personaje con `?debug&en=`: el primer vado o una casilla `x,y`. */
+export type PuntoDeAparicion = 'vado' | { readonly x: number; readonly y: number }
+
 export interface ParametrosUrl {
   /** Semilla fijada con `?semilla=N`; si no, se genera una nueva. */
   readonly semilla?: number
@@ -12,7 +15,9 @@ export interface ParametrosUrl {
   /** Índices de parcela a marcar como propias; solo con `debug`. */
   readonly propias: readonly number[]
   /** Solo con `debug`: dónde empieza el personaje (`?debug&en=vado`). */
-  readonly en?: 'vado'
+  readonly en?: PuntoDeAparicion
+  /** Solo con `debug`: `?contador=0` quita el contador de fps (y la clase que baja el HUD 32 px). */
+  readonly contador?: false
   /** Solo con `debug` y en Plano: parcela seleccionada al empezar (`?debug&modo=plano&seleccion=14`). */
   readonly seleccion?: number
   /** Solo con `debug`: multiplicador del tiempo de juego para pruebas (`?debug&acelerar=200`). */
@@ -57,6 +62,17 @@ function semillaUint32(texto: string | null): number | undefined {
   return n !== undefined && n <= 0xffffffff ? n : undefined
 }
 
+/** `vado` o `x,y` (enteros >= 0); lo demás se ignora. */
+function aparicion(texto: string | null): PuntoDeAparicion | undefined {
+  const t = (texto ?? '').trim().toLowerCase()
+  if (t === 'vado') return 'vado'
+  const m = /^(\d+),(\d+)$/.exec(t)
+  if (!m) return undefined
+  const x = Number(m[1])
+  const y = Number(m[2])
+  return Number.isSafeInteger(x) && Number.isSafeInteger(y) ? { x, y } : undefined
+}
+
 /** Interpreta `?semilla=123&debug&propias=0,1,7`. Ignora lo inválido. */
 export function leerParametros(busqueda: string): ParametrosUrl {
   const q = new URLSearchParams(busqueda)
@@ -74,7 +90,8 @@ export function leerParametros(busqueda: string): ParametrosUrl {
         ),
       ]
     : []
-  const en = debug && q.get('en')?.trim().toLowerCase() === 'vado' ? ('vado' as const) : undefined
+  const en = debug ? aparicion(q.get('en')) : undefined
+  const sinContador = debug && q.get('contador')?.trim() === '0'
   const modo: ModoJuego | undefined =
     q.get('modo')?.trim().toLowerCase() === 'plano' ? 'plano' : undefined
   const acelerar = debug ? entero(q.get('acelerar')) : undefined
@@ -85,6 +102,7 @@ export function leerParametros(busqueda: string): ParametrosUrl {
   return {
     ...(semilla === undefined ? {} : { semilla }),
     debug,
+    ...(sinContador ? { contador: false as const } : {}),
     ...(modo === undefined ? {} : { modo }),
     propias,
     ...(en === undefined ? {} : { en }),
