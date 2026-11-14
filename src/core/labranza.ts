@@ -127,6 +127,20 @@ export function motivoNoPlantar(
 }
 
 /**
+ * Por qué no se puede sembrar la semilla elegida en (x, y), o `undefined` si se puede: la
+ * semilla debe ser la de un cultivo (`semilla-invalida`) y luego rige `motivoNoPlantar`.
+ */
+export function motivoNoSembrar(
+  estado: EstadoJuego,
+  x: number,
+  y: number,
+): ErrorLabranza | undefined {
+  const cultivo = cultivoDeSemilla(estado.semillaElegida)
+  if (!cultivo) return 'semilla-invalida'
+  return motivoNoPlantar(estado, cultivo, x, y)
+}
+
+/**
  * Efecto de la herramienta «semillas» con la semilla elegida sobre (x, y): planta el cultivo y
  * gasta exactamente 1 semilla del inventario. Con un plantón (o cualquier objeto que no sea la
  * semilla de un cultivo) se rechaza con `semilla-invalida`: el plantón llega con M5-06.

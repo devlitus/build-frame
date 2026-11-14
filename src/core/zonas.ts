@@ -56,7 +56,7 @@ export type ResultadoZonas =
   | {
       readonly ok: true
       readonly zonas: string
-      /** `tierra` tras limpiar la arada vacía que deja de ser de cultivo u huerto (la misma cadena si no cambia). */
+      /** `tierra` tras limpiar la arada vacía que deja de ser de cultivo o huerto (la misma cadena si no cambia). */
       readonly tierra: string
       readonly cambiadas: number
     }
@@ -141,7 +141,8 @@ export function aplicarZonas(
     }
   }
   if (validas === 0) return { ok: false, error: 'sin-casillas-validas' }
-  const tierra = estado.tierra === undefined ? '' : sinLabrar(estado.tierra, limpiar)
+  if (estado.tierra === undefined) return { ok: false, error: 'estado-invalido' }
+  const tierra = sinLabrar(estado.tierra, limpiar)
   return {
     ok: true,
     zonas: cambiadas === 0 ? estado.zonas : celdas.join(''),

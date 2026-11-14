@@ -274,6 +274,29 @@ describe('DemolerEdificio', () => {
   })
 })
 
+describe('tierra arada bajo un edificio', () => {
+  const arar = (e: EstadoJuego, x: number, y: number): EstadoJuego => {
+    const i = y * ladoValle(e.valle) + x
+    return { ...e, tierra: e.tierra.slice(0, i) + 'a' + e.tierra.slice(i + 1) }
+  }
+  it('Construir sobre tierra arada vacía la deja sin labrar', () => {
+    const s = sitio(base, 'cobertizo')
+    const e = arar(base, s.x, s.y)
+    const i = s.y * ladoValle(e.valle) + s.x
+    expect(e.tierra[i]).toBe('a')
+    const r = ok(e, { tipo: 'Construir', tipoEdificio: 'cobertizo', ...s })
+    expect(r.tierra[i]).toBe('.')
+  })
+  it('MoverEdificio sobre tierra arada vacía la deja sin labrar', () => {
+    const t = terminada('cobertizo')
+    const d = sitio(t.e, 'cobertizo', -1)
+    const e = arar(t.e, d.x, d.y)
+    const i = d.y * ladoValle(e.valle) + d.x
+    const r = ok(e, { tipo: 'MoverEdificio', id: t.id, ...d })
+    expect(r.tierra[i]).toBe('.')
+  })
+})
+
 describe('MoverEdificio', () => {
   it('mueve un edificio terminado gratis e instantáneo, conservando id y lo pagado', () => {
     const t = terminada('cobertizo')

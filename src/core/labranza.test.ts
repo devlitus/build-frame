@@ -16,10 +16,12 @@ import {
   faseDe,
   ladoValle,
   plantaEn,
+  plantaNueva,
   tierraValida,
   type EstadoJuego,
 } from './index'
 import { EsquemaConfigCultivos } from './datos/esquemas'
+import { aguaDe } from './zonas'
 
 const base = crearEstadoInicial({ semilla: 42 })
 const lado = ladoValle(base.valle)
@@ -94,7 +96,9 @@ describe('azada: arar', () => {
   })
   it('rechaza ya-arada, zona, no-propia y ocupada sin cambiar el estado', () => {
     const e1 = ok(usar(e0, 50, 51))
-    expect(error(usar(e1, 50, 51))).toBe('ya-arada')
+    const rYa = usar(e1, 50, 51)
+    expect(error(rYa)).toBe('ya-arada')
+    expect(!rYa.ok && rYa.estado).toBe(e1)
     const almacen = conTierraLabrable(e0, 51, 51, 1, 'almacen')
     const sinZona = { ...e0, zonas: e0.zonas.replaceAll(CARACTER_ZONA.cultivo, '.') }
     expect(error(usar(sinZona, 50, 51))).toBe('zona')
@@ -115,7 +119,36 @@ describe('azada: arar', () => {
       ),
     )
     expect(error(usar({ ...conCaja, modo: 'vida' }, 51, 51))).toBe('ocupada')
-    expect(e0.tierra).toBe(base.tierra)
+    const rZona = usar(sinZona, 50, 51)
+    expect(!rZona.ok && rZona.estado).toBe(sinZona)
+    const rAjena = usar(ajena, 50, 51)
+    expect(!rAjena.ok && rAjena.estado).toBe(ajena)
+  })
+  it('el motivo de la azada gana a la falta de energía', () => {
+    const e1 = ok(usar(e0, 50, 51))
+    expect(error(usar({ ...e1, energia: 0 }, 50, 51))).toBe('ya-arada')
+    expect(error(usar({ ...e0, energia: 0 }, 50, 51))).toBe('sin-energia')
+  })
+  it('rechaza agua y obstaculo, y el estado no cambia', () => {
+    const casillaAgua = [...aguaDe(base.valle, base.cauce.ancho, lado)][0] as number
+    const ax = casillaAgua % lado
+    const ay = Math.floor(casillaAgua / lado)
+    const alRio = conTierraLabrable(
+      { ...base, personaje: { x: ax + 0.5, y: ay + 0.5, orientacion: 'sur' } },
+      ax,
+      ay,
+      0,
+    )
+    const rAgua = usar(alRio, ax, ay)
+    expect(error(rAgua)).toBe('agua')
+    expect(!rAgua.ok && rAgua.estado).toBe(alRio)
+    const conRoca: EstadoJuego = {
+      ...e0,
+      obstaculos: [{ x: 50, y: 51, tipo: 'roca', variante: 0 }],
+    }
+    const rRoca = usar(conRoca, 50, 51)
+    expect(error(rRoca)).toBe('obstaculo')
+    expect(!rRoca.ok && rRoca.estado).toBe(conRoca)
   })
 })
 
@@ -149,6 +182,23 @@ describe('semillas: plantar', () => {
   it('sin-semillas cuando no quedan o el objeto no es una semilla', () => {
     expect(error(usar(siembra(arado, 'semilla-lechuga'), 50, 51))).toBe('sin-semillas')
     expect(error(usar(siembra(arado, 'planton'), 50, 51))).toBe('sin-semillas')
+  })
+})
+
+describe('varias plantas', () => {
+  const sembrada = (e: EstadoJuego, x: number, y: number) =>
+    ok(usar(siembra(ok(usar({ ...e, herramienta: 'azada' }, x, y)), 'semilla-patata'), x, y))
+  const e3 = sembrada(sembrada(sembrada(e0, 51, 51), 49, 50), 50, 50)
+  it('quedan ordenadas por casilla ascendente sea cual sea el orden de siembra', () => {
+    expect(e3.plantas.map((p) => p[0])).toEqual([50 * lado + 49, 50 * lado + 50, 51 * lado + 51])
+    expect(tierraValida(e3)).toBe(true)
+  })
+  it('tierraValida rechaza listas desordenadas, duplicadas o con planta en casilla sin arar', () => {
+    const [a, b, c] = e3.plantas
+    expect(tierraValida({ ...e3, plantas: [b, a, c] } as EstadoJuego)).toBe(false)
+    expect(tierraValida({ ...e3, plantas: [a, a, c] } as EstadoJuego)).toBe(false)
+    const sinArar = plantaNueva(10 * lado + 10, 0)
+    expect(tierraValida({ ...e3, plantas: [sinArar, ...e3.plantas] })).toBe(false)
   })
 })
 

@@ -13,35 +13,38 @@ import {
   FOTOGRAMA_MARCHITO,
   MARCO_CULTIVO,
   claveCultivo,
+  crearSello,
   escalaNominal,
 } from './arte'
 import { TAM_CASILLA } from './estilo'
+import { firmaVentana } from './tramosZonas'
+import { rejillaTrozos, type Trozo } from './trozos'
 import { varianteDeCasilla } from './variantes'
 
-/** Sobre las zonas (profundidad 1) y bajo las parcelas y los objetos ordenados por Y. */
+/**
+ * Sobre el relleno de las zonas (profundidad 1) y bajo sus bordes (1.6), las parcelas y los objetos
+ * ordenados por Y (informe de arte M5: terreno, relleno, tierra arada, bordes de zona, cultivos).
+ */
 const PROFUNDIDAD_TIERRA = 1.5
 const SAL_TIERRA = 0x7e44
 
 type Vista = Pick<EstadoJuego, 'tierra' | 'plantas' | 'valle'>
 
-const VECINAS = [
-  [0, 0],
-  [1, 0],
-  [-1, 0],
-  [0, 1],
-  [0, -1],
-] as const
-
 /**
- * Tierra arada y cultivos (M5-03). Un sprite por casilla arada (relleno con variante y los bordes
- * en los lados sin vecina arada) y uno por planta, con la profundidad `32(y + 1)` para que el
- * personaje pase delante o detrás. Solo se rehace lo que cambia: `tierra` y `plantas` son
- * inmutables, así que basta comparar sus referencias.
+ * Tierra arada y cultivos (M5-03). La tierra se hornea en `RenderTexture` por trozos, como las
+ * zonas (relleno con variante y bordes en los lados sin vecina arada), y solo se rehace el trozo
+ * cuya firma cambió; cada planta es un sprite con la profundidad `32(y + 1)` para que el personaje
+ * pase delante o detrás. `tierra` y `plantas` son inmutables: basta comparar sus referencias.
  */
 export class VistaCultivos {
   private tierra: string | undefined = undefined
   private plantas: EstadoJuego['plantas'] | undefined = undefined
-  private readonly sprites = new Map<number, Phaser.GameObjects.Image[]>()
+  private readonly trozos: {
+    rt: Phaser.GameObjects.RenderTexture | undefined
+    t: Trozo
+    firma: string
+  }[]
+  private _aradas = 0
   private readonly plantasVisibles = new Map<
     number,
     { img: Phaser.GameObjects.Image; firma: string }
@@ -51,19 +54,20 @@ export class VistaCultivos {
     private readonly escena: Phaser.Scene,
     private readonly lado: number,
     private readonly semilla = 0,
-  ) {}
+  ) {
+    this.trozos = rejillaTrozos(lado * TAM_CASILLA).map((t) => ({ rt: undefined, t, firma: '' }))
+  }
 
   /** Casillas aradas y plantas dibujadas ahora (ganchos de prueba). */
   get visibles(): { aradas: number; plantas: number } {
-    return { aradas: this.sprites.size, plantas: this.plantasVisibles.size }
+    return { aradas: this._aradas, plantas: this.plantasVisibles.size }
   }
 
   actualizar(e: Vista): void {
     if (ladoValle(e.valle) !== this.lado) return
     if (e.tierra !== this.tierra) {
-      const antes = this.tierra
       this.tierra = e.tierra
-      this.repintarTierra(e.tierra, antes)
+      this.hornearTierra(e.tierra)
     }
     if (e.plantas !== this.plantas) {
       this.plantas = e.plantas
@@ -75,8 +79,9 @@ export class VistaCultivos {
   invalidar(): void {
     const tierra = this.tierra
     const plantas = this.plantas
-    this.limpiar()
-    if (tierra !== undefined) this.repintarTierra(tierra, undefined)
+    this.limpiarPlantas()
+    for (const tr of this.trozos) tr.firma = ''
+    if (tierra !== undefined) this.hornearTierra(tierra)
     if (plantas) this.repintarPlantas(plantas)
   }
 
@@ -85,41 +90,66 @@ export class VistaCultivos {
     return tierra[y * this.lado + x] === CARACTER_ARADA
   }
 
-  private repintarTierra(tierra: string, antes: string | undefined): void {
-    const lado = this.lado
-    const rehacer = new Set<number>()
-    for (let i = 0; i < tierra.length; i++) {
-      if (antes !== undefined && antes[i] === tierra[i]) continue
-      const x = i % lado
-      const y = Math.floor(i / lado)
-      // La casilla y sus 4 vecinas: el borde de estas depende de si esta está arada.
-      for (const [dx, dy] of VECINAS) {
-        const nx = x + dx
-        const ny = y + dy
-        if (nx >= 0 && ny >= 0 && nx < lado && ny < lado) rehacer.add(ny * lado + nx)
+  private hornearTierra(tierra: string): void {
+    this._aradas = 0
+    for (let i = 0; i < tierra.length; i++) if (tierra[i] === CARACTER_ARADA) this._aradas++
+    for (const tr of this.trozos) this.hornearTrozo(tr, tierra)
+  }
+
+  private hornearTrozo(
+    tr: { rt: Phaser.GameObjects.RenderTexture | undefined; t: Trozo; firma: string },
+    tierra: string,
+  ): void {
+    const x0 = Math.floor(tr.t.x / TAM_CASILLA)
+    const y0 = Math.floor(tr.t.y / TAM_CASILLA)
+    const x1 = Math.ceil((tr.t.x + tr.t.ancho) / TAM_CASILLA) - 1
+    const y1 = Math.ceil((tr.t.y + tr.t.alto) / TAM_CASILLA) - 1
+    // Una casilla más a cada lado: el borde depende de las vecinas de fuera del trozo.
+    const firma = firmaVentana(tierra, this.lado, {
+      x0: x0 - 1,
+      y0: y0 - 1,
+      x1: x1 + 1,
+      y1: y1 + 1,
+    })
+    if (firma === tr.firma) return
+    tr.firma = firma
+    const casillas: { x: number; y: number }[] = []
+    for (let y = y0; y <= Math.min(this.lado - 1, y1); y++) {
+      for (let x = x0; x <= Math.min(this.lado - 1, x1); x++) {
+        if (this.arada(tierra, x, y)) casillas.push({ x, y })
       }
     }
-    for (const i of rehacer) {
-      for (const s of this.sprites.get(i) ?? []) s.destroy()
-      this.sprites.delete(i)
-      const x = i % lado
-      const y = Math.floor(i / lado)
-      if (!this.arada(tierra, x, y)) continue
-      const poner = (fotograma: number): Phaser.GameObjects.Image =>
-        this.escena.add
-          .image(x * TAM_CASILLA, y * TAM_CASILLA, CLAVE_TIERRA_ARADA, fotograma)
-          .setOrigin(0, 0)
-          .setScale(escalaNominal(this.escena, CLAVE_TIERRA_ARADA, TAM_CASILLA, 0))
-          .setDepth(PROFUNDIDAD_TIERRA)
-      const imgs = [
-        poner(varianteDeCasilla(this.semilla, x, y, FOTOGRAMAS_TIERRA.rellenos, SAL_TIERRA)),
-      ]
-      if (!this.arada(tierra, x, y - 1)) imgs.push(poner(FOTOGRAMAS_TIERRA.arriba))
-      if (!this.arada(tierra, x + 1, y)) imgs.push(poner(FOTOGRAMAS_TIERRA.derecha))
-      if (!this.arada(tierra, x, y + 1)) imgs.push(poner(FOTOGRAMAS_TIERRA.abajo))
-      if (!this.arada(tierra, x - 1, y)) imgs.push(poner(FOTOGRAMAS_TIERRA.izquierda))
-      this.sprites.set(i, imgs)
+    if (casillas.length === 0) {
+      tr.rt?.destroy()
+      tr.rt = undefined
+      return
     }
+    tr.rt ??= this.escena.add
+      .renderTexture(tr.t.x, tr.t.y, tr.t.ancho, tr.t.alto)
+      .setOrigin(0, 0)
+      .setDepth(PROFUNDIDAD_TIERRA)
+    const rt = tr.rt
+    rt.clear()
+    rt.beginDraw()
+    const sello = crearSello(this.escena)
+    const escala = escalaNominal(this.escena, CLAVE_TIERRA_ARADA, TAM_CASILLA, 0)
+    const estampar = (fotograma: number, x: number, y: number): void => {
+      sello.setTexture(CLAVE_TIERRA_ARADA, fotograma)
+      sello.setScale(escala)
+      rt.batchDraw(sello, x * TAM_CASILLA - tr.t.x, y * TAM_CASILLA - tr.t.y)
+    }
+    // Todo el relleno y después los bordes, para que ningún relleno tape un borde vecino.
+    for (const { x, y } of casillas) {
+      estampar(varianteDeCasilla(this.semilla, x, y, FOTOGRAMAS_TIERRA.rellenos, SAL_TIERRA), x, y)
+    }
+    for (const { x, y } of casillas) {
+      if (!this.arada(tierra, x, y - 1)) estampar(FOTOGRAMAS_TIERRA.arriba, x, y)
+      if (!this.arada(tierra, x + 1, y)) estampar(FOTOGRAMAS_TIERRA.derecha, x, y)
+      if (!this.arada(tierra, x, y + 1)) estampar(FOTOGRAMAS_TIERRA.abajo, x, y)
+      if (!this.arada(tierra, x - 1, y)) estampar(FOTOGRAMAS_TIERRA.izquierda, x, y)
+    }
+    sello.destroy()
+    rt.endDraw()
   }
 
   private repintarPlantas(plantas: EstadoJuego['plantas']): void {
@@ -156,14 +186,14 @@ export class VistaCultivos {
     }
   }
 
-  private limpiar(): void {
-    for (const imgs of this.sprites.values()) for (const s of imgs) s.destroy()
-    this.sprites.clear()
+  private limpiarPlantas(): void {
     for (const { img } of this.plantasVisibles.values()) img.destroy()
     this.plantasVisibles.clear()
   }
 
   destruir(): void {
-    this.limpiar()
+    this.limpiarPlantas()
+    for (const { rt } of this.trozos) rt?.destroy()
+    this.trozos.length = 0
   }
 }

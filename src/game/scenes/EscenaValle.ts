@@ -828,6 +828,11 @@ export class EscenaValle extends Phaser.Scene {
     }
   }
 
+  /** Casillas aradas y plantas dibujadas (gancho de prueba); undefined sin vista. */
+  cultivosVisibles(): { aradas: number; plantas: number } | undefined {
+    return this.cultivos?.visibles
+  }
+
   /** Alfa de la capa de zonas (gancho de prueba); undefined sin capa. */
   alfaZonas(): number | undefined {
     return this.zonas?.alfaVisible

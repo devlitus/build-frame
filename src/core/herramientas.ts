@@ -11,6 +11,8 @@ import {
 } from './inventario'
 import {
   arar,
+  motivoNoArar,
+  motivoNoSembrar,
   plantar,
   type ErrorLabranza,
   type EventoPlantaSembrada,
@@ -56,14 +58,21 @@ export type ResultadoEfecto =
   | { readonly ok: false; readonly error: ErrorUsoHerramienta }
 
 /**
- * Efecto de una herramienta sobre la casilla (x, y), que ya pasó `comprobarUsarHerramienta`
- * (modo Vida, alcance y semilla elegida). Función pura: devuelve el estado nuevo y los eventos
- * propios, o el motivo del rechazo (el estado no cambia).
+ * Efecto de una herramienta sobre la casilla (x, y). `comprobar` dice, sin aplicar nada, por qué
+ * el efecto se rechazaría (`undefined` si no): se consulta tras las comprobaciones comunes y antes
+ * de la energía. `aplicar` solo se llama con `comprobar` en `undefined`; es una función pura que
+ * devuelve el estado nuevo y los eventos propios (sin gastar energía: eso lo hace `usarHerramienta`).
  */
-export type EfectoHerramienta = (estado: EstadoJuego, x: number, y: number) => ResultadoEfecto
+export interface EfectoHerramienta {
+  readonly comprobar: (estado: EstadoJuego, x: number, y: number) => ErrorUsoHerramienta | undefined
+  readonly aplicar: (estado: EstadoJuego, x: number, y: number) => ResultadoEfecto
+}
 
 /** Efecto vacío: la herramienta se acepta pero no hace nada (hasta que su historia lo implemente). */
-const sinEfecto: EfectoHerramienta = (estado) => ({ ok: true, estado, eventos: [] })
+const sinEfecto: EfectoHerramienta = {
+  comprobar: () => undefined,
+  aplicar: (estado) => ({ ok: true, estado, eventos: [] }),
+}
 
 /**
  * PUNTO DE ENGANCHE de los efectos de las herramientas. Cada historia sustituye aquí su entrada:
@@ -71,9 +80,9 @@ const sinEfecto: EfectoHerramienta = (estado) => ({ ok: true, estado, eventos: [
  * (cosechar) y M5-06 hacha y pico (talar y picar).
  */
 export const EFECTOS_HERRAMIENTA: Readonly<Record<Herramienta, EfectoHerramienta>> = {
-  azada: arar,
+  azada: { comprobar: motivoNoArar, aplicar: arar },
   regadera: sinEfecto,
-  semillas: plantar,
+  semillas: { comprobar: motivoNoSembrar, aplicar: plantar },
   mano: sinEfecto,
   hacha: sinEfecto,
   pico: sinEfecto,
@@ -120,21 +129,22 @@ export function comprobarUsarHerramienta(
       return 'sin-semillas'
     }
   }
-  // La energía se mira la última: cualquier otro rechazo gana y nunca gasta.
+  // Orden: comunes, motivo propio del efecto y, la última, la energía; un rechazo nunca gasta.
+  const motivo = EFECTOS_HERRAMIENTA[estado.herramienta].comprobar(estado, x, y)
+  if (motivo) return motivo
   if (estado.energia < costeEnergia(estado.herramienta)) return 'sin-energia'
   return undefined
 }
 
 /**
  * Despacha el uso de la herramienta activa sobre (x, y) tras validar (incluida la energía). Un uso
- * aceptado gasta el coste de la herramienta aunque su efecto esté vacío o no llegue a talar del
- * todo; un rechazo (de cualquier motivo) deja el estado intacto. Cada historia posterior enchufa
+ * aceptado gasta el coste de la herramienta aunque su efecto esté vacío; un rechazo (de cualquier motivo) deja el estado intacto. Cada historia posterior enchufa
  * su efecto en `EFECTOS_HERRAMIENTA`.
  */
 export function usarHerramienta(estado: EstadoJuego, x: number, y: number): ResultadoEfecto {
   const error = comprobarUsarHerramienta(estado, x, y)
   if (error) return { ok: false, error }
-  const r = EFECTOS_HERRAMIENTA[estado.herramienta](estado, x, y)
+  const r = EFECTOS_HERRAMIENTA[estado.herramienta].aplicar(estado, x, y)
   if (!r.ok) return r
   const nx = x + 0 // -0 se normaliza a 0
   const ny = y + 0

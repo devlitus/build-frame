@@ -77,6 +77,8 @@ interface Window {
     puntoClicCasilla(cx: number, cy: number): { x: number; y: number } | undefined
     /** Opacidad de la capa de zonas; solo con `?debug`. */
     alfaZonas(): number | undefined
+    /** Solo con `?debug`: casillas aradas y plantas que dibuja la vista de cultivos. */
+    cultivosVisibles(): { aradas: number; plantas: number } | undefined
     /** Estado del pincel de zonas (barra, herramienta, cursor de teclado y vista previa). */
     pincel():
       | {

@@ -229,7 +229,7 @@
   "errorHerramienta_agua": "No se puede trabajar el agua",
   "errorHerramienta_obstaculo": "Hay un árbol o una roca en medio",
   "errorHerramienta_ocupada": "Esa casilla ya está ocupada",
-  "errorHerramienta_zona": "Solo se ara y se siembra en zonas de cultivo u huerto",
+  "errorHerramienta_zona": "Solo se ara y se siembra en zonas de cultivo o huerto",
   "errorHerramienta_ya-arada": "Esa tierra ya está arada",
   "errorHerramienta_no-arada": "Primero hay que arar la tierra con la azada",
   "errorHerramienta_fuera-de-estacion": "Esa semilla no se siembra en esta estación",
