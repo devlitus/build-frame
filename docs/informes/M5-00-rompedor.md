@@ -64,3 +64,36 @@ Eran fallos de la geometría de mis tests, no del juego. La región (`−62..−
 - **Revalidado con los cambios** (escritorio y móvil): puntero y táctil a DPR 1, 2 y 3, costuras a DPR 1, 2 y 3, edificios en sus tres estados, portada y texturas, reinicios del valle, carga `@1x`/`@2x`. Todo pasa (36 pasan, 39 omitidos por proyecto, 1 flaky arriba).
 - **Rendimiento con `workers=1`** (`escritorio-solo` y `movil-solo`): pasan los que no se omiten; fps sin GPU de ~34 de día y ~26 de noche en escritorio. Los tests de fps a DPR 2 se omiten sin GPU.
 - **Visual**: `semilla-42-debug--*` son la portada, nítida y legible en las tres vistas. En `m5-00-contexto-pool.png` los árboles y el personaje (detrás de un árbol) se ven bien.
+
+## Ronda final
+
+Sobre `bcffdd7`. Tests nuevos: `tests/e2e/m5-00-final-rompedor.spec.ts` (DPR en caliente, ganchos durante la carga, capturas y escala de grises) y 5 casos más en `tests/unit/capa-objetos-rompedor.test.ts` (fake ampliado con `setAngle`, `setAlpha`, `clearTint`, `setVisible`).
+
+### 1. Fallos sin atribuir (comparados con `hito/M5-cultivos-herramientas`, worktree temporal ya borrado)
+
+Con `workers=1` y los 4 ficheros (116 tests) en `bcffdd7`: **91 pasan, 0 fallan** (25 omitidos por diseño). En la base: 91 pasan, 2 fallan (`DPR alto` de `m1-global`, que M5-00 arregla). Con workers en paralelo (carga) fallan 21 en `bcffdd7` y 8 en la base.
+
+- **`seleccion-parcela` (2, escritorio)**: fallan igual en la base con carga y pasan con `workers=1`. Ya existía; inestable por carga. No es regresión.
+- **`m4-global-rompedor` (móvil)**: con `workers=1` pasa en ambas ramas. Con carga fallan por timeout de 30 s «exclusión mutua», «mover un edificio…» y «fps granja llena»; en la base fallan los dos primeros en escritorio y «Vida con cada panel» en ambos. Inestable por carga; en móvil con DPR 2,625 es algo más sensible (lienzo con 4x píxeles, software). No es regresión.
+- **`modos-rompedor` «el personaje empieza en pantalla»**: **sí es específico de M5-00** (con 8 workers: 10 de 16 fallan en `bcffdd7`, 0 de 24 en la base; siempre semilla 1, la primera carga, a 2240-2600 px). Causa: `EscenaValle.init` asigna `_partida`, así que `estado`, `camara()` y `personaje()` devuelven datos mientras el arte aún se carga (`escenaActiva()` todavía no es `valle`) y la cámara está sin configurar (zoom 1, scroll 0,0). El arte final alarga el `preload` y la ventana se ve con carga. **S3**, sin efecto para el jugador (es solo de ganchos; el comentario de `partida` dice «undefined hasta `create()`», que no es cierto). Test determinista (frena `/assets/**` 700 ms): `m5-00-final-rompedor.spec.ts` «[S3] mientras el arte se carga…» (falla). Arreglo: que `camara()`/`personaje()` exijan `e.scene.isActive()` y la cámara creada, o asignar `_partida` en `create()`.
+- **`m1-global-rompedor` «zoom máximo» (móvil)**: no es un fallo, es tiempo. Con `workers=1`: móvil vertical y horizontal **2,9 min** en `bcffdd7` contra **1,3 y 1,2 min** en la base (escritorio 1,3 contra 1,2 min; «horneado» 52 s contra 28 s). El límite del test es 240 s. Con carga superan los 240 s (4,0 min, timeout) en `bcffdd7` y pasan en la base. La causa es el DPR 2 de M5-00 (la base dibujaba a DPR 1: su test `DPR alto` falla), no la capa de objetos (escritorio no cambia). **S3 de infraestructura**: conviene subir `setTimeout` de 240 a 420 s o fijar `deviceScaleFactor: 1` en ese barrido. Los demás fallos de `m1-global` («Vida tras el Plano», con carga) también fallan en la base.
+
+### 2. Capturas finales (`capturas/m5-00-final--*`, las tres vistas, Vida y Plano)
+
+Personaje tras un árbol (`vida-arbol`): bien, el árbol le tapa los pies. Tras la casa (`vida-edificio`): el tejado lo oculta por completo (profundidad por la base, esperado). Zonas y obras (`plano-zonas`): se leen, los árboles quedan sobre el relleno. Problemas:
+- **S3** `plano-zonas--movil-horizontal`: el aviso «Obra empezada…» tapa el cartel «3 días» y parte de la obra; el bloque de recursos del HUD tapa el borde norte de la parcela.
+- **S3** `barra-zonas--movil-horizontal`: la barra tapa el tercio inferior de la parcela (donde están Cultivo y Huerto) con el pincel activo; en `movil-vertical` no ocurre.
+- Sin problema: botones de la barra de más de 44 px en móvil, texto legible, nada fuera de pantalla. En Vida la cámara no centra al personaje cerca del borde sur (queda abajo): es el tope del mundo, esperado.
+
+### 3. Barra de zonas en escala de grises
+
+Luminancia media de las muestras (Cultivo, Huerto, Vivienda, Almacén; Borrar aparte): 141,7 / 121,3 / 131,1 / 134,3 (escritorio); la diferencia mínima entre dos zonas es **2,6 a 4,9 sobre 255** (1 a 2 %) en las tres vistas. En `m5-00-final--barra-gris--*.png` las cuatro muestras de 22 px parecen cuadrados grises casi idénticos, solo con textura distinta. **S3 (accesibilidad)**: no se distinguen sin color; la etiqueta de texto lo compensa, pero la muestra no sirve para casar con el mapa. Test (falla, con `expect.soft` para recorrer las tres vistas): «árbol, edificio, zonas, barra de zonas y escala de grises…», umbral 18/255. Arreglo: variar la luminosidad de las muestras o añadir un borde/patrón distinto por zona.
+
+### 4. Ataques nuevos
+
+- **DPR en caliente** (`setDeviceMetricsOverride` 1→2→1→3→1,25→2→1 sin cambiar el tamaño CSS, 412x915 y 1280x720): pasa. Nota: Chromium con CDP cambia `devicePixelRatio` pero **no dispara `change`** en las `MediaQueryList` (ni siquiera en las del propio test), así que se envía el evento a mano a las listas que crea el juego (espía de `matchMedia`). Con eso: el lienzo es CSS × min(DPR, 2), la cámara informa el tamaño CSS, el toque cae en su casilla y el juego rearma la consulta con el nuevo valor. El navegador real sí avisa; lo no cubierto es esa parte. Las texturas siguen siendo las del primer DPR (@1x tras 1→2: algo borrosas hasta recargar; no lo considero fallo).
+- **Id por casilla, reutilización y `reemplazar`** (unit, 5 casos, todos pasan): quitar un obstáculo del medio mantiene la misma imagen en los demás; una imagen con ángulo, alfa, tinte e invisible vuelve limpia al reutilizarse; `reemplazar` parcial conserva la imagen y la animación de lo que no cambia, resetea la de lo que cambia, libera la de lo que desaparece y no filtra imágenes; cambiar solo el `rect` no deja huérfanos; el conjunto vacío libera todo y se puede repoblar. No hay forma de quitar obstáculos desde `__raices` aún.
+
+### Resiste
+
+Pool de la capa, id por casilla, `reemplazar` sin invalidar, DPR en caliente (con el evento enviado), halo, y los 91 tests de los 4 ficheros con `workers=1`.
