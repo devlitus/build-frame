@@ -13,6 +13,8 @@ const VIEWPORTS = [
   { id: '915x412', w: 915, h: 412, mobile: true },
   { id: '640x320', w: 640, h: 320, mobile: true },
 ]
+// Typing only (noUncheckedIndexedAccess): the viewport at a known index.
+const vp = (i: number) => VIEWPORTS[i] as (typeof VIEWPORTS)[number]
 const SIDE = 96
 const OWNED = [14, 15, 20, 21]
 
@@ -105,7 +107,7 @@ test.describe('HUD-01 breaker', () => {
     const texts = Object.entries(es)
       .filter(([k]) => /^(aviso|errorDormir|errorHerramienta)/.test(k))
       .map(([, v]) => v.replace(/\{[a-z]+\}/g, '1.000'))
-    await withPage(browser, baseURL as string, VIEWPORTS[3], async (page) => {
+    await withPage(browser, baseURL as string, vp(3), async (page) => {
       await openValley(page, { noCounter: true, seed: 42, at: { x: 48, y: 48 }, noticeMs: 60_000 })
       await showNotice(page)
       const worst: { txt: string; cov: number }[] = []
@@ -121,7 +123,7 @@ test.describe('HUD-01 breaker', () => {
           .map((w) => `${(w.cov * 100).toFixed(1)} % ${w.txt}`)
           .join(' || '),
       })
-      expect(worst[0].cov, `worst: ${worst[0].txt}`).toBeLessThanOrEqual(0.15)
+      expect(worst[0]?.cov, `worst: ${worst[0]?.txt}`).toBeLessThanOrEqual(0.15)
     })
   })
 
@@ -130,7 +132,7 @@ test.describe('HUD-01 breaker', () => {
     baseURL,
   }) => {
     for (const mode of ['vida', 'plano'] as const) {
-      await withPage(browser, baseURL as string, VIEWPORTS[3], async (page) => {
+      await withPage(browser, baseURL as string, vp(3), async (page) => {
         await openValley(page, {
           noCounter: true,
           seed: 42,
@@ -187,7 +189,7 @@ test.describe('HUD-01 breaker', () => {
         expect.soft(probe.hidden, `${vp.id} buttons hidden at their centre`).toEqual([])
       })
     }
-    await withPage(browser, baseURL as string, VIEWPORTS[2], async (page) => {
+    await withPage(browser, baseURL as string, vp(2), async (page) => {
       await openValley(page, { noCounter: true, seed: 42, at: { x: 48, y: 48 } })
       await settle(page)
       const gap = await page.evaluate(() => {
@@ -196,9 +198,12 @@ test.describe('HUD-01 breaker', () => {
           .filter((r) => r.width > 0)
           .sort((a, b) => a.left - b.left)
         for (let i = 0; i + 1 < bs.length; i++) {
-          const g = bs[i + 1].left - bs[i].right
+          const g = (bs[i + 1]?.left ?? 0) - (bs[i]?.right ?? 0)
           if (g >= 3)
-            return { x: (bs[i].right + bs[i + 1].left) / 2, y: bs[i].top + bs[i].height / 2 }
+            return {
+              x: ((bs[i]?.right ?? 0) + (bs[i + 1]?.left ?? 0)) / 2,
+              y: (bs[i]?.top ?? 0) + (bs[i]?.height ?? 0) / 2,
+            }
         }
         return undefined
       })
@@ -217,7 +222,7 @@ test.describe('HUD-01 breaker', () => {
     browser,
     baseURL,
   }) => {
-    await withPage(browser, baseURL as string, VIEWPORTS[1], async (page) => {
+    await withPage(browser, baseURL as string, vp(1), async (page) => {
       await openValley(page, { noCounter: true, seed: 42, noticeMs: 60_000 })
       await page.getByRole('button', { name: 'Inventario', exact: true }).dispatchEvent('click')
       await expect(page.getByRole('region', { name: 'Inventario' })).toBeVisible()
@@ -320,12 +325,10 @@ test.describe('HUD-01 breaker', () => {
             }
           return out
         }, spot)
-        test
-          .info()
-          .annotations.push({
-            type: `#63 ${vp.id}`,
-            description: `${hits.length} tiles under the notice`,
-          })
+        test.info().annotations.push({
+          type: `#63 ${vp.id}`,
+          description: `${hits.length} tiles under the notice`,
+        })
         expect.soft(hits, `${vp.id} notice over the site tiles`).toEqual([])
         await page.evaluate(() => window.__raices?.centrarCamara(32, 32))
         await settle(page)

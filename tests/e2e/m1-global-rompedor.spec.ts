@@ -349,7 +349,7 @@ async function vistaDentroDelValle(page: Page): Promise<void> {
   await expect.poll(() => page.evaluate(() => window.__raices?.camara()?.guiando)).toBe(false)
   const cam = await camara(page)
   const r = visible(cam)
-  const barra = await page.locator('.barra-herramientas-caja').boundingBox()
+  const barra = await page.getByRole('group', { name: 'Barra inferior', exact: true }).boundingBox()
   const vp = page.viewportSize()
   const columna = !!barra && barra.width < barra.height
   const px = (n: number) => (n + HOLGURA_BARRA + 2) / cam.zoom

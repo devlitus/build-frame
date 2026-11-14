@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { leerParametros } from '../game/parametros'
 import { casaTerminada, despiertaEnCasa } from '../core'
 import { nombreEdificio, textoColocacion, textoReembolso } from './construirTextos'
@@ -24,10 +24,16 @@ export function unirFrases(partes: readonly string[]): string {
  * Aviso breve (no bloquea el juego) al recibir el evento `desmayo` o `parcela-comprada` (o un aviso de interfaz de la partida); es una
  * región `status`. Si llega otro con el aviso visible, el texto se quita y se vuelve a poner (se
  * reanuncia) y se reinician los 6 s.
+ * Se pinta en una sola línea, sin tarjeta, para no tapar el juego (regla de interfaz); si no cabe
+ * se corta con «…». Al tocarlo se ve entero y se queda hasta que se vuelve a tocar (los lectores
+ * de pantalla siempre leen el texto completo).
  */
 export function Aviso() {
   const partida = usePartida()
   const [texto, setTexto] = useState<string | undefined>(undefined)
+  const [completo, setCompleto] = useState(false)
+  /** El jugador lo ha abierto para leerlo: el temporizador no lo quita. */
+  const fijo = useRef(false)
   useEffect(() => {
     const msAviso = leerParametros(window.location.search).aviso ?? MS_AVISO
     let mostrar: ReturnType<typeof setTimeout> | undefined
@@ -36,9 +42,13 @@ export function Aviso() {
       clearTimeout(mostrar)
       clearTimeout(ocultar)
       setTexto(undefined)
+      setCompleto(false)
+      fijo.current = false
       mostrar = setTimeout(() => {
         setTexto(nuevo)
-        ocultar = setTimeout(() => setTexto(undefined), msAviso)
+        ocultar = setTimeout(() => {
+          if (!fijo.current) setTexto(undefined)
+        }, msAviso)
       }, MS_REANUNCIO)
     }
     const baja = partida.suscribir(({ eventos, estado }) => {
@@ -146,7 +156,25 @@ export function Aviso() {
   }, [partida, texto])
   return (
     <div class="aviso-zona" role="status">
-      {texto !== undefined && <p class="aviso">{texto}</p>}
+      {texto !== undefined && (
+        <p
+          class={completo ? 'aviso aviso-completo' : 'aviso'}
+          title={texto}
+          onClick={() => {
+            // Primer toque: se lee entero y se queda; segundo: se quita.
+            if (completo) {
+              fijo.current = false
+              setCompleto(false)
+              setTexto(undefined)
+            } else {
+              fijo.current = true
+              setCompleto(true)
+            }
+          }}
+        >
+          {texto}
+        </p>
+      )}
     </div>
   )
 }

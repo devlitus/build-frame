@@ -6,6 +6,8 @@
   --tinta: #4a2f1c;
   --halo: rgb(255 244 222 / 85%);
   --hierba: #9bbf86;
+  /* Alto que ocupa la barra inferior (la mide `BarraInferior.tsx` y lo escribe en `.hud`). */
+  --reserva-barra: 72px;
   /* Halo de los textos del HUD que no llevan tarjeta. */
   --halo-texto: 0 0 2px rgb(0 0 0 / 90%), 0 1px 3px rgb(0 0 0 / 90%), 0 0 6px rgb(0 0 0 / 60%);
   font-family:
@@ -317,16 +319,31 @@ body {
 
 .aviso {
   margin: 0;
-  max-width: 28rem;
+  max-width: min(100%, 40rem);
+  /* Una línea sin tarjeta (solo cuenta el texto); si no cabe se corta con «…» y al tocarlo se ve entero. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  overflow: hidden;
+  color: var(--crema);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-shadow: var(--halo-texto);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.aviso-completo {
   padding: 6px 12px;
   border-radius: 12px;
   background: var(--tinta);
-  color: var(--crema);
-  font-size: 0.9rem;
-  line-height: 1.25;
-  text-align: center;
-  box-shadow: 0 4px 12px var(--sombra);
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  text-shadow: none;
 }
+
 /* === M3-04 · Dinero en el HUD === */
 .hud-izquierda {
   display: flex;
@@ -361,10 +378,6 @@ body {
 @media (orientation: landscape) {
   .aviso-zona {
     justify-content: flex-start;
-  }
-
-  .aviso {
-    max-width: min(28rem, calc(100vw - 360px));
   }
 }
 /* === Fin dinero === */
@@ -405,7 +418,7 @@ body {
   top: 72px;
   right: 12px;
   width: min(320px, 42%);
-  max-height: calc(100% - 80px - var(--reserva-barra, 64px));
+  max-height: calc(100% - 80px - var(--reserva-barra));
   overflow-y: auto;
   pointer-events: auto;
   display: flex;
@@ -424,7 +437,7 @@ body {
 /* Con el contador de fps (?debug) el HUD de arriba baja 32 px. */
 .hud-debug .panel-parcela {
   top: 104px;
-  max-height: calc(100% - 112px - var(--reserva-barra, 64px));
+  max-height: calc(100% - 112px - var(--reserva-barra));
 }
 
 .panel-parcela-cabecera {
@@ -661,12 +674,6 @@ body {
   .boton-compra {
     min-height: 44px;
   }
-
-  /* Con la confirmación abierta lo único que importa es la pregunta y sus dos botones. */
-  .panel-confirmando .parcela-atributos,
-  .panel-confirmando .parcela-compra {
-    display: none;
-  }
 }
 
 /* Móvil vertical: hoja inferior, por encima de la barra. */
@@ -676,7 +683,7 @@ body {
     top: auto;
     left: 8px;
     right: 8px;
-    bottom: calc(var(--reserva-barra, 64px) + 8px);
+    bottom: calc(var(--reserva-barra) + 8px);
     width: auto;
     max-height: 55%;
     border-radius: 18px 18px 14px 14px;
@@ -718,7 +725,7 @@ body {
   position: absolute;
   left: 8px;
   right: 8px;
-  bottom: calc(var(--reserva-barra, 64px) + 8px);
+  bottom: calc(var(--reserva-barra) + 8px);
   display: flex;
   justify-content: center;
   pointer-events: none;
@@ -841,7 +848,7 @@ body {
   position: absolute;
   left: 8px;
   right: 8px;
-  bottom: calc(var(--reserva-barra, 64px) + 8px);
+  bottom: calc(var(--reserva-barra) + 8px);
   display: flex;
   justify-content: center;
   pointer-events: none;
@@ -1200,7 +1207,9 @@ body {
 }
 
 .boton-accion {
-  /* Ancho fijo para las etiquetas habituales («Usar regadera», «Cosechar»): la barra no baila. */
+  position: relative;
+  /* Ancho mínimo para las etiquetas habituales («Usar regadera», «Cosechar»): la barra no baila. */
+  min-width: 7.2rem;
   background: var(--tierra);
   color: var(--crema);
   border-color: var(--tinta);
@@ -1320,7 +1329,7 @@ body {
   position: absolute;
   left: 8px;
   right: 8px;
-  bottom: calc(var(--reserva-barra, 72px) + 8px);
+  bottom: calc(var(--reserva-barra) + 8px);
   display: flex;
   justify-content: center;
   pointer-events: none;
@@ -1336,7 +1345,7 @@ body {
   flex-direction: column;
   gap: 6px;
   width: min(100%, 620px);
-  max-height: min(55vh, calc(100dvh - var(--reserva-barra, 72px) - 150px));
+  max-height: min(55vh, calc(100dvh - var(--reserva-barra) - 150px));
   overflow-y: auto;
   padding: 8px 10px 10px;
   border-radius: 16px;
@@ -1518,7 +1527,7 @@ body {
 
   .panel-inventario-caja {
     width: min(360px, calc(50vw - 84px));
-    max-height: min(240px, calc(100dvh - var(--reserva-barra, 72px) - 56px));
+    max-height: min(240px, calc(100dvh - var(--reserva-barra) - 56px));
   }
 
   .inventario-ayuda {
@@ -1658,6 +1667,7 @@ body {
 
   .boton-accion {
     width: 58px;
+    min-width: 44px;
   }
 
   .boton-dormir,
@@ -1739,10 +1749,6 @@ body {
     min-height: 70px;
     font-size: 0.65rem;
   }
-  .aviso {
-    padding: 3px 8px;
-    font-size: 0.75rem;
-  }
   .panel-parcela {
     gap: 2px;
     padding: 4px 8px 6px;
@@ -1809,11 +1815,6 @@ body {
     font-size: 0.85rem;
   }
 
-  .panel-confirmando .parcela-atributos,
-  .panel-confirmando .parcela-compra {
-    display: none;
-  }
-
   .catalogo {
     grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
     align-items: start;
@@ -1830,5 +1831,56 @@ body {
   .edificio-detalle,
   .edificio-coste {
     font-size: 0.8rem;
+  }
+}
+
+/* Con la confirmación de compra abierta lo único que importa es la pregunta y sus dos botones. */
+@media (orientation: landscape) and (max-height: 520px),
+  (orientation: portrait) and (max-width: 700px) {
+  .panel-confirmando .parcela-atributos,
+  .panel-confirmando .parcela-compra {
+    display: none;
+  }
+}
+
+/* Insignia de la semilla elegida (en la ranura «Semillas» y en el botón «Usar …»). */
+.semilla-insignia {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+
+/*
+ * Pantallas muy bajas: el aviso y la lista de velocidades ocupan el sitio del texto de arriba
+ * (reloj, dinero, materiales), que se esconde mientras tanto, para no pasar del 15 % del lienzo.
+ */
+@media (max-height: 340px) {
+  .aviso-zona {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 104px;
+  }
+
+  .aviso {
+    max-width: 360px;
+    font-size: 0.75rem;
+  }
+
+  .aviso-completo {
+    max-width: 100%;
+  }
+
+  .hud-arriba:has(.aviso) .hud-izquierda,
+  .hud-arriba:has(.controles-tiempo[data-abierto='true']) .hud-izquierda {
+    visibility: hidden;
+  }
+
+  .semilla-insignia {
+    width: 14px;
+    height: 14px;
   }
 }

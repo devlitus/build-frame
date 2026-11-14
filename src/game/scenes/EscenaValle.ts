@@ -43,7 +43,7 @@ import { animarObstaculos } from '../valle/efectosObstaculo'
 import { objetosDeDecoracion, pintarTrozoTerreno } from '../valle/terrenoArte'
 import { CapaObjetos } from '../valle/capaObjetos'
 import { mundoDePantalla, pantallaLogica, zoomLogico } from '../resolucion'
-import { medirReservasHud } from '../areaHud'
+import { margenesVida, medirReservasHud } from '../areaHud'
 import type { RectPantalla } from '../seleccion'
 import {
   areaLibre,
@@ -105,6 +105,9 @@ export class EscenaValle extends Phaser.Scene {
   private control: ControlCamara | undefined = undefined
   private inventarioAbiertoVisto = false
   private remedirMargenes = 0
+  /** Última reserva superior del HUD medida en Vida (cambia, p. ej., al aparecer un aviso). */
+  private reservaArribaVista = -1
+  private fotogramasSinMedir = 0
   private entrada: EntradaMovimiento | undefined = undefined
   private vista: VistaPersonaje | undefined = undefined
   private luz: VistaLuz | undefined = undefined
@@ -517,7 +520,7 @@ export class EscenaValle extends Phaser.Scene {
   /**
    * Pone al día los márgenes de la cámara: en Plano, el valle puede pasar de su borde lo que tapa
    * la interfaz, para ver lo que queda debajo (más un poco de aire); en Vida, márgenes fijos en
-   * los extremos según la barra y el panel (ver `margenesVida`).
+   * los extremos según la barra, el panel y el HUD superior (ver `margenesVida`).
    * Se llama cuando cambian la selección, el modo, el tamaño o las guías (nunca desde una consulta).
    */
   private actualizarMargenes(): void {
@@ -527,7 +530,7 @@ export class EscenaValle extends Phaser.Scene {
     const h = CONFIG_CAMARA.holguraBordePx
     if (this.modoAplicado === 'vida') {
       // Tras abrir el panel o cambiar el tamaño, la vista salta (sin deslizarse) a su sitio.
-      this.control.fijarMargenes(this.margenesVida(pantalla), this.remedirMargenes > 0)
+      this.control.fijarMargenes(this.margenesVidaActuales(pantalla), this.remedirMargenes > 0)
       return
     }
     this.control.fijarMargenes(
@@ -543,39 +546,14 @@ export class EscenaValle extends Phaser.Scene {
   }
 
   /**
-   * Márgenes fijos de la cámara en Vida: solo se amplían los extremos, lo que ocupa la interfaz
-   * (barra de herramientas abajo o en columna, panel de inventario abierto a la izquierda) más
-   * un poco de aire, y arriba lo que sobresale el sprite. No dependen de la posición del
-   * personaje, así que `seguir` se desliza sin saltos; solo se miden al cambiar el tamaño o el panel.
+   * Márgenes fijos de la cámara en Vida (ver `margenesVida` en `areaHud.ts`); `undefined` si no
+   * hay barra a la vista.
    */
-  private margenesVida(pantalla: { ancho: number; alto: number }): Margenes | undefined {
-    const { barra, panel, arriba: reservaArriba } = medirReservasHud()
+  private margenesVidaActuales(pantalla: { ancho: number; alto: number }): Margenes | undefined {
+    const { barra, panel, arriba } = medirReservasHud()
     const c = this.control
     if (!barra || !c) return undefined
-    const h = CONFIG_CAMARA.holguraBordePx
-    // Zona que el HUD deja libre alrededor del personaje: en el borde del valle, la casilla del
-    // personaje queda tras ese radio (el cuadrado de 7x7 casillas se ve entero sin HUD encima).
-    const radio = CONFIG_CAMARA.radioLibreCasillas * TAM_CASILLA * c.vista.zoom
-    const columna = barra.right - barra.left < barra.bottom - barra.top
-    let izq = 0
-    let abajo = 0
-    if (columna) izq = barra.right + h
-    else abajo = Math.max(0, pantalla.alto - barra.top + h) + radio
-    if (panel && !columna) {
-      // Hoja inferior (móvil vertical): el valle acaba sobre ella. Tarjeta a la izquierda (apaisado):
-      // el borde oeste del valle queda a su derecha.
-      if (panel.right - panel.left > pantalla.ancho * 0.6)
-        abajo = Math.max(abajo, pantalla.alto - panel.top + h + radio)
-      else izq = Math.max(izq, panel.right + h + radio)
-    }
-    const arriba = Math.ceil(Math.max((TAM_CASILLA / 2) * c.vista.zoom, reservaArriba + radio))
-    return {
-      arriba,
-      abajo: Math.ceil(abajo),
-      izq: Math.max(0, Math.ceil(izq)),
-      der: 0,
-      soloExtremos: true,
-    }
+    return margenesVida({ pantalla, barra, panel, reservaArriba: arriba, zoom: c.vista.zoom })
   }
 
   /** La cámara se desliza (guía o vuelta de la extensión): gancho de prueba. */
@@ -1054,6 +1032,15 @@ export class EscenaValle extends Phaser.Scene {
       this.remedirMargenes = 20
     }
     if (modo === 'vida') {
+      // El alto del HUD superior cambia con un aviso o al girar: se vigila cada 10 fotogramas.
+      if (++this.fotogramasSinMedir >= 10) {
+        this.fotogramasSinMedir = 0
+        const reserva = medirReservasHud().arriba
+        if (reserva !== this.reservaArribaVista) {
+          this.reservaArribaVista = reserva
+          this.remedirMargenes = Math.max(this.remedirMargenes, 1)
+        }
+      }
       // El panel se pinta un par de fotogramas después de abrirse: se re-mide fotograma a fotograma.
       if (this.remedirMargenes > 0) {
         this.remedirMargenes--

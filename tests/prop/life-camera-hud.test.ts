@@ -6,15 +6,15 @@
  * (4 corners × 3 views), «ninguna esquina deja al personaje bajo el HUD ni fuera de la pantalla»,
  * «al girar el móvil en el borde oeste…» and «inventario abierto en el borde oeste…».
  *
- * `margenesVida` is private in `EscenaValle` (src/game/scenes/EscenaValle.ts); its formula is
- * copied here as the model and kept next to the property so a change there shows up here.
+ * `margenesVida` is the pure function of `src/game/areaHud.ts` that `EscenaValle` uses (HUD-01):
+ * the tests import the real formula, no copy.
  */
 import { describe, expect, it, vi } from 'vitest'
 import fc from 'fast-check'
 import { CONFIG_PERSONAJE } from '../../src/core'
 import { CONFIG_CAMARA, limitesZoom } from '../../src/game/camara/config'
 import { limitarVista, type Margenes, type Pantalla } from '../../src/game/camara/matematica'
-import type { CajaHud } from '../../src/game/areaHud'
+import { margenesVida as margenesVidaReal, type CajaHud } from '../../src/game/areaHud'
 import { ControlCamara } from '../../src/game/camara/controlCamara'
 import { fakeCameraScene } from '../unit/fixtures/fake-scene'
 
@@ -26,21 +26,18 @@ const MUNDO = LADO * TAM
 const H = CONFIG_CAMARA.holguraBordePx
 const MEDIA_CAJA = CONFIG_PERSONAJE.tamanoCaja / 2
 
-/** Copy of `EscenaValle.margenesVida` (src/game/scenes/EscenaValle.ts). */
+/** Bottom edge of the top HUD plus its gap (`ReservasHud.arriba` of a one-row HUD). */
+const RESERVA_ARRIBA = 72
+const RADIO = CONFIG_CAMARA.radioLibreCasillas
+
 function margenesVida(
   pantalla: Pantalla,
   barra: CajaHud,
   panel: CajaHud | undefined,
   zoom: number,
+  reservaArriba = RESERVA_ARRIBA,
 ): Margenes {
-  const columna = barra.right - barra.left < barra.bottom - barra.top
-  let izq = 0
-  let abajo = 0
-  if (columna) izq = barra.right + H
-  else abajo = Math.max(0, pantalla.alto - barra.top + H)
-  if (panel && !columna) izq = Math.max(izq, panel.right + H)
-  const arriba = Math.ceil((TAM / 2) * zoom)
-  return { arriba, abajo, izq: Math.max(0, Math.ceil(izq)), der: 0, soloExtremos: true }
+  return margenesVidaReal({ pantalla, barra, panel, reservaArriba, zoom })
 }
 
 interface Caso {
@@ -50,12 +47,13 @@ interface Caso {
   zoom: number
 }
 
-/** Bottom row (landscape-like) or left column (the bar stacks when the screen is low). */
+/** Bottom row bar (the single bottom bar of HUD-01); a side card or a bottom sheet for the panel. */
 const casoArb: fc.Arbitrary<Caso> = fc
   .record({
     ancho: fc.integer({ min: 320, max: 1920 }),
     alto: fc.integer({ min: 320, max: 1080 }),
-    columna: fc.boolean(),
+    hoja: fc.boolean(),
+    anchoHoja: fc.double({ min: 0.65, max: 1, noNaN: true }),
     largo: fc.double({ min: 0.3, max: 0.9, noNaN: true }),
     grueso: fc.integer({ min: 48, max: 96 }),
     conPanel: fc.boolean(),
@@ -64,23 +62,18 @@ const casoArb: fc.Arbitrary<Caso> = fc
   })
   .map((r) => {
     const pantalla = { ancho: r.ancho, alto: r.alto }
-    const barra: CajaHud = r.columna
-      ? {
-          left: 8,
-          right: 8 + r.grueso,
-          top: 72,
-          bottom: 72 + Math.max(r.grueso + 1, r.largo * (r.alto - 84)),
-        }
-      : {
-          left: 8,
-          right: 8 + Math.max(r.grueso + 1, r.largo * (r.ancho - 16)),
-          top: r.alto - 12 - r.grueso,
-          bottom: r.alto - 12,
-        }
-    const panel: CajaHud | undefined =
-      r.conPanel && !r.columna
-        ? { left: 8, right: 8 + r.anchoPanel * r.ancho, top: 80, bottom: barra.top - 8 }
-        : undefined
+    const barra: CajaHud = {
+      left: 8,
+      right: 8 + Math.max(r.grueso + 1, r.largo * (r.ancho - 16)),
+      top: r.alto - 12 - r.grueso,
+      bottom: r.alto - 12,
+    }
+    const panel: CajaHud | undefined = !r.conPanel
+      ? undefined
+      : r.hoja
+        ? // Bottom sheet over the bar: wider than 60 % of the screen.
+          { left: 8, right: 8 + r.anchoHoja * r.ancho, top: r.alto * 0.55, bottom: barra.top - 8 }
+        : { left: 8, right: 8 + r.anchoPanel * r.ancho, top: 80, bottom: barra.top - 8 }
     // Zooms where the valley does not fit on either axis (the margins only apply there; with the
     // whole valley on screen it is simply centred).
     const lim = limitesZoom(pantalla, MUNDO)
@@ -136,14 +129,19 @@ describe('Life camera with the HUD margins', () => {
     // más fuera del valle que lo que tapa la barra» (12 tests).
     fc.assert(
       fc.property(casoArb, (c) => {
-        const columna = c.barra.right - c.barra.left < c.barra.bottom - c.barra.top
+        const radio = RADIO * TAM * c.zoom
+        const hoja = c.panel !== undefined && c.panel.right - c.panel.left > c.pantalla.ancho * 0.6
         for (const [qx, qy] of ESQUINAS) {
           const f = franjas(c, reposo(c, qx * TAM, qy * TAM))
+          // What the HUD covers, plus the gap and the free radius around the character (HUD-01).
           const max = {
-            izq: columna ? c.barra.right + H : c.panel ? c.panel.right + H : 0,
-            arriba: Math.ceil((TAM / 2) * c.zoom),
+            izq: c.panel && !hoja ? c.panel.right + H + radio : 0,
+            arriba: Math.max(Math.ceil((TAM / 2) * c.zoom), RESERVA_ARRIBA + radio),
             der: 0,
-            abajo: columna ? 0 : c.pantalla.alto - c.barra.top + H,
+            abajo: Math.max(
+              c.pantalla.alto - c.barra.top + H + radio,
+              hoja && c.panel ? c.pantalla.alto - c.panel.top + H + radio : 0,
+            ),
           }
           for (const lado of ['izq', 'arriba', 'der', 'abajo'] as const)
             expect(f[lado], `${lado} at (${qx}, ${qy})`).toBeLessThanOrEqual(
@@ -184,10 +182,10 @@ describe('Life camera with the HUD margins', () => {
     )
   })
 
-  // [S3] Pushing against the north edge with the keyboard leaves the feet at y = tamanoCaja / 2
-  // (0.3 tiles), not at the tile centre. The top margin only allows half a tile of sprite above
-  // the valley (`ceil(16 × zoom)`), so 0.2 tiles × 32 × zoom of the head go above the screen.
-  it.fails('[S3] pressed against the north edge (feet at y = 0.3) the head stays on screen', () => {
+  // Pushing against the north edge with the keyboard leaves the feet at y = tamanoCaja / 2
+  // (0.3 tiles), not at the tile centre. It was an [S3] (the top margin only allowed half a tile of
+  // sprite); with the HUD-01 top margin (top HUD + free radius) the head stays on screen.
+  it('[S3] pressed against the north edge (feet at y = 0.3) the head stays on screen', () => {
     fc.assert(
       fc.property(
         casoArb,
@@ -200,6 +198,84 @@ describe('Life camera with the HUD margins', () => {
         },
       ),
       { numRuns: 100 },
+    )
+  })
+
+  it('the 7x7 around the character is not under the bar, the panel or the top HUD in the 4 corners', () => {
+    // HUD-01: the free radius (3 tiles) holds at the valley corners (R1..R4 «foco en Vida»).
+    fc.assert(
+      fc.property(casoArb, (c) => {
+        for (const [qx, qy] of [
+          [0.5, 0.5],
+          [95.5, 0.5],
+          [0.5, 95.5],
+          [95.5, 95.5],
+        ] as const) {
+          const v = reposo(c, qx * TAM, qy * TAM)
+          const px = (tx: number) => (tx * TAM - v.cx) * v.zoom + c.pantalla.ancho / 2
+          const py = (ty: number) => (ty * TAM - v.cy) * v.zoom + c.pantalla.alto / 2
+          const cuadro: CajaHud = {
+            left: px(Math.floor(qx) - RADIO),
+            right: px(Math.floor(qx) + RADIO + 1),
+            top: py(Math.floor(qy) - RADIO),
+            bottom: py(Math.floor(qy) + RADIO + 1),
+          }
+          const cruza = (b: CajaHud | undefined) =>
+            b !== undefined &&
+            Math.min(cuadro.right, b.right) - Math.max(cuadro.left, b.left) > 1e-3 &&
+            Math.min(cuadro.bottom, b.bottom) - Math.max(cuadro.top, b.top) > 1e-3
+          const msg = `(${qx}, ${qy}) zoom ${c.zoom.toFixed(2)}`
+          // Away from the edges the camera centres the character, so the margins cannot help if
+          // the screen is so small that the centred 7x7 already reaches a cover (that is the
+          // CSS's job): each cover is judged only when the centred 7x7 leaves it free.
+          const medio = (RADIO + 1) * TAM * c.zoom
+          const centroX = c.pantalla.ancho / 2
+          const centroY = c.pantalla.alto / 2
+          const hoja = c.panel && c.panel.right - c.panel.left > c.pantalla.ancho * 0.6
+          if (centroY + medio <= c.barra.top)
+            expect(cruza(c.barra), `7x7 under the bar at ${msg}`).toBe(false)
+          if (c.panel && (hoja ? c.panel.top >= centroY + medio : c.panel.right <= centroX - medio))
+            expect(cruza(c.panel), `7x7 under the panel at ${msg}`).toBe(false)
+          if (centroY - medio >= RESERVA_ARRIBA)
+            expect(
+              cruza({ left: -1e6, right: 1e6, top: -1e6, bottom: RESERVA_ARRIBA }),
+              `7x7 under the top HUD at ${msg}`,
+            ).toBe(false)
+        }
+      }),
+      { numRuns: 400 },
+    )
+  })
+
+  it('a panel wider than 60 % of the screen (bottom sheet) moves the margin to `abajo`, not to `izq`', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 320, max: 1920 }),
+        fc.integer({ min: 320, max: 1080 }),
+        fc.double({ min: 0.61, max: 1, noNaN: true }),
+        fc.double({ min: 0.5, max: 2, noNaN: true }),
+        (ancho, alto, frac, zoom) => {
+          const pantalla = { ancho, alto }
+          const barra: CajaHud = { left: 8, right: ancho - 8, top: alto - 60, bottom: alto - 8 }
+          const hoja: CajaHud = {
+            left: 8,
+            right: 8 + frac * ancho,
+            top: alto * 0.5,
+            bottom: barra.top - 8,
+          }
+          const sin = margenesVida(pantalla, barra, undefined, zoom)
+          const con = margenesVida(pantalla, barra, hoja, zoom)
+          expect(con.izq).toBe(sin.izq)
+          expect(con.abajo).toBeGreaterThanOrEqual(sin.abajo)
+          expect(con.abajo).toBeGreaterThanOrEqual(alto - hoja.top + H)
+          // A side card (narrower than 60 %) does the opposite: `izq` grows, `abajo` does not.
+          const tarjeta: CajaHud = { ...hoja, right: 8 + 0.5 * ancho }
+          const lado = margenesVida(pantalla, barra, tarjeta, zoom)
+          expect(lado.abajo).toBe(sin.abajo)
+          expect(lado.izq).toBeGreaterThan(sin.izq)
+        },
+      ),
+      { numRuns: 200 },
     )
   })
 
@@ -223,11 +299,8 @@ describe('Life camera with the HUD margins', () => {
     )
     for (const [w, h] of vistas) {
       f.resize(w, h, 2.625)
-      // Portrait: bar in a bottom row; landscape low: bar stacked in a left column.
-      const barra: CajaHud =
-        h > w
-          ? { left: 8, right: w - 8, top: h - 12 - 64, bottom: h - 12 }
-          : { left: 8, right: 8 + 64, top: 60, bottom: h - 12 }
+      // The single bottom bar, in a row in both orientations.
+      const barra: CajaHud = { left: 8, right: w - 8, top: h - 12 - 64, bottom: h - 12 }
       const caso: Caso = {
         pantalla: { ancho: w, alto: h },
         barra,
@@ -240,10 +313,7 @@ describe('Life camera with the HUD margins', () => {
       expect(control.vista.cx, `${w}×${h}`).toBeCloseTo(esperado.cx, 0)
       expect(control.vista.cy, `${w}×${h}`).toBeCloseTo(esperado.cy, 0)
       const fr = franjas(caso, control.vista)
-      const columna = barra.right - barra.left < barra.bottom - barra.top
-      expect(fr.izq, `${w}×${h}: west strip`).toBeLessThanOrEqual(
-        (columna ? barra.right + H : 0) + 2,
-      )
+      expect(fr.izq, `${w}×${h}: west strip`).toBeLessThanOrEqual(2)
       // The Phaser camera gets the logical zoom × resolution factor.
       expect(f.main.zoom).toBeCloseTo(control.vista.zoom * 2, 9)
     }

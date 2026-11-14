@@ -23,9 +23,16 @@ function useReservaBarra(caja: { current: HTMLElement | null }): void {
     const el = caja.current
     const hud = el?.closest<HTMLElement>('.hud')
     if (!el || !hud) return
+    let ultima = -1
     const medir = (): void => {
-      const reserva = Math.ceil(hud.getBoundingClientRect().bottom - el.getBoundingClientRect().top)
-      hud.style.setProperty('--reserva-barra', `${Math.max(0, reserva)}px`)
+      const reserva = Math.max(
+        0,
+        Math.ceil(hud.getBoundingClientRect().bottom - el.getBoundingClientRect().top),
+      )
+      // Solo se escribe si cambia: cada escritura repinta los paneles que la usan.
+      if (reserva === ultima) return
+      ultima = reserva
+      hud.style.setProperty('--reserva-barra', `${reserva}px`)
     }
     medir()
     if (typeof ResizeObserver === 'undefined') return
@@ -57,7 +64,13 @@ export function BarraInferior() {
   useReservaBarra(caja)
   return (
     <div class={conPanel ? 'barra-inferior barra-inferior-con-panel' : 'barra-inferior'}>
-      <div ref={caja} class="barra-inferior-caja" data-modo={vida ? 'vida' : 'plano'}>
+      <div
+        ref={caja}
+        class="barra-inferior-caja"
+        role="group"
+        aria-label={t('barraInferior')}
+        data-modo={vida ? 'vida' : 'plano'}
+      >
         <BarraHerramientas />
         <div class="barra-inferior-acciones">
           <BotonAccion />

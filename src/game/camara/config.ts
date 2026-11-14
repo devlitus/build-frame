@@ -27,6 +27,8 @@ export const CONFIG_CAMARA = {
   holguraBordePx: 24,
   /** Vida: casillas alrededor del personaje que el HUD nunca tapa (también en las esquinas del valle). */
   radioLibreCasillas: 3,
+  /** Un panel más ancho que esta fracción de la pantalla es una hoja inferior (móvil vertical); si no, una tarjeta lateral. */
+  fraccionHojaInferior: 0.6,
   /** Constante de tiempo (ms) del deslizamiento suave que deja a la vista la parcela elegida. */
   suavizadoGuiaMs: 140,
 } as const

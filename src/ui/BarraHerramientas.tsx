@@ -4,8 +4,9 @@ import {
   HERRAMIENTAS,
   puedeCosechar,
   type Herramienta,
+  type ObjetoId,
 } from '../core'
-import { rutaIconoHerramienta } from './iconos'
+import { rutaIconoHerramienta, rutaIconoObjeto } from './iconos'
 import { t, tp, type ClaveTexto } from './textos'
 import { useEstado, useInventarioAbierto, usePartida } from './useEstado'
 
@@ -20,10 +21,18 @@ export function nombreHerramienta(h: Herramienta): string {
 
 /**
  * Ranuras de herramientas del Modo Vida (GDD §8: herramienta activa en el HUD), el primer grupo de
- * la barra inferior: un botón de al menos 44 px por herramienta, con su icono y su tecla (1 a 6).
- * La activa va marcada con `aria-pressed` y con su nombre en texto (no solo con el color). Con
- * «Semillas» se ve qué semilla está elegida.
+ * la barra inferior: un botón de 44 px por herramienta, con su icono y su tecla (1 a 6). La activa
+ * va marcada con `aria-pressed` y con su nombre en un rótulo para lectores de pantalla (a la vista
+ * lo dice el botón «Usar …»). Con «Semillas» la semilla elegida se ve en una insignia de la ranura
+ * y del botón «Usar …».
  */
+/** Icono pequeño de la semilla elegida (nada si no hay ninguna). Solo decorativo: el nombre va en el rótulo. */
+function InsigniaSemilla({ semilla }: { semilla: ObjetoId | null }) {
+  const ruta = semilla === null ? undefined : rutaIconoObjeto(semilla)
+  if (!ruta) return null
+  return <img class="semilla-insignia" src={ruta} alt="" width="18" height="18" draggable={false} />
+}
+
 export function BarraHerramientas() {
   const partida = usePartida()
   const vida = useEstado((e) => e.modo === 'vida')
@@ -68,6 +77,7 @@ export function BarraHerramientas() {
             <span class="herramienta-tecla" aria-hidden="true">
               {i + 1}
             </span>
+            {h === 'semillas' && <InsigniaSemilla semilla={semilla} />}
           </button>
         ))}
       </div>
@@ -80,14 +90,15 @@ export function BarraHerramientas() {
 
 /**
  * Botón de acción contextual: usa la herramienta activa en la casilla de enfrente (como E o
- * Espacio). Solo en Vida. Se queda también en escritorio: el clic en el lienzo es para andar, así
- * que sin él no habría forma de usar la herramienta solo con el ratón (GDD §4: «ratón para la acción»).
- * En táctil es la única vía. Tiene un ancho mínimo para que la barra no baile al cambiar de herramienta.
+ * Espacio). Solo en Vida, también en escritorio (el clic en el lienzo es para andar; GDD §4:
+ * «ratón para la acción»). Con «Semillas» lleva la insignia de la semilla elegida. Tiene un ancho
+ * mínimo para que la barra no se mueva al cambiar de herramienta.
  */
 export function BotonAccion() {
   const partida = usePartida()
   const vida = useEstado((e) => e.modo === 'vida')
   const actual = useEstado((e) => e.herramienta)
+  const semilla = useEstado((e) => e.semillaElegida)
   // Con la mano, delante de una planta madura y viva el botón dice «Cosechar» (la pista, sin avisos).
   const cosecha = useEstado((e) => {
     if (e.herramienta !== 'mano') return false
@@ -108,6 +119,7 @@ export function BotonAccion() {
       }}
     >
       {cosecha ? t('accionBotonCosechar') : tp('accionBoton', { herramienta: nombre })}
+      {actual === 'semillas' && <InsigniaSemilla semilla={semilla} />}
     </button>
   )
 }

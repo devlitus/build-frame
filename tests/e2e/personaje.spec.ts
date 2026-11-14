@@ -58,7 +58,9 @@ test('al pulsar una tecla de movimiento el personaje se mueve y la cámara lo si
     if (!c2) throw new Error('sin cámara')
     // En Vida la cámara puede pasar del borde del valle lo que tapa la barra de herramientas (más
     // una holgura de 24 px): abajo si va en horizontal, a la izquierda si es una columna.
-    const barra = await page.locator('.barra-herramientas-caja').boundingBox()
+    const barra = await page
+      .getByRole('group', { name: 'Barra inferior', exact: true })
+      .boundingBox()
     const vp = page.viewportSize()
     const columna = !!barra && barra.width < barra.height
     const extraIzq = barra && columna ? barra.x + barra.width + 24 : 0

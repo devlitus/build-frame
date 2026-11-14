@@ -134,7 +134,7 @@ async function franjas(p: Page) {
  * personaje queda sin interfaz encima también en las esquinas; `CONFIG_CAMARA.radioLibreCasillas`).
  */
 async function franjasPermitidas(p: Page) {
-  const barra = (await p.locator('.barra-herramientas-caja').boundingBox())!
+  const barra = (await p.getByRole('group', { name: 'Barra inferior', exact: true }).boundingBox())!
   const hud = (await p.locator('.hud-arriba').boundingBox())!
   const vp = p.viewportSize()!
   const zoom = (await p.evaluate(() => window.__raices?.camara()?.zoom))!
