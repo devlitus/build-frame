@@ -115,12 +115,10 @@ const comando: fc.Arbitrary<Comando> = fc.oneof(
   fc
     .constantFrom(...HERRAMIENTAS)
     .map((herramienta) => ({ tipo: 'ElegirHerramienta' as const, herramienta })),
-  fc
-    .anything()
-    .map((herramienta) => ({
-      tipo: 'ElegirHerramienta' as const,
-      herramienta: herramienta as never,
-    })),
+  fc.anything().map((herramienta) => ({
+    tipo: 'ElegirHerramienta' as const,
+    herramienta: herramienta as never,
+  })),
   fc
     .oneof(objeto, fc.constant(null), fc.string())
     .map((o) => ({ tipo: 'ElegirSemilla' as const, objeto: o as never })),

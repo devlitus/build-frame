@@ -1,7 +1,9 @@
 import Phaser from 'phaser'
 import {
   aplicarComando,
+  casillaAlAlcance,
   casillasOcupadas,
+  HERRAMIENTAS,
   casillasRio,
   crearEstadoInicial,
   defEdificio,
@@ -351,6 +353,12 @@ export class EscenaValle extends Phaser.Scene {
     this.scale.on('resize', this.alRedimensionar, this)
     this.quitarEsc?.()
     const alEsc = (): void => {
+      // El inventario (Modo Vida) se cierra con Esc y el foco vuelve al lienzo.
+      if (partida.inventario.abierto) {
+        document.getElementById('juego')?.focus({ preventScroll: true })
+        partida.inventario.cerrar()
+        return
+      }
       // Modo Construir: Esc cancela la confirmación y, si no hay, sale del modo.
       if (partida.construccion.abierto) {
         if (partida.construccion.cancelarConfirmacion()) return
@@ -502,7 +510,34 @@ export class EscenaValle extends Phaser.Scene {
     return a !== null && (a === this.game.canvas || a === this.game.canvas.parentElement)
   }
 
+  /**
+   * Teclado del Modo Vida con el foco en el lienzo: 1 a 6 eligen la herramienta, E o Espacio la usan
+   * en la casilla de enfrente e I abre o cierra el inventario. (Con el foco en un botón del HUD,
+   * Espacio y Enter son del botón.)
+   */
+  private teclaVida(ev: KeyboardEvent): void {
+    const partida = this._partida
+    if (!partida || ev.ctrlKey || ev.altKey || ev.metaKey || ev.shiftKey) return
+    if (ev.target !== this.game.canvas && ev.target !== this.game.canvas.parentElement) return
+    const digito = /^(?:Digit|Numpad)([1-9])$/.exec(ev.code)
+    const herramienta = digito ? HERRAMIENTAS[Number(digito[1]) - 1] : undefined
+    if (herramienta) {
+      ev.preventDefault()
+      if (!ev.repeat) partida.elegirHerramienta(herramienta)
+    } else if (ev.code === 'KeyE' || ev.code === 'Space') {
+      ev.preventDefault()
+      if (!ev.repeat) partida.usarEnfrente()
+    } else if (ev.code === 'KeyI') {
+      ev.preventDefault()
+      if (!ev.repeat) partida.inventario.alternar('teclado')
+    }
+  }
+
   private readonly alTeclaLienzo = (ev: KeyboardEvent): void => {
+    if (this.modoAplicado === 'vida') {
+      this.teclaVida(ev)
+      return
+    }
     const partida = this._partida
     const g = this.geometria()
     if (!partida || !g || !this.control || this.modoAplicado !== 'plano') return
@@ -748,12 +783,14 @@ export class EscenaValle extends Phaser.Scene {
             : 'ayuda-plano',
       )
       if (contenedor) contenedor.dataset['modo'] = 'plano'
+      contenedor?.removeAttribute('aria-describedby')
     } else {
       if (document.activeElement === lienzo) contenedor?.focus({ preventScroll: true })
       lienzo.removeAttribute('tabindex')
       lienzo.removeAttribute('aria-labelledby')
       lienzo.removeAttribute('aria-describedby')
       if (contenedor) delete contenedor.dataset['modo']
+      contenedor?.setAttribute('aria-describedby', 'ayuda-vida')
     }
   }
 
@@ -874,8 +911,19 @@ export class EscenaValle extends Phaser.Scene {
     const intencion = teclado.dx !== 0 || teclado.dy !== 0 ? teclado : joystick
     if (modo === 'vida') {
       const tocado = this.tactil?.tomarDestino()
+      const casillaTocada = tocado && {
+        x: Math.floor(tocado.x / TAM_CASILLA),
+        y: Math.floor(tocado.y / TAM_CASILLA),
+      }
       if (intencion.dx !== 0 || intencion.dy !== 0) this.seguidor.cancelar()
-      else if (tocado && !tiempoDetenido(partida.estado)) {
+      else if (
+        casillaTocada &&
+        casillaAlAlcance(partida.estado.personaje, casillaTocada.x, casillaTocada.y)
+      ) {
+        // Clic o toque en la casilla del personaje o en una vecina: usa la herramienta ahí.
+        this.seguidor.cancelar()
+        partida.usarHerramienta(casillaTocada.x, casillaTocada.y)
+      } else if (tocado && !tiempoDetenido(partida.estado)) {
         const e = partida.estado
         this.seguidor.fijar(e, e.personaje, {
           x: tocado.x / TAM_CASILLA,

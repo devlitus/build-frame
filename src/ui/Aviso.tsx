@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useState } from 'preact/hooks'
 import { despiertaEnCasa } from '../core'
 import { nombreEdificio, textoColocacion, textoReembolso } from './construirTextos'
 import { nombreParcela, textoPrecio } from './parcelaTextos'
-import { t, tp } from './textos'
+import { existeTexto, t, tp, type ClaveTexto } from './textos'
 import { usePartida } from './useEstado'
 
 /** Milisegundos que se muestra el aviso. */
@@ -79,7 +79,10 @@ export function Aviso() {
     })
     const bajaUi = partida.suscribirAvisos((aviso) => {
       if (aviso === 'zona-sin-casillas') mostrarAviso(t('avisoZonaSinCasillas'))
-      else if (aviso.tipo === 'edificio-rechazado') {
+      else if (aviso.tipo === 'herramienta-rechazada') {
+        const clave = `errorHerramienta_${aviso.error}`
+        mostrarAviso(t(existeTexto(clave) ? clave : ('errorHerramienta_otro' as ClaveTexto)))
+      } else if (aviso.tipo === 'edificio-rechazado') {
         mostrarAviso(
           tp('avisoEdificioRechazado', {
             accion: t(`accion_${aviso.accion}`),

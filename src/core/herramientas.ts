@@ -67,6 +67,15 @@ export const EFECTOS_HERRAMIENTA: Readonly<Record<Herramienta, EfectoHerramienta
   pico: sinEfecto,
 }
 
+/** ¿Está la casilla (x, y) en la del personaje o en una de sus 8 vecinas? (distancia de Chebyshev ≤ 1) */
+export function casillaAlAlcance(
+  p: Pick<EstadoJuego['personaje'], 'x' | 'y'>,
+  x: number,
+  y: number,
+): boolean {
+  return Math.max(Math.abs(x - Math.floor(p.x)), Math.abs(y - Math.floor(p.y))) <= 1
+}
+
 const entero = (n: unknown): n is number => typeof n === 'number' && Number.isSafeInteger(n)
 
 /**
@@ -87,10 +96,7 @@ export function comprobarUsarHerramienta(
   if (tiempoDetenido(estado)) return 'en-pausa'
   const lado = ladoValle(estado.valle)
   if (x < 0 || y < 0 || x >= lado || y >= lado) return 'fuera-del-valle'
-  // La casilla del personaje y sus 8 vecinas (distancia de Chebyshev ≤ 1).
-  if (Math.max(Math.abs(x - Math.floor(p.x)), Math.abs(y - Math.floor(p.y))) > 1) {
-    return 'fuera-de-alcance'
-  }
+  if (!casillaAlAlcance(p, x, y)) return 'fuera-de-alcance'
   if (estado.herramienta === 'semillas') {
     if (estado.semillaElegida === null) return 'sin-semilla-elegida'
     if (!inventarioValido(estado.inventario)) return 'estado-invalido'

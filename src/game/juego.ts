@@ -4,6 +4,7 @@ import { EscenaPortada } from './scenes/EscenaPortada'
 import { EscenaDepuracion } from './scenes/EscenaDepuracion'
 import { EscenaValle, type DatosEscenaValle } from './scenes/EscenaValle'
 import {
+  capacidadInventario,
   casillaBloqueada,
   colocacionValida,
   crearEstadoInicial,
@@ -239,6 +240,18 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
       return s && { lado: ladoValle(s.valle), claves: [...s.cauce.vados] }
     },
     dinero: () => partida?.estado.dinero,
+    herramienta: () =>
+      partida && {
+        herramienta: partida.estado.herramienta,
+        semilla: partida.estado.semillaElegida,
+      },
+    inventario: () =>
+      partida && {
+        ranuras: partida.estado.inventario.map((r) => ({ ...r })),
+        capacidad: capacidadInventario(partida.estado.edificios),
+        abierto: partida.inventario.abierto,
+      },
+    ultimoUso: () => partida?.ultimoUso && { ...partida.ultimoUso },
     estadoVisual: (indice) => {
       const e = g.scene.getScene('valle')
       return e instanceof EscenaValle ? e.estadoVisual(indice) : undefined

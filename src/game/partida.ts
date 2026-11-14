@@ -1,6 +1,10 @@
 import {
   aplicarComando,
+  casillaDeEnfrente,
   defEdificio,
+  esSemilla,
+  type Herramienta,
+  type ObjetoId,
   type Comando,
   type ErrorComando,
   type EstadoJuego,
@@ -10,6 +14,7 @@ import {
 } from '../core'
 import { Construccion, calcularSilueta, centroDeSilueta, type Silueta } from './construir'
 import { SeleccionEdificio } from './edificioSeleccion'
+import { PanelInventario } from './panelInventario'
 import { Pincel } from './pincel'
 import { Seleccion } from './seleccion'
 
@@ -24,6 +29,8 @@ export type Suscriptor = (cambio: CambioPartida) => void
 /** Avisos de interfaz que no nacen de un evento del núcleo (un comando rechazado, por ejemplo). */
 export type AvisoInterfaz =
   | 'zona-sin-casillas'
+  /** El núcleo rechazó `UsarHerramienta` (lejos, en pausa, sin semilla...). */
+  | { readonly tipo: 'herramienta-rechazada'; readonly error: ErrorComando }
   /** El núcleo rechazó `Construir` (el estado cambió entre la silueta y la confirmación). */
   | {
       readonly tipo: 'construir-rechazado'
@@ -38,6 +45,17 @@ export type AvisoInterfaz =
       readonly error: ErrorComando
       readonly edificio: TipoEdificio
     }
+
+/** Resultado del último `usarHerramienta` (para los tests e2e; no es estado del juego). */
+export interface UltimoUso {
+  /** Número de usos intentados desde que empezó la partida. */
+  readonly n: number
+  readonly herramienta: Herramienta
+  readonly x: number
+  readonly y: number
+  /** Motivo del rechazo; undefined si se aceptó. */
+  readonly error: ErrorComando | undefined
+}
 
 /**
  * Contenedor de la partida en la capa de juego: guarda el `EstadoJuego`, aplica comandos con
@@ -55,6 +73,9 @@ export class Partida {
   readonly construccion = new Construccion()
   /** Edificio u obra seleccionado (panel con Mover, Demoler o Cancelar obra): también estado de interfaz. */
   readonly edificioSeleccionado = new SeleccionEdificio()
+  /** Panel de inventario (solo en Modo Vida): estado de interfaz. */
+  readonly inventario = new PanelInventario()
+  private _ultimoUso: UltimoUso | undefined = undefined
   private ultimaSilueta:
     | {
         estado: EstadoJuego
@@ -72,21 +93,26 @@ export class Partida {
     // Barra de zonas, panel de parcela y modo Construir no conviven: abrir uno cierra los otros.
     this.pincel.suscribir(() => {
       if (!this.pincel.abierto) return
+      this.inventario.cerrar()
       this.construccion.cerrar()
       this.edificioSeleccionado.deseleccionar()
     })
     this.construccion.suscribir(() => {
       if (!this.construccion.abierto) return
+      this.inventario.cerrar()
       this.pincel.cerrar()
       this.seleccion.deseleccionar()
       this.edificioSeleccionado.deseleccionar()
     })
     // Un edificio y una parcela no se seleccionan a la vez: elegir uno suelta el otro.
     this.seleccion.suscribir(() => {
-      if (this.seleccion.indice !== undefined) this.edificioSeleccionado.deseleccionar()
+      if (this.seleccion.indice === undefined) return
+      this.inventario.cerrar()
+      this.edificioSeleccionado.deseleccionar()
     })
     this.edificioSeleccionado.suscribir(() => {
       if (this.edificioSeleccionado.id === undefined) return
+      this.inventario.cerrar()
       this.seleccion.deseleccionar()
       this.pincel.cerrar()
       this.construccion.cerrar()
@@ -205,6 +231,52 @@ export class Partida {
     return this._estado
   }
 
+  get ultimoUso(): UltimoUso | undefined {
+    return this._ultimoUso
+  }
+
+  /**
+   * Elige la herramienta activa. Al elegir «semillas» sin semilla elegida (o con una que ya no
+   * queda) toma la primera semilla del inventario, para que se pueda plantar sin más pasos.
+   */
+  elegirHerramienta(herramienta: Herramienta): ResultadoComando {
+    const r = this.emitir({ tipo: 'ElegirHerramienta', herramienta })
+    if (!r.ok || herramienta !== 'semillas') return r
+    const e = this._estado
+    const sigue =
+      e.semillaElegida !== null && e.inventario.some((s) => s.objeto === e.semillaElegida)
+    if (sigue) return r
+    const primera = e.inventario.find((s) => esSemilla(s.objeto))
+    return primera ? this.emitir({ tipo: 'ElegirSemilla', objeto: primera.objeto }) : r
+  }
+
+  /** Elige la semilla (del panel de inventario) y deja activa la herramienta «semillas». */
+  elegirSemilla(objeto: ObjetoId): ResultadoComando {
+    const r = this.emitir({ tipo: 'ElegirSemilla', objeto })
+    if (r.ok) return this.elegirHerramienta('semillas')
+    return r
+  }
+
+  /** Usa la herramienta activa en la casilla (x, y); si el núcleo la rechaza avisa de por qué. */
+  usarHerramienta(x: number, y: number): ResultadoComando {
+    const r = this.emitir({ tipo: 'UsarHerramienta', x, y })
+    this._ultimoUso = {
+      n: (this._ultimoUso?.n ?? 0) + 1,
+      herramienta: this._estado.herramienta,
+      x,
+      y,
+      error: r.ok ? undefined : r.error,
+    }
+    if (!r.ok) this.avisarInterfaz({ tipo: 'herramienta-rechazada', error: r.error })
+    return r
+  }
+
+  /** Usa la herramienta activa en la casilla de enfrente del personaje (la tecla de acción y el botón). */
+  usarEnfrente(): ResultadoComando {
+    const c = casillaDeEnfrente(this._estado.personaje)
+    return this.usarHerramienta(c.x, c.y)
+  }
+
   /** Aplica un comando; si lo rechaza el estado no cambia y no se avisa. */
   emitir(comando: Comando): ResultadoComando {
     const r = aplicarComando(this._estado, comando)
@@ -218,6 +290,8 @@ export class Partida {
       this.construccion.cerrar()
       this.edificioSeleccionado.deseleccionar()
     }
+    // El inventario solo se abre en Vida: al pasar al Plano se cierra.
+    if (r.estado.modo === 'plano') this.inventario.cerrar()
     if (cambio) this.soltarEdificiosPerdidos()
     if (cambio || r.eventos.length > 0) this.avisar({ estado: r.estado, eventos: r.eventos })
     return r
@@ -226,6 +300,7 @@ export class Partida {
   /** Reemplaza el estado sin comando (solo depuración y pruebas); avisa a los suscriptores. */
   reemplazar(estado: EstadoJuego): void {
     this._estado = estado
+    this.inventario.cerrar()
     this.seleccion.deseleccionar()
     this.pincel.cerrar()
     this.construccion.cerrar()
