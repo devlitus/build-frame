@@ -1579,4 +1579,34 @@ body {
   color: var(--crema);
   border-color: var(--tinta);
 }
+
+/* Pantallas bajas: hora, fecha y energía en una sola fila para dejar libre el terreno. */
+@media (max-height: 520px) {
+  .reloj {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0 10px;
+    padding: 4px 10px;
+  }
+
+  .reloj-hora {
+    font-size: 1.25rem;
+  }
+
+  .reloj-fecha {
+    font-size: 0.9rem;
+  }
+
+  .energia {
+    margin-top: 0;
+    font-size: 0.85rem;
+  }
+
+  .energia-barra {
+    flex: none;
+    width: 48px;
+    min-width: 0;
+  }
+}
 /* === Fin M5-02 === */
