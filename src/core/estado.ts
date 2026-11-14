@@ -95,7 +95,7 @@ export interface EstadoJuego {
   readonly siguienteIdEdificio: number
   /** Ancho del río y vados (casillas de río transitables). */
   readonly cauce: Cauce
-  /** Árboles y rocas: bloquean el paso. Se talarán en M5. */
+  /** Árboles, rocas y plantones (los plantones aún no bloquean el paso); se talan, pican y replantan en M5-06. */
   // TODO: compactar obstáculos y derivar `variante` en la capa de juego antes de fijar el formato de guardado (M7).
   readonly obstaculos: readonly Obstaculo[]
   /** Centro de la casilla de aparición («entrada del valle»), en unidades de casilla. */

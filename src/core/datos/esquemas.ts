@@ -309,3 +309,34 @@ export const EsquemaConfigCultivos = v.strictObject({
 })
 
 export type ConfigCultivos = v.InferOutput<typeof EsquemaConfigCultivos>
+const cantidadPorTerreno = (min: number) => {
+  const n = v.pipe(v.number(), v.safeInteger(), v.minValue(min), v.maxValue(100))
+  return v.strictObject(
+    Object.fromEntries(TERRENOS.map((t) => [t, n])) as Record<(typeof TERRENOS)[number], typeof n>,
+  )
+}
+
+/** Talar, picar y replantar (GDD §6.8 y §8): golpes y botín por terreno, y crecimiento del plantón. */
+export const EsquemaConfigRecursos = v.strictObject({
+  arbol: v.strictObject({
+    /** Golpes de hacha que hacen falta para talar un árbol, por terreno del que está. */
+    golpes: cantidadPorTerreno(1),
+    /** Madera que da un árbol talado, por terreno. */
+    madera: cantidadPorTerreno(0),
+    /** Plantones que deja un árbol talado (si caben en el inventario). */
+    plantones: v.pipe(v.number(), v.safeInteger(), v.minValue(0), v.maxValue(10)),
+    /** Probabilidad (0 a 1) de que talar un árbol deje esos plantones; se sortea con el RNG del estado. */
+    probabilidadPlanton: v.pipe(v.number(), v.minValue(0), v.maxValue(1)),
+  }),
+  roca: v.strictObject({
+    golpes: cantidadPorTerreno(1),
+    /** Piedra que da una roca picada, por terreno. */
+    piedra: cantidadPorTerreno(0),
+  }),
+  planton: v.strictObject({
+    /** Días que tarda un plantón en convertirse en árbol. */
+    diasCrecimiento: v.pipe(v.number(), v.safeInteger(), v.minValue(1), v.maxValue(100)),
+  }),
+})
+
+export type ConfigRecursos = v.InferOutput<typeof EsquemaConfigRecursos>

@@ -2,6 +2,7 @@ import type { EstadoJuego } from './estado'
 import { tiempoDetenido } from './estado'
 import { costeEnergia, energiaValida, gastarEnergia } from './energia'
 import { ladoValle } from './mapa'
+import { efectoHacha, efectoPico, efectoPlantarPlanton } from './recursos'
 import {
   cantidadDe,
   esHerramienta,
@@ -36,10 +37,12 @@ export type ErrorUsoHerramienta =
   | 'sin-semillas'
   /** No queda energía para el coste de la herramienta (nunca bloquea moverse ni cambiar de modo). */
   | 'sin-energia'
-  /** Motivos propios de la azada y las semillas (`labranza.ts`). */
+  /** Motivos propios de la azada y las semillas (`labranza.ts`); incluye `no-propia`. */
   | ErrorLabranza
+  /** El botín desbordaría los materiales (enteros seguros). */
+  | 'limite-de-recursos'
 
-/** Hecho que anuncia que la herramienta se aceptó (el efecto concreto llega con sus propios eventos). */
+/** Hecho que anuncia que la herramienta se aceptó; los efectos en el mundo llegan en sus propios eventos. */
 export interface EventoHerramientaUsada {
   readonly tipo: 'herramienta-usada'
   readonly herramienta: Herramienta
@@ -47,7 +50,48 @@ export interface EventoHerramientaUsada {
   readonly y: number
 }
 
-export type EventoHerramienta = EventoHerramientaUsada | EventoTierraArada | EventoPlantaSembrada
+/** Un golpe de hacha o pico que aún no acaba con el obstáculo; quedan `restantes` golpes. */
+export interface EventoObstaculoGolpeado {
+  readonly tipo: 'obstaculo-golpeado'
+  readonly obstaculo: 'arbol' | 'roca' | 'planton'
+  readonly x: number
+  readonly y: number
+  readonly restantes: number
+}
+
+/** El obstáculo de (x, y) se quitó y dio `madera`, `piedra` y `plantones` (los que cupieron en el inventario). */
+export interface EventoObstaculoQuitado {
+  readonly tipo: 'obstaculo-quitado'
+  readonly obstaculo: 'arbol' | 'roca' | 'planton'
+  readonly x: number
+  readonly y: number
+  readonly madera: number
+  readonly piedra: number
+  readonly plantones: number
+}
+
+/** Se plantó un plantón de árbol en (x, y). */
+export interface EventoPlantonPlantado {
+  readonly tipo: 'planton-plantado'
+  readonly x: number
+  readonly y: number
+}
+
+/** Talar dejó un plantón pero no cupo en el inventario: se perdió (la madera sí se dio). */
+export interface EventoPlantonPerdido {
+  readonly tipo: 'planton-perdido'
+  readonly x: number
+  readonly y: number
+}
+
+export type EventoHerramienta =
+  | EventoHerramientaUsada
+  | EventoTierraArada
+  | EventoPlantaSembrada
+  | EventoObstaculoGolpeado
+  | EventoObstaculoQuitado
+  | EventoPlantonPlantado
+  | EventoPlantonPerdido
 
 export type ResultadoEfecto =
   | {
@@ -75,6 +119,29 @@ const sinEfecto: EfectoHerramienta = {
 }
 
 /**
+ * Prueba los efectos en orden y se queda con el primero que cambia algo (estado o eventos); si
+ * ninguno lo hace, la herramienta no hace nada. Un rechazo corta la cadena.
+ */
+export function encadenar(...efectos: readonly EfectoHerramienta[]): EfectoHerramienta {
+  return {
+    comprobar: (estado, x, y) => {
+      for (const efecto of efectos) {
+        const motivo = efecto.comprobar(estado, x, y)
+        if (motivo) return motivo
+      }
+      return undefined
+    },
+    aplicar: (estado, x, y) => {
+      for (const efecto of efectos) {
+        const r = efecto.aplicar(estado, x, y)
+        if (!r.ok || r.estado !== estado || r.eventos.length > 0) return r
+      }
+      return { ok: true, estado, eventos: [] }
+    },
+  }
+}
+
+/**
  * PUNTO DE ENGANCHE de los efectos de las herramientas. Cada historia sustituye aquí su entrada:
  * M5-03 azada (arar) y semillas (plantar) ya están; faltan M5-04 regadera, M5-05 mano
  * (cosechar) y M5-06 hacha y pico (talar y picar).
@@ -83,9 +150,11 @@ export const EFECTOS_HERRAMIENTA: Readonly<Record<Herramienta, EfectoHerramienta
   azada: { comprobar: motivoNoArar, aplicar: arar },
   regadera: sinEfecto,
   semillas: { comprobar: motivoNoSembrar, aplicar: plantar },
-  mano: sinEfecto,
-  hacha: sinEfecto,
-  pico: sinEfecto,
+  // Mano: cosechar tiene prioridad (M5-05 lo antepondrá aquí) y, si no hay nada que cosechar,
+  // planta un plantón del inventario (M5-06).
+  mano: encadenar(efectoPlantarPlanton),
+  hacha: efectoHacha,
+  pico: efectoPico,
 }
 
 /** ¿Está la casilla (x, y) en la del personaje o en una de sus 8 vecinas? (distancia de Chebyshev ≤ 1) */
@@ -144,10 +213,10 @@ export function comprobarUsarHerramienta(
 export function usarHerramienta(estado: EstadoJuego, x: number, y: number): ResultadoEfecto {
   const error = comprobarUsarHerramienta(estado, x, y)
   if (error) return { ok: false, error }
-  const r = EFECTOS_HERRAMIENTA[estado.herramienta].aplicar(estado, x, y)
-  if (!r.ok) return r
-  const nx = x + 0 // -0 se normaliza a 0
+  const nx = x + 0 // -0 se normaliza a 0 antes de que ningún efecto lo copie a eventos o estado
   const ny = y + 0
+  const r = EFECTOS_HERRAMIENTA[estado.herramienta].aplicar(estado, nx, ny)
+  if (!r.ok) return r
   return {
     ok: true,
     estado: gastarEnergia(r.estado, costeEnergia(estado.herramienta)),

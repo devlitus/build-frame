@@ -1,0 +1,15 @@
+{
+  "arbol": {
+    "golpes": { "prado": 3, "bosque": 3, "rocoso": 3 },
+    "madera": { "prado": 5, "bosque": 6, "rocoso": 4 },
+    "plantones": 1,
+    "probabilidadPlanton": 0.5
+  },
+  "roca": {
+    "golpes": { "prado": 3, "bosque": 3, "rocoso": 5 },
+    "piedra": { "prado": 3, "bosque": 3, "rocoso": 4 }
+  },
+  "planton": {
+    "diasCrecimiento": 4
+  }
+}

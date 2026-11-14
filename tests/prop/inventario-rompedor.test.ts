@@ -21,6 +21,7 @@ import {
   casillaConEdificio,
   CONFIG_CULTIVOS,
   CONFIG_INVENTARIO,
+  CONFIG_RECURSOS,
   crearEstadoInicial,
   CULTIVOS,
   cultivoDeEstacion,
@@ -31,6 +32,8 @@ import {
   ENERGIA_MAXIMA,
   ladoValle,
   OBJETOS,
+  puedePlantarPlanton,
+  siguienteAleatorio,
   quitarObjeto,
   type Edificio,
   type EstadoJuego,
@@ -102,6 +105,11 @@ function motivoEfecto(e: EstadoJuego, x: number, y: number): string | undefined 
     const letra: Record<string, string> = { cultivo: 'c', huerto: 'h' }
     if (!CONFIG_CULTIVOS.cultivos[cultivo].zonas.some((z) => letra[z] === zona)) return 'zona'
     if (!cultivoDeEstacion(cultivo, e)) return 'fuera-de-estacion'
+  } else if (e.herramienta === 'hacha' || e.herramienta === 'pico') {
+    // M5-06: golpear algo ajeno se rechaza; el golpe al aire (o a lo que no es su objetivo) se acepta.
+    const o = e.obstaculos.find((b) => b.x === x && b.y === y)
+    const objetivo = e.herramienta === 'hacha' ? o?.tipo !== 'roca' : o?.tipo === 'roca'
+    if (o && objetivo && propia?.estado !== 'propia') return 'no-propia'
   }
   return undefined
 }
@@ -113,6 +121,11 @@ interface Preparacion {
   arada: boolean
   planta: boolean
   obstaculo: boolean
+  /** Tipo del obstáculo que se deja (M5-06) y golpes que ya lleva. */
+  tipoObs: 'arbol' | 'roca' | 'planton'
+  golpes: number
+  /** Deja un plantón en el inventario (para que la mano lo plante). */
+  planton: boolean
   dia: number
   energia: number
   /** Deja la semilla elegida en el inventario y el día en su estación (si se puede). */
@@ -124,6 +137,11 @@ const preparacion: fc.Arbitrary<Preparacion> = fc.record({
   arada: fc.oneof({ weight: 3, arbitrary: fc.constant(true) }, fc.boolean()),
   planta: fc.oneof({ weight: 4, arbitrary: fc.constant(false) }, fc.boolean()),
   obstaculo: fc.oneof({ weight: 2, arbitrary: fc.constant(false) }, fc.boolean()),
+  tipoObs: fc.constantFrom('arbol', 'roca', 'planton') as fc.Arbitrary<
+    'arbol' | 'roca' | 'planton'
+  >,
+  golpes: fc.constantFrom(0, 0, 1, 2, 4),
+  planton: fc.boolean(),
   facilita: fc.boolean(),
   dia: fc.integer({ min: 1, max: 120 }),
   energia: fc.oneof(
@@ -148,7 +166,17 @@ function preparar(e: EstadoJuego, x: unknown, y: unknown, q0: Preparacion): Esta
           obstaculo: false,
           energia: ENERGIA_MAXIMA,
         }
-      : q0
+      : q0.facilita && (e.herramienta === 'hacha' || e.herramienta === 'pico')
+        ? {
+            ...q0,
+            propia: true,
+            obstaculo: true,
+            planta: false,
+            tipoObs:
+              e.herramienta === 'pico' ? 'roca' : q0.tipoObs === 'roca' ? 'arbol' : q0.tipoObs,
+            energia: ENERGIA_MAXIMA,
+          }
+        : q0
   const fuera =
     !Number.isSafeInteger(x) ||
     !Number.isSafeInteger(y) ||
@@ -156,7 +184,15 @@ function preparar(e: EstadoJuego, x: unknown, y: unknown, q0: Preparacion): Esta
     (y as number) < 0 ||
     (x as number) >= LADO ||
     (y as number) >= LADO
-  let dia: EstadoJuego = { ...e, dia: q.dia, energia: q.energia }
+  let dia: EstadoJuego = {
+    ...e,
+    dia: q.dia,
+    energia: q.energia,
+    inventario:
+      q.planton && e.herramienta === 'mano'
+        ? (anadirObjeto(e.inventario, 'planton', 1, 1000) ?? e.inventario)
+        : e.inventario,
+  }
   const cultivo = cultivoDeSemilla(e.semillaElegida)
   if (q.facilita && cultivo) {
     const hay = cantidadDe(e.inventario, e.semillaElegida!) >= 1
@@ -166,8 +202,8 @@ function preparar(e: EstadoJuego, x: unknown, y: unknown, q0: Preparacion): Esta
       ...dia,
       dia: d ?? q.dia,
       inventario: hay
-        ? e.inventario
-        : (anadirObjeto(e.inventario, e.semillaElegida!, 1, 1000) ?? e.inventario),
+        ? dia.inventario
+        : (anadirObjeto(dia.inventario, e.semillaElegida!, 1, 1000) ?? dia.inventario),
     }
   }
   if (fuera) return dia
@@ -191,7 +227,18 @@ function preparar(e: EstadoJuego, x: unknown, y: unknown, q0: Preparacion): Esta
     plantas: q.planta ? [[i, CULTIVOS.indexOf('patata'), 0, 0, 0, 0]] : [],
     obstaculos: [
       ...e.obstaculos.filter((o) => o.x !== cx || o.y !== cy),
-      ...(q.obstaculo ? [{ tipo: 'roca' as const, x: cx, y: cy, variante: 0 }] : []),
+      ...(q.obstaculo
+        ? [
+            {
+              tipo: q.tipoObs,
+              x: cx,
+              y: cy,
+              variante: 0,
+              ...(q.golpes > 0 ? { golpes: q.golpes } : {}),
+              ...(q.tipoObs === 'planton' ? { diaPlantado: 1 } : {}),
+            },
+          ]
+        : []),
     ],
   }
 }
@@ -305,6 +352,114 @@ describe('M5-01 · rompedor del núcleo', () => {
                   cultivo,
                 })
               }
+              if (e.herramienta === 'hacha' || e.herramienta === 'pico') {
+                const o = e.obstaculos.find((b) => b.x === x && b.y === y)
+                const objetivo = e.herramienta === 'hacha' ? o?.tipo !== 'roca' : o?.tipo === 'roca'
+                if (o && objetivo) {
+                  const terreno =
+                    e.valle.parcelas[
+                      Math.floor((y as number) / e.valle.casillasPorParcela) *
+                        e.valle.parcelasPorLado +
+                        Math.floor((x as number) / e.valle.casillasPorParcela)
+                    ]!.terreno
+                  const necesarios =
+                    o.tipo === 'arbol'
+                      ? CONFIG_RECURSOS.arbol.golpes[terreno]
+                      : o.tipo === 'roca'
+                        ? CONFIG_RECURSOS.roca.golpes[terreno]
+                        : 1
+                  const dados = (o.golpes ?? 0) + 1
+                  if (dados < necesarios) {
+                    previsto = {
+                      ...e,
+                      obstaculos: e.obstaculos.map((b) => (b === o ? { ...o, golpes: dados } : b)),
+                    }
+                    eventosPropios.push({
+                      tipo: 'obstaculo-golpeado',
+                      obstaculo: o.tipo,
+                      x: (x as number) + 0,
+                      y: (y as number) + 0,
+                      restantes: necesarios - dados,
+                    })
+                    vistos.set('golpe', (vistos.get('golpe') ?? 0) + 1)
+                  } else {
+                    const madera = o.tipo === 'arbol' ? CONFIG_RECURSOS.arbol.madera[terreno] : 0
+                    const piedra = o.tipo === 'roca' ? CONFIG_RECURSOS.roca.piedra[terreno] : 0
+                    let inv = e.inventario
+                    let rng = e.rng
+                    let plantones = 0
+                    let perdido = false
+                    if (o.tipo === 'arbol') {
+                      const sorteo = siguienteAleatorio(rng)
+                      rng = sorteo.estadoRng
+                      if (sorteo.valor < CONFIG_RECURSOS.arbol.probabilidadPlanton) {
+                        const nuevo = anadirObjeto(
+                          inv,
+                          'planton',
+                          CONFIG_RECURSOS.arbol.plantones,
+                          capacidadInventario(e.edificios),
+                        )
+                        if (nuevo) {
+                          inv = nuevo
+                          plantones = CONFIG_RECURSOS.arbol.plantones
+                        } else perdido = true
+                      }
+                    }
+                    previsto = {
+                      ...e,
+                      rng,
+                      inventario: inv,
+                      obstaculos: e.obstaculos.filter((b) => b !== o),
+                      materiales: {
+                        madera: e.materiales.madera + madera,
+                        piedra: e.materiales.piedra + piedra,
+                      },
+                    }
+                    eventosPropios.push({
+                      tipo: 'obstaculo-quitado',
+                      obstaculo: o.tipo,
+                      x: (x as number) + 0,
+                      y: (y as number) + 0,
+                      madera,
+                      piedra,
+                      plantones,
+                    })
+                    if (perdido) {
+                      eventosPropios.push({
+                        tipo: 'planton-perdido',
+                        x: (x as number) + 0,
+                        y: (y as number) + 0,
+                      })
+                      vistos.set('perdido', (vistos.get('perdido') ?? 0) + 1)
+                    }
+                    vistos.set('quitado-' + o.tipo, (vistos.get('quitado-' + o.tipo) ?? 0) + 1)
+                  }
+                }
+              } else if (
+                e.herramienta === 'mano' &&
+                cantidadDe(e.inventario, 'planton') >= 1 &&
+                puedePlantarPlanton(e, x as number, y as number)
+              ) {
+                // M5-06: la mano planta el plantón (el estado gana un obstáculo y pierde uno del inventario).
+                const nuevo = r1.estado.obstaculos[r1.estado.obstaculos.length - 1]!
+                expect(nuevo).toMatchObject({
+                  tipo: 'planton',
+                  x,
+                  y,
+                  diaPlantado: e.dia,
+                })
+                previsto = {
+                  ...e,
+                  inventario: quitarObjeto(e.inventario, 'planton', 1)!,
+                  obstaculos: [...e.obstaculos, nuevo],
+                }
+                eventosPropios.push({
+                  tipo: 'planton-plantado',
+                  x: (x as number) + 0,
+                  y: (y as number) + 0,
+                })
+                vistos.set('plantado', (vistos.get('plantado') ?? 0) + 1)
+              }
               expect({ ...r1.estado, energia: e.energia }).toEqual(previsto)
               expect(r1.estado.energia).toBe(e.energia - costeEnergia(e.herramienta))
               expect(r1.estado.energia).toBeGreaterThanOrEqual(0)
@@ -353,8 +508,47 @@ describe('M5-01 · rompedor del núcleo', () => {
       'no-arada',
       'fuera-de-estacion',
       'sin-energia',
+      'golpe',
+      'quitado-arbol',
+      'quitado-roca',
+      'quitado-planton',
+      'plantado',
     ])
       expect(vistos.get(v) ?? 0, v).toBeGreaterThan(0)
+  })
+
+  // Regresión del bug S3 hallado por el Rompedor: los eventos y el obstáculo nuevo de M5-06
+  // conservaban -0; `usarHerramienta` ahora normaliza las coordenadas antes de aplicar el efecto.
+  it('-0 en eventos de M5-06: las coordenadas se normalizan como en la azada', () => {
+    const e0 = crearEstadoInicial({ semilla: 11 })
+    const lado = ladoValle(e0.valle)
+    const casilla = 1 // casilla (1, 0): propia, con el personaje en (0.5, 0.5)
+    const propia = {
+      ...e0,
+      valle: {
+        ...e0.valle,
+        parcelas: e0.valle.parcelas.map((p, k) =>
+          k === 0 ? { ...p, estado: 'propia' as const } : p,
+        ),
+      },
+      personaje: { x: 1.5, y: 1.5, orientacion: 'sur' as const },
+      energia: ENERGIA_MAXIMA,
+    }
+    expect(lado).toBeGreaterThan(casilla)
+    const golpeado = aplicarComando(
+      {
+        ...propia,
+        herramienta: 'hacha' as Herramienta,
+        obstaculos: [{ tipo: 'arbol' as const, x: 0, y: 0, variante: 0 }],
+      },
+      { tipo: 'UsarHerramienta', x: -0, y: -0 },
+    )
+    expect(golpeado.ok).toBe(true)
+    if (!golpeado.ok) return
+    for (const ev of golpeado.eventos) {
+      if ('x' in ev) expect(Object.is(ev.x, -0), ev.tipo).toBe(false)
+      if ('y' in ev) expect(Object.is(ev.y, -0), ev.tipo).toBe(false)
+    }
   })
 
   it('ElegirHerramienta y ElegirSemilla: rechazo = mismo objeto; éxito solo cambia su campo', () => {

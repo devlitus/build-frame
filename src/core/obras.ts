@@ -1,6 +1,7 @@
 import { CONFIG_PERSONAJE } from './datos/personaje'
 import { CONFIG_TIEMPO } from './datos/tiempo'
 import { defEdificio, huellaDe, type Edificio, type Obra, type TipoEdificio } from './edificios'
+import { crecerPlantones } from './recursos'
 import { energiaAlEmpezarDia, type MotivoCambioDeDia } from './energia'
 import type { EstadoJuego } from './estado'
 import { casillaBloqueada, mapaTransitabilidad, type MapaTransitabilidad } from './mapa'
@@ -164,5 +165,7 @@ export function empezarDiaSiguiente(
     minutoDelDia: CONFIG_TIEMPO.horaInicio,
     energia: energiaAlEmpezarDia(motivo),
   })
-  return { estado: { ...r.estado, personaje: personajeAlDespertar(r.estado) }, eventos: r.eventos }
+  // Los plantones crecen con el personaje ya recolocado: si despierta sobre uno, espera un día.
+  const despierto = { ...r.estado, personaje: personajeAlDespertar(r.estado) }
+  return { estado: crecerPlantones(despierto), eventos: r.eventos }
 }

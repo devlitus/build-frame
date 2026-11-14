@@ -2,8 +2,10 @@ import type Phaser from 'phaser'
 import { claveCasilla, type Casilla, type Decoracion, type Valle } from '../../core'
 import {
   CLAVE_ARBOL,
+  CLAVE_PLANTON,
   CLAVE_ROCA,
   MARCO_ARBOL,
+  MARCO_PLANTON,
   MARCO_ROCA,
   TILE_DE_TERRENO,
   TILE_RIO,
@@ -26,6 +28,11 @@ export interface DatosTerreno {
   readonly semilla: number
 }
 
+const marcoDe = (d: Decoracion) =>
+  d.tipo === 'arbol' ? MARCO_ARBOL : d.tipo === 'planton' ? MARCO_PLANTON : MARCO_ROCA
+const claveDe = (d: Decoracion): string =>
+  d.tipo === 'arbol' ? CLAVE_ARBOL : d.tipo === 'planton' ? CLAVE_PLANTON : CLAVE_ROCA
+
 /** Variación de tamaño de la decoración con su `variante` (0 a 1): de 0,9 a 1,1 veces el tamaño nominal. */
 export function escalaDecoracion(variante: number): number {
   return 0.9 + 0.2 * Math.min(1, Math.max(0, variante))
@@ -36,7 +43,7 @@ export function escalaDecoracion(variante: number): number {
  * la base, centrado, y sobresale de la casilla (el árbol hacia arriba y a los lados).
  */
 export function rectDecoracion(d: Decoracion): { x0: number; y0: number; x1: number; y1: number } {
-  const marco = d.tipo === 'arbol' ? MARCO_ARBOL : MARCO_ROCA
+  const marco = marcoDe(d)
   const k = escalaDecoracion(d.variante)
   const base = (d.y + 1) * T
   const centro = d.x * T + T / 2
@@ -56,18 +63,24 @@ export function objetosDeDecoracion(
   escena: Phaser.Scene,
   decoracion: readonly Decoracion[],
   lado: number,
+  dia = 0,
 ): ObjetoProfundo[] {
   return decoracion.map((d) => {
-    const clave = d.tipo === 'arbol' ? CLAVE_ARBOL : CLAVE_ROCA
-    const marco = d.tipo === 'arbol' ? MARCO_ARBOL : MARCO_ROCA
+    const clave = claveDe(d)
+    const marco = marcoDe(d)
     const base = (d.y + 1) * T
+    // Plantón: marco 0 el día que se planta y 1 (arbolito) desde el día siguiente.
+    const crecido = d.tipo === 'planton' && dia - (d.diaPlantado ?? dia) >= 1
     return {
       id: claveCasilla(lado, d.x, d.y),
+      ...(d.tipo === 'planton' ? { marco: crecido ? 1 : 0 } : {}),
       x: d.x * T + T / 2,
       y: base,
       profundidad: base,
       textura: clave,
-      escala: escalaNominal(escena, clave, marco.ancho) * escalaDecoracion(d.variante),
+      escala:
+        escalaNominal(escena, clave, marco.ancho, d.tipo === 'planton' ? 0 : '__BASE') *
+        escalaDecoracion(d.variante),
       rect: rectDecoracion(d),
     }
   })

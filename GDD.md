@@ -193,6 +193,7 @@ Construir y mejorar requiere **dinero + materiales**, y a veces un **plano**. Lo
   - Baja con trasnochar, trabajar sin parar o tener la granja desordenada.
   - **Efecto:** el bienestar alto aumenta la energía máxima y desbloquea diálogos e ideas (recetas, mejoras). El bajo reduce la energía, pero nunca bloquea el juego.
   - Así se refuerza el mensaje del juego: no se trata de reproducir el estrés de la ciudad en el campo.
+- **Nota de implementación (M5-06, talar y replantar):** el hacha y el pico rechazan con `no-propia` los obstáculos de parcelas ajenas, pero el golpe al aire en parcela ajena se acepta y gasta energía (tests del Rompedor de M5-01 y M5-02 lo exigen); la mano con plantón en parcela ajena no planta y no avisa. Pintar zona de cultivo o huerto sobre un árbol ya puesto lo sigue permitiendo M4 (§6.4): la invariante «sin obstáculo en cultivo» vale para lo que crea esta historia (plantones y árboles crecidos). El botín (`data/recursos.json`) difiere de la propuesta del issue para que los 50 de madera y 10 de piedra sean viables: madera 5/6/4 y piedra 3/3/4 (prado/bosque/rocoso) y probabilidad de plantón 0,5.
 
 ### 6.9 Economía y mercado
 - **Moneda:** monedas (nombre por definir).
