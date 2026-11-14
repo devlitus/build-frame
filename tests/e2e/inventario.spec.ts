@@ -18,6 +18,22 @@ async function abrirValle(page: Page, query = '?semilla=42&debug'): Promise<stri
   return errores
 }
 
+/** Todas las parcelas propias (solo con `debug`): la azada solo ara en parcela propia (M5-03). */
+const PROPIAS = `?semilla=42&debug&propias=${Array.from({ length: 36 }, (_, i) => i).join(',')}`
+const pintarCultivo = (page: Page, c: { x: number; y: number }) =>
+  page.evaluate(
+    (k) =>
+      window.__raices?.emitir({
+        tipo: 'PintarZona',
+        x0: k.x,
+        y0: k.y,
+        x1: k.x,
+        y1: k.y,
+        zona: 'cultivo',
+      }),
+    c,
+  )
+
 const herramienta = (page: Page) => page.evaluate(() => window.__raices?.herramienta())
 const inventario = (page: Page) => page.evaluate(() => window.__raices?.inventario())
 const ultimoUso = (page: Page) => page.evaluate(() => window.__raices?.ultimoUso())
@@ -81,12 +97,32 @@ test('las teclas 1 a 6 eligen la herramienta', async ({ page, isMobile }) => {
 
 test('E y Espacio usan la herramienta en la casilla de enfrente', async ({ page, isMobile }) => {
   test.skip(isMobile, 'el teclado es de escritorio')
-  await abrirValle(page)
+  await abrirValle(page, PROPIAS)
+  // Se gira hacia una casilla libre (la de enfrente de la aparición puede ser un obstáculo).
+  await page.evaluate(() => {
+    const r = window.__raices
+    const q = r?.personaje()
+    if (!r || !q) return
+    const cx = Math.floor(q.x)
+    const cy = Math.floor(q.y)
+    for (const [dx, dy] of [
+      [0, 1],
+      [1, 0],
+      [-1, 0],
+      [0, -1],
+    ] as const) {
+      if (!r.bloqueada(cx + dx, cy + dy)) {
+        r.emitir({ tipo: 'MoverPersonaje', dx, dy, ms: 1 })
+        return
+      }
+    }
+  })
   const p = await personaje(page)
   if (!p) throw new Error('sin personaje')
   const HACIA = { norte: [0, -1], sur: [0, 1], este: [1, 0], oeste: [-1, 0] } as const
   const [dx, dy] = HACIA[p.orientacion as keyof typeof HACIA]
   const enfrente = { x: Math.floor(p.x) + dx, y: Math.floor(p.y) + dy }
+  await pintarCultivo(page, enfrente)
   await page.keyboard.press('e')
   await expect
     .poll(() => ultimoUso(page))
@@ -115,7 +151,7 @@ test('con la pausa el uso se rechaza con su motivo', async ({ page }) => {
 })
 
 test('un clic en una casilla pegada usa la herramienta; uno lejano camina', async ({ page }) => {
-  await abrirValle(page)
+  await abrirValle(page, PROPIAS)
   // La cámara se asienta sobre el personaje: se espera a que deje de moverse.
   let anterior = ''
   await expect
@@ -144,6 +180,7 @@ test('un clic en una casilla pegada usa la herramienta; uno lejano camina', asyn
   const cx = Math.floor(p.x)
   const cy = Math.floor(p.y)
   // Casilla pegada (diagonal, hacia arriba: abajo puede haber botones): usa la herramienta y el personaje no echa a andar.
+  await pintarCultivo(page, { x: cx - 1, y: cy - 1 })
   const cerca = await aPantalla(cx - 1, cy - 1)
   if (!cerca) throw new Error('sin cámara')
   await page.mouse.click(cerca.x, cerca.y)

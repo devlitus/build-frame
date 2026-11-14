@@ -101,6 +101,8 @@ async function irA(page: Page, meta: { x: number; y: number }): Promise<void> {
 test('arar, plantar, regar, dormir varios días y cosechar con el botón contextual', async ({
   page,
 }) => {
+  // Muchos pasos reales (andar, dormir 4 días): con la máquina cargada pasa de los 30 s por defecto.
+  test.setTimeout(120_000)
   const errores = await abrir(page)
   const { x, y } = await colocarseFrenteACasillaLibre(page)
   const dePie = { x, y: y - 1 }

@@ -15,6 +15,9 @@ async function abrirValle(page: Page, query = '?semilla=42&debug'): Promise<stri
   return errores
 }
 
+/** Todas las parcelas del valle propias (solo con `debug`). */
+const PROPIAS = `?semilla=42&debug&propias=${Array.from({ length: 36 }, (_, i) => i).join(',')}`
+
 const energia = (page: Page) => page.evaluate(() => window.__raices?.energia())
 const reloj = (page: Page) => page.evaluate(() => window.__raices?.reloj())
 const medidor = (page: Page) => page.getByRole('meter', { name: 'Energía' })
@@ -48,8 +51,27 @@ test('la barra de energía es un medidor accesible con su valor y máximo', asyn
 })
 
 test('usar la azada gasta 2 y el medidor lo refleja; la mano no gasta', async ({ page }) => {
-  await abrirValle(page)
-  await gastar(page, 'azada', 3)
+  await abrirValle(page, PROPIAS)
+  // M5-03: la azada solo ara en parcela propia con zona de cultivo, y una casilla ya arada se
+  // rechaza: se aran tres casillas libres distintas.
+  const casillas = await page.evaluate(() => {
+    const r = window.__raices
+    const p = r?.personaje()
+    if (!r || !p) return []
+    const cx = Math.floor(p.x)
+    const cy = Math.floor(p.y)
+    const libres: { x: number; y: number }[] = []
+    for (let dy = -1; dy <= 1 && libres.length < 3; dy++)
+      for (let dx = -1; dx <= 1 && libres.length < 3; dx++)
+        if (!r.bloqueada(cx + dx, cy + dy)) libres.push({ x: cx + dx, y: cy + dy })
+    for (const c of libres) {
+      r.emitir({ tipo: 'PintarZona', x0: c.x, y0: c.y, x1: c.x, y1: c.y, zona: 'cultivo' })
+    }
+    r.emitir({ tipo: 'ElegirHerramienta', herramienta: 'azada' })
+    for (const c of libres) r.emitir({ tipo: 'UsarHerramienta', x: c.x, y: c.y })
+    return libres
+  })
+  expect(casillas).toHaveLength(3)
   await expect.poll(() => energia(page)).toBe(94)
   await expect(medidor(page)).toHaveAttribute('aria-valuenow', '94')
   await expect(medidor(page)).toHaveAttribute('aria-valuetext', '94 de 100')
