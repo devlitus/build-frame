@@ -141,6 +141,7 @@ export class EscenaValle extends Phaser.Scene {
   private desuscribirPincel: (() => void) | undefined = undefined
   private edificios: VistaEdificios | undefined = undefined
   private capaObjetos: CapaObjetos | undefined = undefined
+  private obstaculosVistos: EstadoJuego['obstaculos'] | undefined = undefined
   private vistaSilueta: VistaSilueta | undefined = undefined
   private colocador: ColocadorEdificio | undefined = undefined
   private desuscribirConstruccion: (() => void) | undefined = undefined
@@ -250,8 +251,9 @@ export class EscenaValle extends Phaser.Scene {
     this.capaObjetos?.destruir()
     this.capaObjetos = new CapaObjetos(this, this.mundoPx)
     this.capaObjetos.reemplazar(
-      objetosDeDecoracion(this, inicial.obstaculos, ladoValle(inicial.valle)),
+      objetosDeDecoracion(this, inicial.obstaculos, ladoValle(inicial.valle), inicial.dia),
     )
+    this.obstaculosVistos = inicial.obstaculos
     this.actualizarCapaObjetos()
     // Al perder y recuperar el contexto WebGL las texturas quedan vacías (Phaser no las
     // restaura): se vuelven a hornear con los mismos datos.
@@ -299,6 +301,19 @@ export class EscenaValle extends Phaser.Scene {
     this.desuscribir = partida.suscribir((cambio) => {
       // Zonas y edificios se redibujan en cuanto cambian (no esperan al siguiente fotograma): así la
       // vista y los ganchos de prueba no se desfasan del estado de la partida.
+      // Talar, picar y replantar (y el crecimiento de los plantones al cambiar de día) cambian la
+      // lista de obstáculos por referencia: se rehace la capa de árboles y rocas.
+      if (cambio.estado.obstaculos !== this.obstaculosVistos) {
+        this.obstaculosVistos = cambio.estado.obstaculos
+        this.capaObjetos?.reemplazar(
+          objetosDeDecoracion(
+            this,
+            cambio.estado.obstaculos,
+            ladoValle(cambio.estado.valle),
+            cambio.estado.dia,
+          ),
+        )
+      }
       if (cambio.eventos.length > 0) {
         this.zonas?.actualizar(partida.estado)
         this.cultivos?.actualizar(partida.estado)

@@ -2,6 +2,7 @@ import type { EstadoJuego } from './estado'
 import { tiempoDetenido } from './estado'
 import { costeEnergia, energiaValida, gastarEnergia } from './energia'
 import { ladoValle } from './mapa'
+import { efectoHacha, efectoPico, efectoPlantarPlanton } from './recursos'
 import {
   cantidadDe,
   esHerramienta,
@@ -38,6 +39,8 @@ export type ErrorUsoHerramienta =
   | 'sin-energia'
   /** Motivos propios de la azada y las semillas (`labranza.ts`). */
   | ErrorLabranza
+  /** El botín desbordaría los materiales (enteros seguros). */
+  | 'limite-de-recursos'
 
 /** Hecho que anuncia que la herramienta se aceptó (el efecto concreto llega con sus propios eventos). */
 export interface EventoHerramientaUsada {
@@ -47,7 +50,40 @@ export interface EventoHerramientaUsada {
   readonly y: number
 }
 
-export type EventoHerramienta = EventoHerramientaUsada | EventoTierraArada | EventoPlantaSembrada
+/** Un golpe de hacha o pico que aún no acaba con el obstáculo; quedan `restantes` golpes. */
+export interface EventoObstaculoGolpeado {
+  readonly tipo: 'obstaculo-golpeado'
+  readonly obstaculo: 'arbol' | 'roca' | 'planton'
+  readonly x: number
+  readonly y: number
+  readonly restantes: number
+}
+
+/** El obstáculo de (x, y) se quitó y dio `madera`, `piedra` y `plantones` (los que cupieron en el inventario). */
+export interface EventoObstaculoQuitado {
+  readonly tipo: 'obstaculo-quitado'
+  readonly obstaculo: 'arbol' | 'roca' | 'planton'
+  readonly x: number
+  readonly y: number
+  readonly madera: number
+  readonly piedra: number
+  readonly plantones: number
+}
+
+/** Se plantó un plantón de árbol en (x, y). */
+export interface EventoPlantonPlantado {
+  readonly tipo: 'planton-plantado'
+  readonly x: number
+  readonly y: number
+}
+
+export type EventoHerramienta =
+  | EventoHerramientaUsada
+  | EventoTierraArada
+  | EventoPlantaSembrada
+  | EventoObstaculoGolpeado
+  | EventoObstaculoQuitado
+  | EventoPlantonPlantado
 
 export type ResultadoEfecto =
   | {
@@ -83,9 +119,10 @@ export const EFECTOS_HERRAMIENTA: Readonly<Record<Herramienta, EfectoHerramienta
   azada: { comprobar: motivoNoArar, aplicar: arar },
   regadera: sinEfecto,
   semillas: { comprobar: motivoNoSembrar, aplicar: plantar },
-  mano: sinEfecto,
-  hacha: sinEfecto,
-  pico: sinEfecto,
+  // M5-06: con plantones en el inventario la mano los planta; M5-05 le añade el cosechar.
+  mano: efectoPlantarPlanton,
+  hacha: efectoHacha,
+  pico: efectoPico,
 }
 
 /** ¿Está la casilla (x, y) en la del personaje o en una de sus 8 vecinas? (distancia de Chebyshev ≤ 1) */

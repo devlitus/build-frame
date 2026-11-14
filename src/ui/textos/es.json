@@ -235,6 +235,7 @@
   "errorHerramienta_fuera-de-estacion": "Esa semilla no se siembra en esta estación",
   "errorHerramienta_semilla-invalida": "Esa semilla no se puede sembrar",
   "errorHerramienta_estado-invalido": "No se pudo usar la herramienta",
+  "errorHerramienta_limite-de-recursos": "No puedes cargar más",
   "errorHerramienta_otro": "No se pudo usar la herramienta",
   "energiaAria": "Energía",
   "energiaValor": "{n} de {max}",

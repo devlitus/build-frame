@@ -1,6 +1,7 @@
 import { CONFIG_PERSONAJE } from './datos/personaje'
 import { CONFIG_TIEMPO } from './datos/tiempo'
 import { defEdificio, huellaDe, type Edificio, type Obra, type TipoEdificio } from './edificios'
+import { crecerPlantones } from './recursos'
 import { energiaAlEmpezarDia, type MotivoCambioDeDia } from './energia'
 import type { EstadoJuego } from './estado'
 import { casillaBloqueada, mapaTransitabilidad, type MapaTransitabilidad } from './mapa'
@@ -158,11 +159,13 @@ export function empezarDiaSiguiente(
   readonly estado: EstadoJuego
   readonly eventos: readonly ObraTerminada[]
 } {
-  const r = terminarObras({
-    ...estado,
-    dia: estado.dia + 1,
-    minutoDelDia: CONFIG_TIEMPO.horaInicio,
-    energia: energiaAlEmpezarDia(motivo),
-  })
+  const r = terminarObras(
+    crecerPlantones({
+      ...estado,
+      dia: estado.dia + 1,
+      minutoDelDia: CONFIG_TIEMPO.horaInicio,
+      energia: energiaAlEmpezarDia(motivo),
+    }),
+  )
   return { estado: { ...r.estado, personaje: personajeAlDespertar(r.estado) }, eventos: r.eventos }
 }

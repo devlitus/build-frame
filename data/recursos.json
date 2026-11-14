@@ -1,0 +1,14 @@
+{
+  "arbol": {
+    "golpes": { "prado": 3, "bosque": 3, "rocoso": 3 },
+    "madera": { "prado": 2, "bosque": 4, "rocoso": 2 },
+    "plantones": 1
+  },
+  "roca": {
+    "golpes": { "prado": 3, "bosque": 3, "rocoso": 5 },
+    "piedra": { "prado": 1, "bosque": 1, "rocoso": 2 }
+  },
+  "planton": {
+    "diasCrecimiento": 4
+  }
+}

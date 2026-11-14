@@ -60,6 +60,7 @@ export const FOTOGRAMA_MARCHITO = 4
 export const CLAVE_COLOCACION = 'colocacion'
 export const CLAVE_ARBOL = 'arbol'
 export const CLAVE_ROCA = 'roca'
+export const CLAVE_PLANTON = 'planton'
 
 /** Fotogramas de la tira de una zona: 0 a 3 relleno y 4 a 7 borde arriba, derecha, abajo, izquierda. */
 export const FOTOGRAMAS_ZONA = {
@@ -127,6 +128,8 @@ export const MARCO_EDIFICIO: Readonly<
 /** Marcos nominales (px @1x) de árbol y roca, con el pivote en la base, centrado. */
 export const MARCO_ARBOL = { ancho: 64, alto: 96 } as const
 export const MARCO_ROCA = { ancho: 32, alto: 32 } as const
+/** Plantón de árbol: tira de 2 marcos (0 recién plantado, 1 arbolito). */
+export const MARCO_PLANTON = { ancho: 32, alto: 48 } as const
 /** Marco del protagonista y pivote en los pies (biblia §1). */
 export const MARCO_PERSONAJE = { ancho: 48, alto: 64, pivoteX: 24, pivoteY: 58 } as const
 
@@ -154,6 +157,10 @@ export function cargarArte(escena: Phaser.Scene): void {
   }
   l.image(CLAVE_ARBOL, ruta('objetos', 'arbol', s))
   l.image(CLAVE_ROCA, ruta('objetos', 'roca', s))
+  l.spritesheet(CLAVE_PLANTON, ruta('objetos', 'planton', s), {
+    frameWidth: MARCO_PLANTON.ancho * e,
+    frameHeight: MARCO_PLANTON.alto * e,
+  })
   for (const tipo of Object.keys(ARCHIVO_EDIFICIO) as TipoEdificio[]) {
     for (const estado of ESTADOS_EDIFICIO[tipo]) {
       l.image(
