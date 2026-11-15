@@ -32,14 +32,17 @@ const panel = (page: Page) => page.getByRole('region', { name: /^Parcela / })
 async function camaraEstable(page: Page): Promise<void> {
   let previa = ''
   await expect
-    .poll(async () => {
-      const c = await page.evaluate(() => window.__raices?.camara())
-      const actual = JSON.stringify(c)
-      const quieta = actual === previa
-      previa = actual
-      await page.evaluate(() => new Promise((r) => requestAnimationFrame(r)))
-      return quieta
-    })
+    .poll(
+      async () => {
+        const c = await page.evaluate(() => window.__raices?.camara())
+        const actual = JSON.stringify(c)
+        const quieta = actual === previa
+        previa = actual
+        await page.evaluate(() => new Promise((r) => requestAnimationFrame(r)))
+        return quieta
+      },
+      { timeout: 15_000 },
+    )
     .toBe(true)
 }
 

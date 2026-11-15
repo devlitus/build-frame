@@ -57,20 +57,27 @@ test('al pulsar una tecla de movimiento el personaje se mueve y la cámara lo si
     const c2 = await camara(page)
     const mundo = (await page.evaluate(() => window.__raices?.mundoPx())) ?? 0
     if (!c2) throw new Error('sin cámara')
-    // En Vida la cámara puede pasar del borde del valle lo que tapa la barra de herramientas (más
-    // una holgura de 24 px): abajo si va en horizontal, a la izquierda si es una columna.
-    const barra = await page.locator('.barra-herramientas-caja').boundingBox()
+    // En Vida la cámara puede pasar del borde del valle lo que tapa la barra inferior (más una
+    // holgura de 24 px), abajo.
+    const barra = await page
+      .getByRole('group', { name: 'Barra inferior', exact: true })
+      .boundingBox()
     const vp = page.viewportSize()
-    const columna = !!barra && barra.width < barra.height
-    const extraIzq = barra && columna ? barra.x + barra.width + 24 : 0
-    const extraAbajo = barra && vp && !columna ? vp.height - barra.y + 24 : 0
+    // HUD-01: más el radio libre alrededor del personaje (3 casillas) en el borde del valle.
+    const radio = 3 * 32 * c2.zoom
+    const hudArriba = await page.locator('.hud-arriba').boundingBox()
+    const extraAbajo = barra && vp ? vp.height - barra.y + 24 + radio : 0
+    const extraArriba = Math.max(
+      16 * c2.zoom,
+      hudArriba ? hudArriba.y + hudArriba.height + 8 + radio : 0,
+    )
     const ajustar = (v: number, mitad: number, lo = 0, hi = 0) =>
       Math.min(Math.max(v, mitad - lo / c2.zoom), mundo - mitad + hi / c2.zoom)
     const pf = await personaje(page)
     if (!pf) throw new Error('sin personaje')
     const esperado = {
-      x: ajustar(pf.x * 32, c2.ancho / c2.zoom / 2, extraIzq),
-      y: ajustar(pf.y * 32, c2.alto / c2.zoom / 2, 16 * c2.zoom, extraAbajo),
+      x: ajustar(pf.x * 32, c2.ancho / c2.zoom / 2),
+      y: ajustar(pf.y * 32, c2.alto / c2.zoom / 2, extraArriba, extraAbajo),
     }
     expect(
       Math.hypot(c2.scrollX + c2.ancho / 2 - esperado.x, c2.scrollY + c2.alto / 2 - esperado.y),

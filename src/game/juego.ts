@@ -45,9 +45,10 @@ function datosPartida(): DatosEscenaValle {
   }
 }
 
-/** `?debug` activo en la URL (la interfaz lo recibe por prop). */
-export function depuracionActiva(): boolean {
-  return leerParametros(window.location.search).debug
+/** Contador de fps (y HUD bajado 32 px): solo con `?debug` y sin `?contador=0`. */
+export function contadorActivo(): boolean {
+  const p = leerParametros(window.location.search)
+  return p.debug && p.contador !== false
 }
 
 /** La partida en curso (la interfaz se suscribe a ella); undefined hasta que se juega. */
@@ -150,8 +151,7 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
     semillaActual = datos.semilla
     g.scene.add('valle', EscenaValle, true, datos)
   } else g.scene.add('valle', EscenaValle, false)
-  if (leerParametros(window.location.search).debug)
-    g.scene.add('depuracion', EscenaDepuracion, true)
+  if (contadorActivo()) g.scene.add('depuracion', EscenaDepuracion, true)
   // Ganchos para los tests e2e: lectura y, solo con `?debug`, `reiniciarValle` y `emitir`.
   window.__raices = {
     escenaActiva: () => g.scene.getScenes(true)[0]?.scene.key,
@@ -173,6 +173,18 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
       partida?.emitir(comando as Comando)
     },
     fps: () => g.loop.actualFps,
+    frame: () => g.loop.frame,
+    ready: () => {
+      const e = g.scene.getScene('valle')
+      return (
+        e instanceof EscenaValle &&
+        e.scene.isActive() &&
+        !!e.estado &&
+        !!partida &&
+        zoomLogico(e) > 0 &&
+        !e.guiando()
+      )
+    },
     contadorFps: () => {
       const d = g.scene.getScene('depuracion')
       return d instanceof EscenaDepuracion ? d.contenido : undefined
@@ -308,6 +320,15 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
       if (!leerParametros(window.location.search).debug) return undefined
       const e = g.scene.getScene('valle')
       return e instanceof EscenaValle ? e.puntoClicCasilla(cx, cy) : undefined
+    },
+    rectCasilla: (cx, cy) => {
+      // Solo con `?debug`: rect (px CSS de la ventana) de la casilla según la cámara, sin contar la interfaz.
+      if (!leerParametros(window.location.search).debug) return undefined
+      const e = g.scene.getScene('valle')
+      const r = e instanceof EscenaValle ? e.rectCasilla(cx, cy) : undefined
+      if (!r) return undefined
+      const lienzo = g.canvas.getBoundingClientRect()
+      return { x: lienzo.left + r.x, y: lienzo.top + r.y, ancho: r.ancho, alto: r.alto }
     },
     alfaZonas: () => {
       // Solo con `?debug`: opacidad de la capa de zonas.

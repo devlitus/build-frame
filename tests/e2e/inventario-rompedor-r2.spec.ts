@@ -9,6 +9,7 @@
 import { devices, expect, test, type Page } from '@playwright/test'
 
 const HOLGURA = 24 // CONFIG_CAMARA.holguraBordePx
+const RADIO_LIBRE_CASILLAS = 3 // CONFIG_CAMARA.radioLibreCasillas
 
 async function abrir(page: Page, query = '?semilla=42&debug'): Promise<string[]> {
   const errores: string[] = []
@@ -127,18 +128,25 @@ async function franjas(p: Page) {
   })
 }
 
-/** Lo máximo que la cámara de Vida debería enseñar fuera del valle: lo que tapa la barra, más la holgura. */
+/**
+ * Lo máximo que la cámara de Vida debería enseñar fuera del valle: lo que tapa la interfaz, más la
+ * holgura, más el radio libre alrededor del personaje (HUD-01: el cuadrado de 7x7 casillas del
+ * personaje queda sin interfaz encima también en las esquinas; `CONFIG_CAMARA.radioLibreCasillas`).
+ */
 async function franjasPermitidas(p: Page) {
-  const barra = (await p.locator('.barra-herramientas-caja').boundingBox())!
+  const barra = (await p.getByRole('group', { name: 'Barra inferior', exact: true }).boundingBox())!
+  const hud = (await p.locator('.hud-arriba').boundingBox())!
   const vp = p.viewportSize()!
+  const zoom = (await p.evaluate(() => window.__raices?.camara()?.zoom))!
+  const radio = RADIO_LIBRE_CASILLAS * 32 * zoom
   const columna = barra.width < barra.height
   return {
     izq: columna ? barra.x + barra.width + HOLGURA : 0,
-    // Orquestador (M5-01, ronda 3): con los pies en la fila 0 la cabeza sobresale del valle; el
-    // test de «cabeza visible» manda, así que arriba se tolera lo que sobresale el sprite (≤ 16 px).
-    arriba: 16,
+    // Arriba: el borde inferior del HUD superior (+ 8 px) y el radio; como mínimo lo que sobresale
+    // el sprite (orquestador, M5-01 ronda 3: con los pies en la fila 0 la cabeza sobresale ≤ 16 px).
+    arriba: Math.max(16, hud.y + hud.height + 8 + radio),
     der: 0,
-    abajo: columna ? 0 : vp.height - barra.y + HOLGURA,
+    abajo: columna ? 0 : vp.height - barra.y + HOLGURA + radio,
   }
 }
 
