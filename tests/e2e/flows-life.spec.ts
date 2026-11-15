@@ -57,7 +57,7 @@ test(
   async ({ page }) => {
     // Four sleeps and walks: with every core busy (a bare `playwright test`) 30 s is not enough.
     test.setTimeout(60_000)
-    await openValley(page, { owned: ALL_PARCELS })
+    await openValley(page, { owned: ALL_PARCELS, noticeMs: 3000 })
     const stand = await standingTileFacingSouth(page)
     const front = { x: stand.x, y: stand.y + 1 }
     await goTo(page, stand, { faceSouth: true })
