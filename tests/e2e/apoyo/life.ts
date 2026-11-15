@@ -82,7 +82,7 @@ export async function straightFreeTile(
  * the character can stand there facing south onto a free tile. Returns the standing tile.
  */
 export async function standingTileFacingSouth(page: Page): Promise<Tile> {
-  const meta = await page.evaluate(() => {
+  const tile = await page.evaluate(() => {
     const r = window.__raices
     const p = r?.personaje()
     if (!r || !p) return undefined
@@ -105,8 +105,8 @@ export async function standingTileFacingSouth(page: Page): Promise<Tile> {
     }
     return undefined
   })
-  if (!meta) throw new Error('no free standing tile near the character')
-  return meta
+  if (!tile) throw new Error('no free standing tile near the character')
+  return tile
 }
 
 /** Turns the character (in place, 1 ms) towards a unit direction. */

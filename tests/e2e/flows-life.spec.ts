@@ -89,8 +89,10 @@ test(
     await poll(async () => (await clock(page))?.dia, SLOW).toBe(2)
     for (let day = 1; day < RADISH_DAYS; day++) {
       await goTo(page, stand, { faceSouth: true })
+      const before = await energy(page)
       await emit(page, { tipo: 'UsarHerramienta', x: front.x, y: front.y })
-      expect((await lastUse(page))?.error).toBeUndefined()
+      // `emitir` does not touch `ultimoUso`: the watering is seen in the energy it costs.
+      expect(await energy(page)).toBe((before ?? 0) - ENERGY.costes.regadera)
       await emit(page, { tipo: 'Dormir' })
       await poll(async () => (await clock(page))?.dia, SLOW).toBe(day + 2)
     }
@@ -123,9 +125,11 @@ const RESOURCES = JSON.parse(readFileSync('data/recursos.json', 'utf8')) as {
   arbol: { golpes: Record<string, number>; madera: Record<string, number> }
   roca: { golpes: Record<string, number>; piedra: Record<string, number> }
 }
-const FULL_ENERGY = (JSON.parse(readFileSync('data/energia.json', 'utf8')) as { maximo: number })
-  .maximo
-const ENERGY_COST = { hacha: 4, pico: 4 } as const
+/** Maximum energy and cost per use of each tool (data/energia.json). */
+const ENERGY = JSON.parse(readFileSync('data/energia.json', 'utf8')) as {
+  maximo: number
+  costes: { regadera: number; hacha: number; pico: number }
+}
 
 /**
  * Closest tree or rock to the character with a free orthogonal neighbour to stand on, read from the
@@ -197,7 +201,7 @@ for (const kind of [
     ).toBe((before?.[kind.material] ?? 0) + loot)
     expect(await page.evaluate((c) => window.__raices?.bloqueada(c.x, c.y), o)).toBe(false)
     expect(await energy(page)).toBe(
-      FULL_ENERGY - hits * ENERGY_COST[kind.tool === 'Hacha' ? 'hacha' : 'pico'],
+      ENERGY.maximo - hits * ENERGY.costes[kind.tool === 'Hacha' ? 'hacha' : 'pico'],
     )
   })
 }
@@ -231,19 +235,22 @@ test('F7 energy-sleep: the meter follows the energy, exhaustion warns, sleeping 
 }) => {
   await openValley(page, { noticeMs: 3000 })
   await expect(meter(page)).toBeVisible()
-  await expect(meter(page)).toHaveAttribute('aria-valuenow', '100')
-  await expect(meter(page)).toHaveAttribute('aria-valuemax', '100')
-  await expect(meter(page)).toHaveAttribute('aria-valuetext', '100 de 100')
+  const max = ENERGY.maximo
+  const axe = ENERGY.costes.hacha
+  await expect(meter(page)).toHaveAttribute('aria-valuenow', String(max))
+  await expect(meter(page)).toHaveAttribute('aria-valuemax', String(max))
+  await expect(meter(page)).toHaveAttribute('aria-valuetext', `${max} de ${max}`)
 
-  // The axe costs 4 per hit, the hand nothing.
+  // The axe costs energy per hit, the hand nothing.
+  const left = max - 10 * axe
   await spend(page, 'hacha', 10)
-  await poll(() => energy(page)).toBe(60)
-  await expect(meter(page)).toHaveAttribute('aria-valuetext', '60 de 100')
+  await poll(() => energy(page)).toBe(left)
+  await expect(meter(page)).toHaveAttribute('aria-valuetext', `${left} de ${max}`)
   await spend(page, 'mano', 5)
-  expect(await energy(page)).toBe(60)
+  expect(await energy(page)).toBe(left)
 
   // Exhausted: the action button warns and no energy is spent.
-  await spend(page, 'hacha', 15)
+  await spend(page, 'hacha', Math.ceil(left / axe))
   await poll(() => energy(page)).toBe(0)
   await actionButton(page).click()
   await expect(notice(page)).toContainText('Estás agotado')
@@ -254,12 +261,12 @@ test('F7 energy-sleep: the meter follows the energy, exhaustion warns, sleeping 
   const before = await clock(page)
   await expect(sleepButton(page)).toBeVisible()
   await sleepButton(page).click()
-  await poll(() => energy(page)).toBe(100)
+  await poll(() => energy(page)).toBe(max)
   const after = await clock(page)
   expect(after?.dia).toBe((before?.dia ?? 0) + 1)
   expect(after?.minutoDelDia).toBeLessThan(380)
   await expect(notice(page)).toContainText('Has dormido bien')
-  await expect(meter(page)).toHaveAttribute('aria-valuenow', '100')
+  await expect(meter(page)).toHaveAttribute('aria-valuenow', String(max))
 
   if (isMobile) return
   // Keyboard: Z only sleeps where the button shows; far from the bed it explains why.
@@ -357,6 +364,13 @@ test(
       await expect(panel).toHaveCount(0)
       await page.keyboard.press('4')
       await poll(async () => (await toolState(page))?.herramienta).toBe('mano')
+      // E and Space use the tool on the tile in front, once per press, with the focus on the game.
+      await page.locator('#juego').focus()
+      for (const key of ['e', 'Space']) {
+        const before = await useCount(page)
+        await page.keyboard.press(key)
+        await poll(() => useCount(page)).toBe(before + 1)
+      }
     }
 
     // The Plano has no tool bar and closes the inventory; Life brings them back.

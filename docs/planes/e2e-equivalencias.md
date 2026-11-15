@@ -132,7 +132,6 @@ Fuera de la tanda; sin cambios.
 | al pulsar una tecla de movimiento el personaje se mueve y la cámara lo sigue | movimiento y seguimiento | `unit/personaje › MoverPersonaje …`; **unit/keyboard-input › WASD and arrows give the 8 directions**; **prop/camara-rompedor › following (Life) reaches the target…**; e2e S2 |
 | las flechas también mueven y al soltar se detiene | intención | **unit/keyboard-input › WASD and arrows…**; e2e S2 |
 | al perder el foco la ventana el personaje deja de andar | `blur` suelta | **unit/keyboard-input › losing the window focus (blur) or hiding the tab releases every key**; e2e B6 |
-| el reloj avanza con el tiempo real | reloj | `unit/partida › a x1 un día dura unos 15 minutos reales`; e2e P4 |
 
 ### personaje-render-rompedor (6) — Borrar
 | Test | Lógica | Destino |
@@ -460,7 +459,7 @@ Fuera de la tanda; sin cambios.
 | Z y E a la vez: sin energía, E avisa y Z sigue durmiendo | regla | **prop/m5-simulation › energy: a long day of chopping runs out…** (dormir tras agotarse) |
 | dormir en pausa conserva la pausa; a x3 conserva la velocidad | regla | **prop/m5-simulation › sleeping while paused keeps the pause, and at x3 keeps the speed…** |
 | al dormir con un destino pendiente el personaje no sigue andando | escena | e2e F12 |
-| aviso agotado y aviso de herramienta a la vez: queda uno | aviso | `unit/estabilizacion-m4 › unirFrases`; DOM: e2e F7 |
+| aviso agotado y aviso de herramienta a la vez: queda uno | aviso | `unit/estabilizacion-m4 › unirFrases` |
 | el medidor: valor y texto coherentes en cada gasto | medidor | **unit/energy-meter › with %i energy the value and the «low» mark follow the state** |
 | el botón Dormir al aparecer no mueve los botones | interfaz | e2e R* |
 | HUD en 320×568 con energía, Dormir y aviso ×N | interfaz | e2e R* (controles alcanzables a 320×568) |
@@ -486,7 +485,7 @@ Fuera de la tanda; sin cambios.
 |---|---|---|
 | tras cerrar el inventario con M, las teclas siguen vivas | foco | e2e G2 / B6 |
 | con el inventario abierto por teclado, un clic devuelve las teclas | foco | e2e B6 |
-| E y Espacio mirando fuera del valle: «fuera-del-valle» | regla | `core/herramientas › fuera del valle`; aviso: e2e F8 |
+| E y Espacio mirando fuera del valle: «fuera-del-valle» | regla | `core/herramientas › fuera del valle`; aviso: G2 (pendiente 17c) |
 | las teclas con modificadores no eligen ni usan | teclado | e2e G2 |
 | con el foco en un botón de herramienta, Espacio pulsa el botón | foco | e2e G2 |
 | clic o toque: las 9 casillas usan la herramienta y la de distancia 2 camina ×DPR | alcance + picking | `core/herramientas › se acepta sobre la casilla del personaje y sus 8 vecinas…`; **prop/tactil-posiciones-rompedor › property: any view, any CSS size, any DPR…**; e2e T7 |
@@ -529,7 +528,7 @@ Fuera de la tanda; sin cambios.
 | DPR alto: el lienzo se dibuja a la resolución del dispositivo | resolución | **unit/resolucion › DPR %f: canvas = round(CSS × min(DPR, 2))…**; e2e T7 |
 | rendimiento: fps medias arrastrando (registro) | fps | e2e P1 |
 
-### m2-global-rompedor (11) — Borrar
+### m2-global-rompedor (12) — Borrar
 | Test | Lógica | Destino |
 |---|---|---|
 | un día acelerado con teclado, modos, velocidad y pausa: coherencia | reloj, luz | `prop/m2-global-rompedor › el estado siempre es válido…`; `unit/hud-rompedor › luzDelMinuto …`; e2e S4 / F11 |
@@ -544,7 +543,6 @@ Fuera de la tanda; sin cambios.
 | Modo Plano con una ruta activa: se cancela | escena | e2e F12 |
 | recorrido con Tab: nombre accesible y foco visible | accesibilidad | e2e A1 |
 | botones de velocidad y pausa con aria-pressed; el reloj es un timer | accesibilidad | e2e A1 |
-| fps de noche andando con el HUD | fps | e2e P3 |
 
 ### m3-global-rompedor (9) — Borrar
 | Test | Lógica | Destino |
@@ -621,7 +619,7 @@ Fuera de la tanda; sin cambios.
 | pintar una zona y construir en ella: obra visible y edificio al pasar el día | construcción | e2e F3 (`@humo`); **prop/m5-simulation** (construir en la apertura) |
 | demoler un edificio terminado devuelve la mitad del coste | reembolso | e2e F4 (`@humo`); `core/mover-demoler › un edificio terminado devuelve la mitad…` |
 | elegir una herramienta y abrir y cerrar el inventario | — | e2e F8 (`@humo`) |
-| dormir junto a la aparición pasa de día con la energía al máximo | energía | e2e F7 (`@humo`); `core/energia › Dormir · sin casa, junto a la aparición…` |
+| dormir junto a la aparición pasa de día con la energía al máximo | energía | e2e F7; dormir con el botón dentro de F5 (`@humo`); `core/energia › Dormir · sin casa, junto a la aparición…` |
 
 ## E2E-17a: specs borrados
 
@@ -629,7 +627,7 @@ Historia **E2E-17a**: se reescriben el smoke (`tests/e2e/smoke.spec.ts`, S1–S4
 
 Tests nuevos: `smoke.spec.ts` › `S1 boot…`, `S2 move…`, `S3 mode-switch…`, `S4 accelerated-day…`; `flows-life.spec.ts` › `F5 crop-cycle…`, `F6 chop-mine…` (dos tests: hacha y pico), `F7 energy-sleep…`, `F8 inventory…`, `F11 time-controls…`, `F12 walk-routes…`. El título original de cada test va en el comentario `// Was:` sobre el nuevo.
 
-Dos notas: (1) el test de `humo` «dormir junto a la aparición…» pasa a F7, que **no** lleva `@humo` (el plan solo etiqueta F1–F5 y F8); la CI sigue cubriendo dormir dentro de F5 (`@humo`), que duerme 4 veces con el botón. (2) Hasta E2E-17b, `@humo` no contiene F1–F4 ni F13 (los cinco tests de humo del Plano, que se borran aquí). (3) F6 usa el gancho nuevo `obstaculos()` (solo con `?debug`) para localizar el árbol y la roca más cercanos.
+Tres notas: (1) el test de `humo` «dormir junto a la aparición…» pasa a F7, que **no** lleva `@humo` (el plan solo etiqueta F1–F5 y F8); la CI sigue cubriendo dormir dentro de F5 (`@humo`), que duerme 4 veces con el botón. (2) Hasta E2E-17b, `@humo` no contiene F1–F4 ni F13 (los cinco tests de humo del Plano, que se borran aquí). (3) F6 usa el gancho nuevo `obstaculos()` (solo con `?debug`) para localizar el árbol y la roca más cercanos.
 
 ### portada (3 tests)
 
@@ -654,7 +652,6 @@ Dos notas: (1) el test de `humo` «dormir junto a la aparición…» pasa a F7, 
 | al pulsar una tecla de movimiento el personaje se mueve y la cámara lo sigue | `unit/personaje › MoverPersonaje …`; **unit/keyboard-input › WASD and arrows give the 8 directions**; **prop/camara-rompedor › following (Life) reaches the target…**; e2e S2 | 17a: S2; vitest |
 | las flechas también mueven y al soltar se detiene | **unit/keyboard-input › WASD and arrows…**; e2e S2 | 17a: S2; vitest |
 | al perder el foco la ventana el personaje deja de andar | **unit/keyboard-input › losing the window focus (blur) or hiding the tab releases every key**; e2e B6 | pendiente 17c: B6; vitest |
-| el reloj avanza con el tiempo real | `unit/partida › a x1 un día dura unos 15 minutos reales`; e2e P4 | ya existe: P4 (E2E-19 / E2E-14); vitest |
 
 ### tiempo-hud (14 tests)
 
@@ -704,7 +701,7 @@ Dos notas: (1) el test de `humo` «dormir junto a la aparición…» pasa a F7, 
 | Z y E a la vez: sin energía, E avisa y Z sigue durmiendo | **prop/m5-simulation › energy: a long day of chopping runs out…** (dormir tras agotarse) | vitest |
 | dormir en pausa conserva la pausa; a x3 conserva la velocidad | **prop/m5-simulation › sleeping while paused keeps the pause, and at x3 keeps the speed…** | vitest |
 | al dormir con un destino pendiente el personaje no sigue andando | e2e F12 | 17a: F12 |
-| aviso agotado y aviso de herramienta a la vez: queda uno | `unit/estabilizacion-m4 › unirFrases`; DOM: e2e F7 | 17a: F7; vitest |
+| aviso agotado y aviso de herramienta a la vez: queda uno | `unit/estabilizacion-m4 › unirFrases` | vitest |
 | el medidor: valor y texto coherentes en cada gasto | **unit/energy-meter › with %i energy the value and the «low» mark follow the state** | vitest |
 | el botón Dormir al aparecer no mueve los botones | e2e R* | ya existe: R* (E2E-19 / E2E-14) |
 | HUD en 320×568 con energía, Dormir y aviso ×N | e2e R* (controles alcanzables a 320×568) | ya existe: R* (E2E-19 / E2E-14) |
@@ -732,7 +729,7 @@ Dos notas: (1) el test de `humo` «dormir junto a la aparición…» pasa a F7, 
 |---|---|---|
 | tras cerrar el inventario con M, las teclas siguen vivas | e2e G2 / B6 | pendiente 17c: B6, G2 |
 | con el inventario abierto por teclado, un clic devuelve las teclas | e2e B6 | pendiente 17c: B6 |
-| E y Espacio mirando fuera del valle: «fuera-del-valle» | `core/herramientas › fuera del valle`; aviso: e2e F8 | 17a: F8; vitest |
+| E y Espacio mirando fuera del valle: «fuera-del-valle» | `core/herramientas › fuera del valle`; aviso: G2 (pendiente 17c) | pendiente 17c: G2; vitest |
 | las teclas con modificadores no eligen ni usan | e2e G2 | pendiente 17c: G2 |
 | con el foco en un botón de herramienta, Espacio pulsa el botón | e2e G2 | pendiente 17c: G2 |
 | clic o toque: las 9 casillas usan la herramienta y la de distancia 2 camina ×DPR | `core/herramientas › se acepta sobre la casilla del personaje y sus 8 vecinas…`; **prop/tactil-posiciones-rompedor › property: any view, any CSS size, any DPR…**; e2e T7 | pendiente 17c: T7; vitest |
@@ -762,13 +759,13 @@ Dos notas: (1) el test de `humo` «dormir junto a la aparición…» pasa a F7, 
 | 320×568: la pista desaparece al final y vuelve al subir | capturas | descartada |
 | iconos de semilla @1x/@2x según el DPR | **unit/resolucion › DPR %f: every art file requested by cargarArte…** (lienzo); iconos del DOM: `unit/arte-m5-00`; descartada como e2e | vitest |
 
-### cosechar (1 tests)
+### cosechar (1 test)
 
 | Test borrado | Destino | Estado |
 |---|---|---|
 | arar, plantar, regar, dormir varios días y cosechar con el botón contextual | e2e F5 (se queda); lógica en `core/cosecha › aceptación del hito…`, **prop/m5-simulation › invariants after every command…** (cosechas = eventos), **unit/action-buttons › says «Cosechar» only with the hand facing a ripe, living plant** | 17a: F5; vitest |
 
-### m2-global-rompedor (11 tests)
+### m2-global-rompedor (12 tests)
 
 | Test borrado | Destino | Estado |
 |---|---|---|
@@ -784,7 +781,6 @@ Dos notas: (1) el test de `humo` «dormir junto a la aparición…» pasa a F7, 
 | Modo Plano con una ruta activa: se cancela | e2e F12 | 17a: F12 |
 | recorrido con Tab: nombre accesible y foco visible | e2e A1 | pendiente 17c: A1 |
 | botones de velocidad y pausa con aria-pressed; el reloj es un timer | e2e A1 | pendiente 17c: A1 |
-| fps de noche andando con el HUD | e2e P3 | ya existe: P3 (E2E-19 / E2E-14) |
 
 ### humo (12 tests)
 
@@ -801,7 +797,7 @@ Dos notas: (1) el test de `humo` «dormir junto a la aparición…» pasa a F7, 
 | pintar una zona y construir en ella: obra visible y edificio al pasar el día | e2e F3 (`@humo`); **prop/m5-simulation** (construir en la apertura) | pendiente 17b: F3; vitest |
 | demoler un edificio terminado devuelve la mitad del coste | e2e F4 (`@humo`); `core/mover-demoler › un edificio terminado devuelve la mitad…` | pendiente 17b: F4; vitest |
 | elegir una herramienta y abrir y cerrar el inventario | e2e F8 (`@humo`) | 17a: F8 |
-| dormir junto a la aparición pasa de día con la energía al máximo | e2e F7 (`@humo`); `core/energia › Dormir · sin casa, junto a la aparición…` | 17a: F7; vitest |
+| dormir junto a la aparición pasa de día con la energía al máximo | e2e F7; dormir con el botón dentro de F5 (`@humo`); `core/energia › Dormir · sin casa, junto a la aparición…` | 17a: F7; vitest |
 
 ## Huecos encontrados
 
