@@ -112,6 +112,8 @@ interface Window {
     ultimoUso():
       | { n: number; herramienta: string; x: number; y: number; error: string | undefined }
       | undefined
+    /** Árboles, rocas y plantones del estado (casilla global); solo con `?debug`. */
+    obstaculos(): { tipo: 'arbol' | 'roca' | 'planton'; x: number; y: number }[]
     /** Madera y piedra de la partida; undefined si no hay partida. */
     materiales(): { madera: number; piedra: number } | undefined
     /** Estado del modo Construir: catálogo, edificio elegido, cursor y silueta con su veredicto. */

@@ -355,6 +355,11 @@ export function crearJuego(padre: HTMLElement, textos?: TextosLienzo): Phaser.Ga
       )
     },
     materiales: () => partida && { ...partida.estado.materiales },
+    obstaculos: () => {
+      // Solo con `?debug`: árboles, rocas y plantones del estado.
+      if (!leerParametros(window.location.search).debug || !partida) return []
+      return partida.estado.obstaculos.map((o) => ({ tipo: o.tipo, x: o.x, y: o.y }))
+    },
     construccion: () => {
       const c = partida?.construccion
       if (!partida || !c) return undefined
