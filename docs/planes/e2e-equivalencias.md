@@ -755,7 +755,7 @@ Tres notas: (1) el test de `humo` «dormir junto a la aparición…» pasa a F7,
 | Tab desde el lienzo recorre el HUD | e2e A1 | pendiente 17c: A1 |
 | `<w×h>`: el texto de «Cerrar» cabe ×N | e2e R* (sin texto recortado) | ya existe: R* (E2E-19 / E2E-14) |
 | `<w×h>`: la pista «▼» no tapa la cantidad ×N | e2e R* / capturas | ya existe: R* (E2E-19 / E2E-14) |
-| `<w×h>`: tocar una ranura bajo la pista la elige ×N | e2e F8 (m) | 17a: F8 |
+| `<w×h>`: tocar una ranura bajo la pista la elige ×N | e2e F8 (m) | pendiente 17c (T*): F8 no toca una ranura bajo la pista |
 | 320×568: la pista desaparece al final y vuelve al subir | capturas | descartada |
 | iconos de semilla @1x/@2x según el DPR | **unit/resolucion › DPR %f: every art file requested by cargarArte…** (lienzo); iconos del DOM: `unit/arte-m5-00`; descartada como e2e | vitest |
 
