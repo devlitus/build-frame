@@ -102,6 +102,8 @@ Transversal              Arte, audio, rendimiento, accesibilidad
 - Resumen al dormir (ingresos del día).
 - **Arte en paralelo, integrado en el hito:** la tienda y la entrada del pueblo, e iconos de productos y materiales.
 
+**Historias aprobadas** (2026-11-21; *milestone* M6): M6-01 Calidad de la cosecha (#86) · M6-02 Precio de venta con calidad y saturación (#87) · M6-03 Tienda del pueblo: comandos (#88) · M6-04 Tienda del pueblo: puesto y panel (#89) · M6-05 Caja de envío (#90) · M6-06 Resumen del día al dormir (#91) · M6-07 Balance y simulación (#92) · M6-08 Integración del arte del mercado (#94). Decisiones de la PO: la caja de envío paga el 90 % del precio de la tienda (`factorCaja`); la aceptación se mide como segunda parcela de precio medio entre los días 4 y 6 de juego (30–45 min a x2); la tienda abre toda la jornada; se mantiene el lote de semillas de regalo (la simulación ajusta su tamaño).
+
 **Aceptación:** una partida desde cero permite ganar dinero y comprar una segunda parcela en ~30–45 min de juego.
 
 ### M7 — Guardado y pulido → **release v0.1 "Primera cosecha"**
