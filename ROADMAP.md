@@ -115,6 +115,8 @@ Transversal              Arte, audio, rendimiento, accesibilidad
 - Despliegue en **Vercel** (URL estable desde `main` y vistas previas por PR).
 - Formulario o canal para recoger *feedback*.
 
+**Historias aprobadas** (2026-11-21; *milestone* M7): M7-01 Compactar los obstáculos del estado (#93, incluye #19) · M7-02 Formato de partida: serializar, validar y migrar (#95) · M7-03 Guardado automático en IndexedDB, copias rotativas y corrupción (#96) · M7-04 Menú principal (#97) · M7-05 Exportar e importar (#98) · M7-06 Audio básico (#99) · M7-07 Canal de *feedback* (#100) · M7-08 Despliegue en Vercel (#101) · M7-09 Pase final de arte e interfaz (#102, hilo `arte/m7-pulido`) · M7-10 Diario como tutorial (#103) · M7-11 Incorporar M6 al guardado (#104). El guardado valida el estado de forma genérica (forma de `crearEstadoInicial` + validadores del núcleo) para que el estado de M6 entre sin tocar `save/`; la primera versión publicada (v0.1) es la mínima soportada.
+
 **Aceptación:** 3+ amigos juegan una sesión completa en PC o móvil sin ayuda y se recoge su *feedback*.
 
 ---
